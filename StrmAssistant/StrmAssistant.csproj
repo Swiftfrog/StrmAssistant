@@ -1,8 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>net6.0</TargetFrameworks>
-    <AssemblyVersion>2.0.0.26</AssemblyVersion>
-    <FileVersion>2.0.0.26</FileVersion>
+    <AssemblyVersion>2.0.0.27</AssemblyVersion>
+    <FileVersion>2.0.0.27</FileVersion>
     <CopyLocalLockFileAssemblies>True</CopyLocalLockFileAssemblies>
     <IncludeSourceRevisionInInformationalVersion>true</IncludeSourceRevisionInInformationalVersion>
     <LangVersion>8.0</LangVersion>
@@ -21,7 +21,7 @@
   <ItemGroup>
     <PackageReference Include="CHTCHSConv" Version="1.0.0">
     </PackageReference>
-    <PackageReference Include="ILRepack" Version="2.0.41">
+    <PackageReference Include="ILRepack" Version="2.0.42">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
