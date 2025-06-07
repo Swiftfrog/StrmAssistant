@@ -19,6 +19,7 @@ namespace StrmAssistant.Options
     {
         Default,
         FullRefresh,
+        FullImageRefresh,
         NoAdult
     }
 

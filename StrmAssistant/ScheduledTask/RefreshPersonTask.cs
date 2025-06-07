@@ -155,9 +155,8 @@ namespace StrmAssistant.ScheduledTask
                          taskItem.IsFieldLocked(MetadataFields.Overview)) ||
                         (!refreshPersonOptions.Contains(RefreshPersonOption.FullRefresh) && IsChinese(taskItem.Name) &&
                          IsChinese(taskItem.Overview) && taskItem.DateLastSaved >= DateTimeOffset.UtcNow.AddDays(-30));
-                    var imageRefreshSkip = taskItem.HasImage(ImageType.Primary) ||
-                                           !refreshPersonOptions.Contains(RefreshPersonOption.FullRefresh) &&
-                                           taskItem.DateLastRefreshed >= DateTimeOffset.UtcNow.AddDays(-30);
+                    var imageRefreshSkip = !refreshPersonOptions.Contains(RefreshPersonOption.FullImageRefresh) &&
+                                           taskItem.HasImage(ImageType.Primary);
 
                     if (metadataRefreshSkip && imageRefreshSkip)
                     {
