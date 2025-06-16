@@ -1,4 +1,4 @@
-﻿using HarmonyLib;
+using HarmonyLib;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
@@ -10,6 +10,7 @@ using MediaBrowser.Model.Dto;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.IO;
 using MediaBrowser.Model.Logging;
+using MediaBrowser.Model.MediaInfo;
 using StrmAssistant.Mod;
 using StrmAssistant.Properties;
 using System;
@@ -36,7 +37,23 @@ namespace StrmAssistant.Common
         private static readonly Version AppVer = Plugin.Instance.ApplicationHost.ApplicationVersion;
         private static readonly Version Ver4936 = new Version("4.9.0.36");
 
-        public VideoThumbnailApi(ILibraryManager libraryManager, IFileSystem fileSystem,
+        private static MediaContainers[] ExcludeMediaContainers
+        {
+            get
+            {
+                return Plugin.Instance.MediaInfoExtractStore.GetOptions()
+                    .VideoThumbnailExcludeMediaContainers.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(c =>
+                        Enum.TryParse<MediaContainers>(c.Trim(), true, out var container)
+                            ? container
+                            : (MediaContainers?)null)
+                    .Where(container => container.HasValue)
+                    .Select(container => container.Value)
+                    .ToArray();
+            }
+        }
+
+        internal VideoThumbnailApi(ILibraryManager libraryManager, IFileSystem fileSystem,
             IImageExtractionManager imageExtractionManager, IItemRepository itemRepository,
             IMediaMountManager mediaMountManager, IServerApplicationPaths applicationPaths,
             ILibraryMonitor libraryMonitor, IFfmpegManager ffmpegManager)
@@ -215,7 +232,30 @@ namespace StrmAssistant.Common
             var combined = favoritesWithExtra.Concat(items).Concat(extras).GroupBy(i => i.InternalId)
                 .Select(g => g.First()).Where(i => isModSupported || !i.IsShortcut).OfType<Video>().ToList();
 
-            return combined;
+            var filteredItems = FilterUnprocessed(combined);
+
+            return filteredItems;
+        }
+
+        private static List<Video> FilterUnprocessed(List<Video> items)
+        {
+            var results = new List<Video>();
+
+            foreach (var item in items)
+            {
+                if (!item.MediaContainer.HasValue &&
+                    string.Equals(item.Container, "rm", StringComparison.OrdinalIgnoreCase))
+                {
+                    item.Container = "rmvb";
+                }
+
+                if (item.MediaContainer.HasValue && !ExcludeMediaContainers.Contains(item.MediaContainer.Value))
+                {
+                    results.Add(item);
+                }
+            }
+
+            return results;
         }
     }
 }
