@@ -444,7 +444,7 @@ namespace StrmAssistant.Mod
 
                 if (isPersistInScope)
                 {
-                    ChapterChangeTracker.BypassInstance(item);
+                    PersistMediaInfoHelper.BypassChapterInstance(item);
                     CurrentRefreshContext.Value.MediaInfoUpdated = true;
                 }
             }

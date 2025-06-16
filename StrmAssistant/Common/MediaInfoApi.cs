@@ -21,6 +21,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using static StrmAssistant.Common.CommonUtility;
 
 namespace StrmAssistant.Common
 {
@@ -186,9 +187,13 @@ namespace StrmAssistant.Common
                     item.ContainingFolderPath);
             }
 
-            var mediaInfoJsonPath = !string.IsNullOrEmpty(jsonRootFolder)
-                ? Path.Combine(jsonRootFolder, relativePath, item.FileNameWithoutExtension + MediaInfoFileExtension)
-                : Path.Combine(item.ContainingFolderPath!, item.FileNameWithoutExtension + MediaInfoFileExtension);
+            var mediaInfoJsonPath = item is Folder
+                ? !string.IsNullOrEmpty(jsonRootFolder)
+                    ? Path.Combine(jsonRootFolder, relativePath)
+                    : item.ContainingFolderPath
+                : !string.IsNullOrEmpty(jsonRootFolder)
+                    ? Path.Combine(jsonRootFolder, relativePath, item.FileNameWithoutExtension + MediaInfoFileExtension)
+                    : Path.Combine(item.ContainingFolderPath!, item.FileNameWithoutExtension + MediaInfoFileExtension);
 
             return mediaInfoJsonPath;
         }
@@ -358,7 +363,8 @@ namespace StrmAssistant.Common
 
                         if (workItem is Video video)
                         {
-                            ChapterChangeTracker.BypassInstance(video);
+                            PersistMediaInfoHelper.BypassChapterInstance(video);
+
                             await DeserializeChapterInfo(video, mediaSourceWithChapters.Chapters, directoryService,
                                 source).ConfigureAwait(false);
 
@@ -397,12 +403,12 @@ namespace StrmAssistant.Common
             {
                 try
                 {
-                    _logger.Info($"MediaInfoPersist - Attempting to delete ({source}): {mediaInfoJsonPath}");
+                    _logger.Info($"MediaInfoPersist - Attempting to delete file ({source}): {mediaInfoJsonPath}");
                     _fileSystem.DeleteFile(mediaInfoJsonPath);
 
                     var jsonRoot = Plugin.Instance.MediaInfoExtractStore.GetOptions().MediaInfoJsonRootFolder;
 
-                    if (!string.IsNullOrWhiteSpace(jsonRoot))
+                    if (!string.IsNullOrEmpty(jsonRoot))
                     {
                         jsonRoot = _fileSystem.GetFullPath(jsonRoot).TrimEnd(Path.DirectorySeparatorChar);
 
@@ -411,13 +417,46 @@ namespace StrmAssistant.Common
 
                         while (!string.IsNullOrEmpty(currentDir) &&
                                !string.Equals(currentDir, jsonRoot, StringComparison.OrdinalIgnoreCase) &&
-                               CommonUtility.IsDirectoryEmpty(currentDir))
+                               IsDirectoryEmpty(currentDir))
                         {
                             _logger.Info(
                                 $"MediaInfoPersist - Attempting to delete empty folder ({source}): {currentDir}");
                             _fileSystem.DeleteDirectory(currentDir, false);
                             currentDir = Path.GetDirectoryName(currentDir);
                         }
+                    }
+                }
+                catch (Exception e)
+                {
+                    _logger.Error(e.Message);
+                    _logger.Debug(e.StackTrace);
+                }
+            }
+        }
+
+        public void DeleteMediaInfoJson(string folderPath, string source)
+        {
+            var jsonRoot = Plugin.Instance.MediaInfoExtractStore.GetOptions().MediaInfoJsonRootFolder;
+
+            if (!string.IsNullOrEmpty(jsonRoot) && _fileSystem.DirectoryExists(folderPath) &&
+                folderPath.StartsWith(jsonRoot))
+            {
+                try
+                {
+                    _logger.Info($"MediaInfoPersist - Attempting to delete folder ({source}): {folderPath}");
+                    _fileSystem.DeleteDirectory(folderPath, true);
+
+                    jsonRoot = _fileSystem.GetFullPath(jsonRoot).TrimEnd(Path.DirectorySeparatorChar);
+
+                    var currentDir = folderPath;
+
+                    while (!string.IsNullOrEmpty(currentDir) &&
+                           !string.Equals(currentDir, jsonRoot, StringComparison.OrdinalIgnoreCase) &&
+                           IsDirectoryEmpty(currentDir))
+                    {
+                        _logger.Info($"MediaInfoPersist - Attempting to delete empty folder ({source}): {currentDir}");
+                        _fileSystem.DeleteDirectory(currentDir, false);
+                        currentDir = Path.GetDirectoryName(currentDir);
                     }
                 }
                 catch (Exception e)
@@ -467,7 +506,7 @@ namespace StrmAssistant.Common
                         chapters.Add(introEnd);
                         chapters.Sort((c1, c2) => c1.StartPositionTicks.CompareTo(c2.StartPositionTicks));
 
-                        ChapterChangeTracker.BypassInstance(item);
+                        PersistMediaInfoHelper.BypassChapterInstance(item);
                         _itemRepository.SaveChapters(item.InternalId, chapters);
 
                         _logger.Info("ChapterInfoPersist - Deserialization Success (" + source + "): " + mediaInfoJsonPath);

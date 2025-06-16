@@ -93,7 +93,7 @@ namespace StrmAssistant.ScheduledTask
                             return;
                         }
 
-                        ChapterChangeTracker.BypassInstance(taskItem);
+                        PersistMediaInfoHelper.BypassChapterInstance(taskItem);
 
                         var chapters = _itemRepository.GetChapters(taskItem);
 

@@ -30,7 +30,7 @@ namespace StrmAssistant.Mod
         public static EnforceLibraryOrder EnforceLibraryOrder;
         public static BeautifyMissingMetadata BeautifyMissingMetadata;
         public static EnhanceMissingEpisodes EnhanceMissingEpisodes;
-        public static ChapterChangeTracker ChapterChangeTracker;
+        public static PersistMediaInfoHelper PersistMediaInfoHelper;
         public static MovieDbEpisodeGroup MovieDbEpisodeGroup;
         public static NoBoxsetsAutoCreation NoBoxsetsAutoCreation;
         public static EnhanceNotificationSystem EnhanceNotificationSystem;
@@ -76,7 +76,7 @@ namespace StrmAssistant.Mod
             EnforceLibraryOrder = new EnforceLibraryOrder();
             BeautifyMissingMetadata = new BeautifyMissingMetadata();
             EnhanceMissingEpisodes = new EnhanceMissingEpisodes();
-            ChapterChangeTracker = new ChapterChangeTracker();
+            PersistMediaInfoHelper = new PersistMediaInfoHelper();
             NoBoxsetsAutoCreation = new NoBoxsetsAutoCreation();
             EnhanceNotificationSystem = new EnhanceNotificationSystem();
             EnableDeepDelete = new EnableDeepDelete();

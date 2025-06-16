@@ -605,7 +605,7 @@ namespace StrmAssistant.Common
 
             ExclusiveExtract.AllowExtractInstance(taskItem);
 
-            if (persistMediaInfo) ChapterChangeTracker.BypassInstance(taskItem);
+            if (persistMediaInfo) PersistMediaInfoHelper.BypassChapterInstance(taskItem);
 
             var filePath = taskItem.Path;
             if (taskItem.IsShortcut)

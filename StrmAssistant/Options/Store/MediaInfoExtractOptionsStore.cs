@@ -1,4 +1,4 @@
-﻿using Emby.Web.GenericEdit.PropertyDiff;
+using Emby.Web.GenericEdit.PropertyDiff;
 using MediaBrowser.Common;
 using MediaBrowser.Model.Logging;
 using StrmAssistant.Mod;
@@ -56,11 +56,11 @@ namespace StrmAssistant.Options.Store
                     {
                         if (options.PersistMediaInfoMode != PersistMediaInfoOption.None.ToString())
                         {
-                            PatchManager.ChapterChangeTracker.Patch();
+                            PatchManager.PersistMediaInfoHelper.Patch();
                         }
                         else
                         {
-                            PatchManager.ChapterChangeTracker.Unpatch();
+                            PatchManager.PersistMediaInfoHelper.Unpatch();
                         }
                     }
                 }
