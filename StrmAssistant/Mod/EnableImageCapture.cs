@@ -1,9 +1,8 @@
-﻿using HarmonyLib;
+using HarmonyLib;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.MediaInfo;
-using StrmAssistant.ScheduledTask;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -27,10 +26,14 @@ namespace StrmAssistant.Mod
         private static Type _quickSingleImageExtractor;
         private static MethodInfo _supportsThumbnailsGetter;
         private static MethodInfo _logThumbnailImageExtractionFailure;
+        private static MethodInfo _extractVideoImagesOnInterval;
+        private static MethodInfo _enableQuickImageSeriesExtractor;
         private static ConstructorInfo _baseOptionsConstructor;
 
         private static readonly AsyncLocal<BaseItem> ShortcutItem = new AsyncLocal<BaseItem>();
         private static readonly AsyncLocal<BaseItem> ImageCaptureItem = new AsyncLocal<BaseItem>();
+        private static readonly AsyncLocal<MediaContainers?> VideoThumbnailMediaContainer =
+            new AsyncLocal<MediaContainers?>();
         private static int _isShortcutPatchUsageCount;
 
         private static SemaphoreSlim SemaphoreFFmpeg;
@@ -97,6 +100,11 @@ namespace StrmAssistant.Mod
                 embyServerImplementationsAssembly.GetType("Emby.Server.Implementations.Data.SqliteItemRepository");
             _logThumbnailImageExtractionFailure = sqliteItemRepository.GetMethod("LogThumbnailImageExtractionFailure",
                 BindingFlags.Public | BindingFlags.Instance);
+            var imageExtractionManager =
+                mediaEncodingAssembly.GetType("Emby.Server.MediaEncoding.ImageExtraction.ImageExtractionManager");
+            _extractVideoImagesOnInterval = imageExtractionManager.GetMethod("ExtractVideoImagesOnInterval");
+            _enableQuickImageSeriesExtractor = imageExtractionManager.GetMethod("EnableQuickImageSeriesExtractor",
+                BindingFlags.Instance | BindingFlags.NonPublic);
 
             var optionDefCollection = AccessTools.TypeByName("Emby.Ffmpeg.Model.Options.Collections.OptionDefCollection");
             var optionOwner = AccessTools.TypeByName("Emby.Ffmpeg.Model.Options.Interfaces.IOptionOwner");
@@ -119,6 +127,10 @@ namespace StrmAssistant.Mod
             PatchUnpatch(PatchTracker, apply, _runExtraction, prefix: nameof(RunExtractionPrefix));
             PatchUnpatch(PatchTracker, apply, _logThumbnailImageExtractionFailure,
                 prefix: nameof(LogThumbnailImageExtractionFailurePrefix));
+            PatchUnpatch(PatchTracker, apply, _extractVideoImagesOnInterval,
+                prefix: nameof(ExtractVideoImagesOnIntervalPrefix));
+            PatchUnpatch(PatchTracker, apply, _enableQuickImageSeriesExtractor,
+                postfix: nameof(EnableQuickImageSeriesExtractorPostfix));
             PatchUnpatch(PatchTracker, apply, _baseOptionsConstructor, prefix: nameof(BaseOptionsConstructorPrefix));
         }
 
@@ -375,11 +387,6 @@ namespace StrmAssistant.Mod
             var newTimeout = origTimeout *
                              Plugin.Instance.MainOptionsStore.GetOptions().GeneralOptions.MaxConcurrentCount;
 
-            if (ExtractVideoThumbnailTask.IsRunning)
-            {
-                timeoutProperty.SetValue(newTimeout);
-            }
-
             if (ImageCaptureItem.Value != null && __instance.GetType() == _quickSingleImageExtractor)
             {
                 timeoutProperty.SetValue(newTimeout);
@@ -396,6 +403,28 @@ namespace StrmAssistant.Mod
                 }
 
                 ImageCaptureItem.Value = null;
+            }
+        }
+
+        [HarmonyPrefix]
+        private static void ExtractVideoImagesOnIntervalPrefix(MediaContainers? container)
+        {
+            VideoThumbnailMediaContainer.Value = container;
+        }
+
+        [HarmonyPostfix]
+        private static void EnableQuickImageSeriesExtractorPostfix(ref bool __result)
+        {
+            if (__result && VideoThumbnailMediaContainer.Value.HasValue)
+            {
+                var mediaContainer = VideoThumbnailMediaContainer.Value.Value;
+                VideoThumbnailMediaContainer.Value = null;
+
+                if (mediaContainer == MediaContainers.MpegTs || mediaContainer == MediaContainers.Ts ||
+                    mediaContainer == MediaContainers.M2Ts)
+                {
+                    __result = false;
+                }
             }
         }
 
