@@ -1,4 +1,4 @@
-﻿using Emby.Media.Common.Extensions;
+using Emby.Media.Common.Extensions;
 using Emby.Web.GenericEdit.PropertyDiff;
 using MediaBrowser.Common;
 using MediaBrowser.Model.Logging;
@@ -122,32 +122,39 @@ namespace StrmAssistant.Options.Store
                     }
                 }
 
-                if (changedProperties.Contains(nameof(MetadataEnhanceOptions.AltMovieDbConfig)))
+                if (changedProperties.Contains(nameof(MetadataEnhanceOptions.AltMovieDbConfig)) ||
+                    changedProperties.Contains(nameof(MetadataEnhanceOptions.AltMovieDbApiUrl)) ||
+                    changedProperties.Contains(nameof(MetadataEnhanceOptions.AltMovieDbImageUrl)) ||
+                    changedProperties.Contains(nameof(MetadataEnhanceOptions.AltMovieDbApiKey)))
                 {
                     if (options.AltMovieDbConfig)
                     {
-                        PatchManager.AltMovieDbConfig.PatchApiUrl();
+                        if (!string.IsNullOrEmpty(options.AltMovieDbApiUrl) ||
+                            !string.IsNullOrEmpty(options.AltMovieDbApiKey))
+                        {
+                            PatchManager.AltMovieDbConfig.PatchApiUrl();
+                        }
+                        else
+                        {
+                            PatchManager.AltMovieDbConfig.UnpatchApiUrl();
+                        }
+
                         if (!string.IsNullOrEmpty(options.AltMovieDbImageUrl))
+                        {
                             PatchManager.AltMovieDbConfig.PatchImageUrl();
+                        }
+                        else
+                        {
+                            PatchManager.AltMovieDbConfig.UnpatchImageUrl();
+                        }
                     }
                     else
                     {
                         PatchManager.AltMovieDbConfig.UnpatchApiUrl();
-                        if (!string.IsNullOrEmpty(MetadataEnhanceOptions.AltMovieDbImageUrl))
-                            PatchManager.AltMovieDbConfig.UnpatchImageUrl();
-                    }
-                }
-
-                if (changedProperties.Contains(nameof(MetadataEnhanceOptions.AltMovieDbImageUrl)))
-                {
-                    if (!string.IsNullOrEmpty(options.AltMovieDbImageUrl))
-                    {
-                        PatchManager.AltMovieDbConfig.PatchImageUrl();
-                    }
-                    else
-                    {
                         PatchManager.AltMovieDbConfig.UnpatchImageUrl();
                     }
+
+                    AltMovieDbConfig.UpdateMovieDbConfig(options);
                 }
 
                 if (changedProperties.Contains(nameof(MetadataEnhanceOptions.PreferOriginalPoster)))

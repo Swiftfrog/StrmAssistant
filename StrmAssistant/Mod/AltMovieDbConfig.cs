@@ -1,14 +1,13 @@
 using HarmonyLib;
-using MediaBrowser.Controller.Entities;
-using MediaBrowser.Controller.Providers;
-using MediaBrowser.Model.Configuration;
-using MediaBrowser.Model.Entities;
+using MediaBrowser.Model.Providers;
+using StrmAssistant.Options;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Reflection;
-using System.Threading;
+using System.Threading.Tasks;
 using static StrmAssistant.Common.CommonUtility;
 using static StrmAssistant.Mod.PatchManager;
 using HttpRequestOptions = MediaBrowser.Common.Net.HttpRequestOptions;
@@ -19,56 +18,43 @@ namespace StrmAssistant.Mod
     {
         private static Assembly _movieDbAssembly;
         private static MethodInfo _getMovieDbResponse;
+        private static MethodInfo _getImageResponse;
         private static MethodInfo _saveImageFromRemoteUrl;
         private static MethodInfo _downloadImage;
         private static MethodInfo _createHttpClientHandler;
+
+        private static MethodInfo _movieGetSearchResults;
+        private static MethodInfo _seriesGetSearchResults;
+        private static MethodInfo _boxsetGetSearchResults;
+        private static MethodInfo _personGetSearchResults;
 
         private static readonly string DefaultMovieDbApiUrl = "https://api.themoviedb.org";
         private static readonly string DefaultAltMovieDbApiUrl = "https://api.tmdb.org";
         private static readonly string DefaultMovieDbImageUrl = "https://image.tmdb.org";
         private static string SystemDefaultMovieDbApiKey;
 
-        public static string CurrentMovieDbApiKey
-        {
-            get
-            {
-                var options = Plugin.Instance.MetadataEnhanceStore.GetOptions();
-                return IsValidMovieDbApiKey(options.AltMovieDbApiKey)
-                    ? options.AltMovieDbApiKey
-                    : SystemDefaultMovieDbApiKey;
-            }
-        }
+        internal static string CurrentMovieDbApiUrl { get; private set; } = DefaultMovieDbApiUrl;
+        internal static string CurrentMovieDbImageUrl { get; private set; } = DefaultMovieDbImageUrl;
+        internal static string CurrentMovieDbApiKey { get; private set; }
 
-        public static string CurrentMovieDbApiUrl
-        {
-            get
-            {
-                var options = Plugin.Instance.MetadataEnhanceStore.GetOptions();
-                return IsValidHttpUrl(options.AltMovieDbApiUrl) ? options.AltMovieDbApiUrl : DefaultMovieDbApiUrl;
-            }
-        }
-
-        public static string CurrentMovieDbImageUrl
-        {
-            get
-            {
-                var options = Plugin.Instance.MetadataEnhanceStore.GetOptions();
-                return IsValidHttpUrl(options.AltMovieDbImageUrl) ? options.AltMovieDbImageUrl : DefaultMovieDbImageUrl;
-            }
-        }
-        
-        public AltMovieDbConfig()
+        internal AltMovieDbConfig()
         {
             Initialize();
 
-            if (Plugin.Instance.MetadataEnhanceStore.GetOptions().AltMovieDbConfig)
+            var options = Plugin.Instance.MetadataEnhanceStore.GetOptions();
+            if (options.AltMovieDbConfig)
             {
-                PatchApiUrl();
+                if (!string.IsNullOrEmpty(options.AltMovieDbApiUrl) || !string.IsNullOrEmpty(options.AltMovieDbApiKey))
+                {
+                    PatchApiUrl();
+                }
 
-                if (!string.IsNullOrEmpty(Plugin.Instance.MetadataEnhanceStore.GetOptions().AltMovieDbImageUrl))
+                if (!string.IsNullOrEmpty(options.AltMovieDbImageUrl))
                 {
                     PatchImageUrl();
                 }
+
+                UpdateMovieDbConfig(options);
             }
         }
 
@@ -84,7 +70,17 @@ namespace StrmAssistant.Mod
                 _getMovieDbResponse = movieDbProviderBase.GetMethod("GetMovieDbResponse",
                     BindingFlags.NonPublic | BindingFlags.Instance);
                 var apiKey = movieDbProviderBase.GetField("ApiKey", BindingFlags.Static | BindingFlags.NonPublic);
-                SystemDefaultMovieDbApiKey = apiKey?.GetValue(null) as string;
+                CurrentMovieDbApiKey = SystemDefaultMovieDbApiKey = apiKey.GetValue(null) as string;
+                _getImageResponse = movieDbProviderBase.GetMethod("GetImageResponse");
+
+                var movieDbProvider = _movieDbAssembly.GetType("MovieDb.MovieDbProvider");
+                _movieGetSearchResults = movieDbProvider.GetMethod("GetSearchResults");
+                var movieDbSeriesProvider = _movieDbAssembly.GetType("MovieDb.MovieDbSeriesProvider");
+                _seriesGetSearchResults = movieDbSeriesProvider.GetMethod("GetSearchResults");
+                var movieDbBoxSetProvider = _movieDbAssembly.GetType("MovieDb.MovieDbBoxSetProvider");
+                _boxsetGetSearchResults = movieDbBoxSetProvider.GetMethod("GetSearchResults");
+                var movieDbPersonProvider = _movieDbAssembly.GetType("MovieDb.MovieDbPersonProvider");
+                _personGetSearchResults = movieDbPersonProvider.GetMethod("GetSearchResults");
 
                 var embyProviders = Assembly.Load("Emby.Providers");
                 var providerManager = embyProviders.GetType("Emby.Providers.Manager.ProviderManager");
@@ -128,13 +124,42 @@ namespace StrmAssistant.Mod
 
         private void PrepareImageUrl(bool apply)
         {
-            PatchUnpatch(PatchTracker, apply, _saveImageFromRemoteUrl, prefix: nameof(SaveImageFromRemoteUrlPrefix));
-            PatchUnpatch(PatchTracker, apply, _downloadImage, prefix: nameof(DownloadImagePrefix));
+            PatchUnpatch(PatchTracker, apply, _getImageResponse, prefix: nameof(ImageUrlPrefix));
+            PatchUnpatch(PatchTracker, apply, _saveImageFromRemoteUrl, prefix: nameof(ImageUrlPrefix));
+            PatchUnpatch(PatchTracker, apply, _downloadImage, prefix: nameof(ImageUrlPrefix));
+            PatchUnpatch(PatchTracker, apply, _movieGetSearchResults, postfix: nameof(GetSearchResultsPostfix));
+            PatchUnpatch(PatchTracker, apply, _seriesGetSearchResults, postfix: nameof(GetSearchResultsPostfix));
+            PatchUnpatch(PatchTracker, apply, _boxsetGetSearchResults, postfix: nameof(GetSearchResultsPostfix));
+            PatchUnpatch(PatchTracker, apply, _personGetSearchResults, postfix: nameof(GetSearchResultsPostfix));
         }
 
         public void PatchImageUrl() => PrepareImageUrl(true);
 
         public void UnpatchImageUrl() => PrepareImageUrl(false);
+
+        public static void UpdateMovieDbConfig(MetadataEnhanceOptions options)
+        {
+            if (options.AltMovieDbConfig)
+            {
+                CurrentMovieDbApiUrl = IsValidHttpUrl(options.AltMovieDbApiUrl)
+                    ? options.AltMovieDbApiUrl
+                    : DefaultAltMovieDbApiUrl;
+
+                CurrentMovieDbImageUrl = IsValidHttpUrl(options.AltMovieDbImageUrl)
+                    ? options.AltMovieDbImageUrl
+                    : DefaultMovieDbImageUrl;
+
+                CurrentMovieDbApiKey = IsValidMovieDbApiKey(options.AltMovieDbApiKey)
+                    ? options.AltMovieDbApiKey
+                    : SystemDefaultMovieDbApiKey;
+            }
+            else
+            {
+                CurrentMovieDbApiUrl = DefaultMovieDbApiUrl;
+                CurrentMovieDbImageUrl = DefaultMovieDbImageUrl;
+                CurrentMovieDbApiKey = SystemDefaultMovieDbApiKey;
+            }
+        }
 
         [HarmonyPostfix]
         private static void CreateHttpClientHandlerPostfix(ref HttpMessageHandler __result)
@@ -151,63 +176,60 @@ namespace StrmAssistant.Mod
         }
 
         [HarmonyPrefix]
-        private static bool GetMovieDbResponsePrefix(HttpRequestOptions options)
+        private static void GetMovieDbResponsePrefix(HttpRequestOptions options)
         {
-            var metadataEnhanceOptions = Plugin.Instance.MetadataEnhanceStore.GetOptions();
-            var apiUrl = metadataEnhanceOptions.AltMovieDbApiUrl;
-            var apiKey = metadataEnhanceOptions.AltMovieDbApiKey;
-
             var requestUrl = options.Url;
 
-            if (requestUrl.StartsWith(DefaultMovieDbApiUrl + "/3/configuration", StringComparison.Ordinal))
-            {
-                requestUrl = requestUrl.Replace(DefaultMovieDbApiUrl, DefaultAltMovieDbApiUrl);
-            }
-            else if (IsValidHttpUrl(apiUrl))
-            {
-                requestUrl = requestUrl.Replace(DefaultMovieDbApiUrl, apiUrl);
-            }
-
-            if (IsValidMovieDbApiKey(apiKey))
-            {
-                requestUrl = requestUrl.Replace(SystemDefaultMovieDbApiKey, apiKey);
-            }
+            requestUrl = requestUrl.Replace(DefaultMovieDbApiUrl,
+                    requestUrl.StartsWith(DefaultMovieDbApiUrl + "/3/configuration", StringComparison.Ordinal)
+                        ? DefaultAltMovieDbApiUrl
+                        : CurrentMovieDbApiUrl)
+                .Replace(SystemDefaultMovieDbApiKey, CurrentMovieDbApiKey);
 
             if (!string.Equals(requestUrl, options.Url, StringComparison.Ordinal))
             {
                 options.Url = requestUrl;
             }
-
-            return true;
         }
 
-        private static void ReplaceMovieDbImageUrl(ref string url)
+        [HarmonyPrefix]
+        private static void ImageUrlPrefix(ref string url)
         {
-            var imageUrl = Plugin.Instance.MetadataEnhanceStore.GetOptions().AltMovieDbImageUrl;
-
-            if (IsValidHttpUrl(imageUrl))
+            if (url.StartsWith(DefaultMovieDbImageUrl))
             {
-                url = url.Replace(DefaultMovieDbImageUrl, imageUrl);
+                url = url.Replace(DefaultMovieDbImageUrl, CurrentMovieDbImageUrl);
             }
         }
 
-        [HarmonyPrefix]
-        private static bool SaveImageFromRemoteUrlPrefix(BaseItem item, LibraryOptions libraryOptions, ref string url,
-            ImageType type, int? imageIndex, long[] generatedFromItemIds, IDirectoryService directoryService,
-            bool updateImageCache, CancellationToken cancellationToken)
+        [HarmonyPostfix]
+        private static Task<IEnumerable<RemoteSearchResult>> GetSearchResultsPostfix(
+            Task<IEnumerable<RemoteSearchResult>> __result)
         {
-            ReplaceMovieDbImageUrl(ref url);
+            IEnumerable<RemoteSearchResult> result = null;
 
-            return true;
-        }
+            try
+            {
+                result = __result.Result;
+            }
+            catch
+            {
+                // ignored
+            }
 
-        [HarmonyPrefix]
-        private static bool DownloadImagePrefix(ref string url, Guid urlHash, string pointerCachePath,
-            CancellationToken cancellationToken)
-        {
-            ReplaceMovieDbImageUrl(ref url);
+            if (result is null) return Task.FromResult(Enumerable.Empty<RemoteSearchResult>());
 
-            return true;
+            var searchResult = result.ToList();
+
+            foreach (var remoteSearchResult in searchResult)
+            {
+                var imageUrl = remoteSearchResult.ImageUrl;
+                if (imageUrl.StartsWith(DefaultMovieDbImageUrl))
+                {
+                    remoteSearchResult.ImageUrl = imageUrl.Replace(DefaultMovieDbImageUrl, CurrentMovieDbImageUrl);
+                }
+            }
+
+            return Task.FromResult(searchResult.AsEnumerable());
         }
     }
 }
