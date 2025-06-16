@@ -5,12 +5,12 @@ using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Attributes;
 using MediaBrowser.Model.LocalizationAttributes;
 using MediaBrowser.Model.MediaInfo;
-using StrmAssistant.Common;
 using StrmAssistant.Properties;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
+using static StrmAssistant.Options.Utility;
 
 namespace StrmAssistant.Options
 {
@@ -35,6 +35,11 @@ namespace StrmAssistant.Options
         [Required, MinValue(10), MaxValue(90)]
         [VisibleCondition(nameof(EnableImageCapture), SimpleCondition.IsTrue)]
         public int ImageCapturePosition { get; set; } = 10;
+
+        [Browsable(false)]
+        [Required]
+        public string MediaInfoExcludeMediaContainers { get; set; } = string.Join(",",
+            new[] { MediaContainers.MpegTs, MediaContainers.Ts, MediaContainers.M2Ts });
 
         [Browsable(false)]
         [Required]
@@ -131,7 +136,7 @@ namespace StrmAssistant.Options
 
             foreach (var item in libraries)
             {
-                if (LibraryApi.ExcludedCollectionTypes.Contains(item.CollectionType))
+                if (ExcludedCollectionTypes.Contains(item.CollectionType))
                 {
                     continue;
                 }

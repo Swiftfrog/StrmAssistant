@@ -10,7 +10,6 @@ using MediaBrowser.Model.Dto;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.IO;
 using MediaBrowser.Model.Logging;
-using MediaBrowser.Model.MediaInfo;
 using StrmAssistant.Mod;
 using StrmAssistant.Properties;
 using System;
@@ -20,6 +19,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using static StrmAssistant.Options.Utility;
 
 namespace StrmAssistant.Common
 {
@@ -36,22 +36,6 @@ namespace StrmAssistant.Common
 
         private static readonly Version AppVer = Plugin.Instance.ApplicationHost.ApplicationVersion;
         private static readonly Version Ver4936 = new Version("4.9.0.36");
-
-        private static MediaContainers[] ExcludeMediaContainers
-        {
-            get
-            {
-                return Plugin.Instance.MediaInfoExtractStore.GetOptions()
-                    .VideoThumbnailExcludeMediaContainers.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
-                    .Select(c =>
-                        Enum.TryParse<MediaContainers>(c.Trim(), true, out var container)
-                            ? container
-                            : (MediaContainers?)null)
-                    .Where(container => container.HasValue)
-                    .Select(container => container.Value)
-                    .ToArray();
-            }
-        }
 
         internal VideoThumbnailApi(ILibraryManager libraryManager, IFileSystem fileSystem,
             IImageExtractionManager imageExtractionManager, IItemRepository itemRepository,
@@ -199,7 +183,7 @@ namespace StrmAssistant.Common
 
                 favoritesWithExtra = expanded
                     .Concat(includeExtra
-                        ? expanded.SelectMany(f => f.GetExtras(LibraryApi.IncludeExtraTypes))
+                        ? expanded.SelectMany(f => f.GetExtras(IncludeExtraTypes))
                         : Enumerable.Empty<BaseItem>())
                     .Where(i => Plugin.LibraryApi.HasMediaInfo(i) && !i.HasImage(ImageType.Chapter))
                     .ToArray();
@@ -223,7 +207,7 @@ namespace StrmAssistant.Common
 
                 if (includeExtra)
                 {
-                    videoThumbnailQuery.ExtraTypes = LibraryApi.IncludeExtraTypes;
+                    videoThumbnailQuery.ExtraTypes = IncludeExtraTypes;
                     extras = _libraryManager.GetItemList(videoThumbnailQuery);
                 }
             }
@@ -249,7 +233,8 @@ namespace StrmAssistant.Common
                     item.Container = "rmvb";
                 }
 
-                if (item.MediaContainer.HasValue && !ExcludeMediaContainers.Contains(item.MediaContainer.Value))
+                if (item.MediaContainer.HasValue &&
+                    !VideoThumbnailExcludeMediaContainers.Contains(item.MediaContainer.Value))
                 {
                     results.Add(item);
                 }

@@ -208,7 +208,7 @@ namespace StrmAssistant
         {
             var library = e.Argument.Item1;
 
-            if (!LibraryApi.ExcludedCollectionTypes.Contains(library.CollectionType))
+            if (!ExcludedCollectionTypes.Contains(library.CollectionType))
             {
                 LibraryApi.UpdateLibraryPathsInScope();
 
@@ -351,7 +351,7 @@ namespace StrmAssistant
                     ExperienceEnhanceStore.SavePluginOptionsSuppress();
                 }
 
-                if (!LibraryApi.ExcludedCollectionTypes.Contains(library.CollectionType))
+                if (!ExcludedCollectionTypes.Contains(library.CollectionType))
                 {
                     LibraryApi.UpdateLibraryPathsInScope();
 

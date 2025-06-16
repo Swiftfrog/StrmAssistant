@@ -1,10 +1,12 @@
-﻿using Emby.Media.Common.Extensions;
+using Emby.Media.Common.Extensions;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Audio;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.LiveTv;
 using MediaBrowser.Controller.Playlists;
+using MediaBrowser.Model.Entities;
+using MediaBrowser.Model.MediaInfo;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -25,6 +27,76 @@ namespace StrmAssistant.Options
         private static HashSet<string> _selectedCatchupTasks = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private static HashSet<string> _selectedIntroSkipPreferences = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private static string[] _includeItemTypes = Array.Empty<string>();
+
+        public static readonly HashSet<string> ExcludedCollectionTypes = new HashSet<string>
+        {
+            CollectionType.Books.ToString(),
+            CollectionType.Photos.ToString(),
+            CollectionType.Games.ToString(),
+            CollectionType.LiveTv.ToString(),
+            CollectionType.Playlists.ToString(),
+            CollectionType.BoxSets.ToString()
+        };
+
+        public static readonly ExtraType[] IncludeExtraTypes =
+        {
+            ExtraType.AdditionalPart, ExtraType.BehindTheScenes, ExtraType.Clip, ExtraType.DeletedScene,
+            ExtraType.Interview, ExtraType.Sample, ExtraType.Scene, ExtraType.ThemeSong, ExtraType.ThemeVideo,
+            ExtraType.Trailer
+        };
+        
+        public static string[] MediaInfoExcludeMediaExtensions
+        {
+            get
+            {
+                return Plugin.Instance.MediaInfoExtractStore.GetOptions()
+                    .MediaInfoExcludeMediaContainers.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                    .SelectMany(c =>
+                    {
+                        if (Enum.TryParse<MediaContainers>(c.Trim(), true, out var container))
+                        {
+                            var aliases = container.GetAliases();
+                            return aliases?.Where(a => !string.IsNullOrWhiteSpace(a)) ?? Array.Empty<string>();
+                        }
+
+                        return Array.Empty<string>();
+                    })
+                    .Where(alias => !string.IsNullOrWhiteSpace(alias))
+                    .ToArray();
+            }
+        }
+
+        public static MediaContainers[] ImageCaptureExcludeMediaContainers
+        {
+            get
+            {
+                return Plugin.Instance.MediaInfoExtractStore.GetOptions().ImageCaptureExcludeMediaContainers
+                    .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(c =>
+                        Enum.TryParse<MediaContainers>(c.Trim(), true, out var container)
+                            ? container
+                            : (MediaContainers?)null)
+                    .Where(container => container.HasValue)
+                    .Select(container => container.Value)
+                    .ToArray();
+            }
+        }
+
+        public static MediaContainers[] VideoThumbnailExcludeMediaContainers
+        {
+            get
+            {
+                return Plugin.Instance.MediaInfoExtractStore.GetOptions()
+                    .VideoThumbnailExcludeMediaContainers.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(c =>
+                        Enum.TryParse<MediaContainers>(c.Trim(), true, out var container)
+                            ? container
+                            : (MediaContainers?)null)
+                    .Where(container => container.HasValue)
+                    .Select(container => container.Value)
+                    .ToArray();
+            }
+        }
 
         public static void InitializeOptionCache()
         {

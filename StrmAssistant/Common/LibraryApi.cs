@@ -39,64 +39,6 @@ namespace StrmAssistant.Common
         private readonly IMediaMountManager _mediaMountManager;
         private readonly IUserManager _userManager;
 
-        public static ExtraType[] IncludeExtraTypes =
-        {
-            ExtraType.AdditionalPart, ExtraType.BehindTheScenes, ExtraType.Clip, ExtraType.DeletedScene,
-            ExtraType.Interview, ExtraType.Sample, ExtraType.Scene, ExtraType.ThemeSong, ExtraType.ThemeVideo,
-            ExtraType.Trailer
-        };
-
-        public static MediaContainers[] ExcludeMediaContainers
-        {
-            get
-            {
-                return Plugin.Instance.MediaInfoExtractStore.GetOptions().ImageCaptureExcludeMediaContainers
-                    .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
-                    .Select(c =>
-                        Enum.TryParse<MediaContainers>(c.Trim(), true, out var container)
-                            ? container
-                            : (MediaContainers?)null)
-                    .Where(container => container.HasValue)
-                    .Select(container => container.Value)
-                    .Concat(new[] { MediaContainers.Iso })
-                    .Distinct()
-                    .ToArray();
-            }
-        }
-
-        public static string[] ExcludeMediaExtensions
-        {
-            get
-            {
-                return Plugin.Instance.MediaInfoExtractStore.GetOptions()
-                    .ImageCaptureExcludeMediaContainers.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
-                    .SelectMany(c =>
-                    {
-                        if (Enum.TryParse<MediaContainers>(c.Trim(), true, out var container))
-                        {
-                            var aliases = container.GetAliases();
-                            return aliases?.Where(a => !string.IsNullOrWhiteSpace(a)) ?? Array.Empty<string>();
-                        }
-
-                        return Array.Empty<string>();
-                    })
-                    .Concat(MediaContainers.Iso.GetAliases())
-                    .Where(alias => !string.IsNullOrWhiteSpace(alias))
-                    .Distinct()
-                    .ToArray();
-            }
-        }
-
-        public static readonly HashSet<string> ExcludedCollectionTypes = new HashSet<string>
-        {
-            CollectionType.Books.ToString(),
-            CollectionType.Photos.ToString(),
-            CollectionType.Games.ToString(),
-            CollectionType.LiveTv.ToString(),
-            CollectionType.Playlists.ToString(),
-            CollectionType.BoxSets.ToString()
-        };
-
         public static List<string> LibraryPathsInScope;
         public static Dictionary<User, bool> AllUsers = new Dictionary<User, bool>();
         public static string[] AdminOrderedViews = Array.Empty<string>();
@@ -502,13 +444,20 @@ namespace StrmAssistant.Common
 
         public bool IsExtractNeeded(BaseItem item, bool enableImageCapture)
         {
-            if (item.MediaContainer.HasValue && ExcludeMediaContainers.Contains(item.MediaContainer.Value))
+            if (!item.MediaContainer.HasValue &&
+                string.Equals(item.Container, "rm", StringComparison.OrdinalIgnoreCase))
+            {
+                item.Container = "rmvb";
+            }
+
+            if (enableImageCapture && item.MediaContainer.HasValue &&
+                ImageCaptureExcludeMediaContainers.Contains(item.MediaContainer.Value))
                 return false;
 
             if (!item.IsShortcut && item.IsFileProtocol && !string.IsNullOrEmpty(item.Path))
             {
                 var fileExtension = Path.GetExtension(item.Path).TrimStart('.');
-                if (ExcludeMediaExtensions.Contains(fileExtension)) return false;
+                if (MediaInfoExcludeMediaExtensions.Contains(fileExtension)) return false;
             }
 
             if (!HasMediaInfo(item)) return true;
@@ -667,7 +616,7 @@ namespace StrmAssistant.Common
             if (string.IsNullOrEmpty(filePath)) return null;
 
             var fileExtension = Path.GetExtension(filePath).TrimStart('.');
-            var extractSkip = mediaInfoRestoreMode || ExcludeMediaExtensions.Contains(fileExtension);
+            var extractSkip = mediaInfoRestoreMode || MediaInfoExcludeMediaExtensions.Contains(fileExtension);
 
             var refreshOptions = Plugin.MediaInfoApi.GetMediaInfoRefreshOptions();
 
