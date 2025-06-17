@@ -30,7 +30,7 @@ namespace StrmAssistant.Provider
             var language = seriesInfo.MetadataLanguage;
             var episodeGroupId = seriesInfo.GetProviderId(MovieDbEpisodeGroupExternalId.StaticName);
             episodeGroupId = episodeGroupId?.Trim();
-            
+
             EpisodeGroupResponse episodeGroupInfo = null;
             string localEpisodeGroupPath = null;
 
@@ -45,72 +45,91 @@ namespace StrmAssistant.Provider
                     .ConfigureAwait(false);
             }
 
-            if (episodeGroupInfo is null && !string.IsNullOrEmpty(episodeGroupId))
+            try
             {
-                episodeGroupInfo = await Plugin.MetadataApi
-                    .FetchOnlineEpisodeGroup(tmdbId, episodeGroupId, language, localEpisodeGroupPath, cancellationToken)
-                    .ConfigureAwait(false);
-            }
-
-            SeriesResponseInfo seriesInfoResponse;
-
-            if (episodeGroupInfo != null)
-            {
-                if (string.IsNullOrEmpty(episodeGroupInfo.groups.FirstOrDefault()?.episodes.FirstOrDefault()?.name))
+                if (episodeGroupInfo is null && !string.IsNullOrEmpty(episodeGroupId))
                 {
-                    seriesInfoResponse = await FetchSeriesInfoAsync(tmdbId, language, cancellationToken)
+                    episodeGroupInfo = await Plugin.MetadataApi
+                        .FetchOnlineEpisodeGroup(tmdbId, episodeGroupId, language, localEpisodeGroupPath,
+                            cancellationToken)
                         .ConfigureAwait(false);
+                }
 
-                    if (seriesInfoResponse is null)
-                    {
+                SeriesResponseInfo seriesInfoResponse;
+
+                if (episodeGroupInfo != null)
+                {
+                    if (episodeGroupInfo.groups is null || !episodeGroupInfo.groups.Any())
                         return Array.Empty<RemoteSearchResult>();
-                    }
 
-                    foreach (var group in episodeGroupInfo.groups)
+                    var firstGroup = episodeGroupInfo.groups.FirstOrDefault();
+
+                    if (firstGroup?.episodes is null || !firstGroup.episodes.Any())
+                        return Array.Empty<RemoteSearchResult>();
+
+                    var firstEpisode = firstGroup.episodes.First();
+
+                    if (string.IsNullOrEmpty(firstEpisode.name))
                     {
-                        foreach (var episode in group.episodes)
-                        {
-                            var mappedEpisode = seriesInfoResponse.seasons
-                                .FirstOrDefault(season => season.season_number == episode.season_number)?
-                                .episodes.FirstOrDefault(ep => ep.episode_number == episode.episode_number);
+                        seriesInfoResponse = await FetchSeriesInfoAsync(tmdbId, language, cancellationToken)
+                            .ConfigureAwait(false);
 
-                            if (mappedEpisode != null)
+                        if (seriesInfoResponse?.seasons is null)
+                        {
+                            return Array.Empty<RemoteSearchResult>();
+                        }
+
+                        foreach (var group in episodeGroupInfo.groups.Where(g => g?.episodes != null))
+                        {
+                            foreach (var episode in group.episodes)
                             {
-                                episode.air_date = mappedEpisode.air_date;
-                                episode.name = mappedEpisode.name;
-                                episode.overview = mappedEpisode.overview;
-                                episode.id = mappedEpisode.id;
+                                var matchedSeason = seriesInfoResponse.seasons.FirstOrDefault(season =>
+                                    season.season_number == episode.season_number);
+
+                                var mappedEpisode =
+                                    matchedSeason?.episodes?.FirstOrDefault(ep =>
+                                        ep?.episode_number == episode.episode_number);
+
+                                if (mappedEpisode != null)
+                                {
+                                    episode.air_date = mappedEpisode.air_date;
+                                    episode.name = mappedEpisode.name;
+                                    episode.overview = mappedEpisode.overview;
+                                    episode.id = mappedEpisode.id;
+                                }
                             }
                         }
                     }
+
+                    return episodeGroupInfo.groups.Where(g => g?.episodes != null)
+                        .SelectMany(group => group.episodes.Where(ep => ep != null),
+                            (group, episode) => new RemoteSearchResult
+                            {
+                                SearchProviderName = Name,
+                                IndexNumber = episode.order + 1,
+                                ParentIndexNumber = group.order,
+                                Name = episode.name,
+                                Overview = episode.overview,
+                                PremiereDate = episode.air_date,
+                                ProductionYear = episode.air_date != default ? episode.air_date.Year : (int?)null,
+                                ProviderIds = new ProviderIdDictionary
+                                {
+                                    {
+                                        MetadataProviders.Tmdb.ToString(),
+                                        episode.id.ToString(CultureInfo.InvariantCulture)
+                                    }
+                                }
+                            })
+                        .ToArray();
                 }
 
-                return episodeGroupInfo.groups.SelectMany(group => group.episodes,
-                        (group, episode) => new RemoteSearchResult
-                        {
-                            SearchProviderName = Name,
-                            IndexNumber = episode.order + 1,
-                            ParentIndexNumber = group.order,
-                            Name = episode.name,
-                            Overview = episode.overview,
-                            PremiereDate = episode.air_date,
-                            ProductionYear = episode.air_date.Year,
-                            ProviderIds = new ProviderIdDictionary
-                            {
-                                {
-                                    MetadataProviders.Tmdb.ToString(), episode.id.ToString(CultureInfo.InvariantCulture)
-                                }
-                            }
-                        })
-                    .ToArray();
-            }
+                seriesInfoResponse =
+                    await FetchSeriesInfoAsync(tmdbId, language, cancellationToken).ConfigureAwait(false);
 
-            seriesInfoResponse = await FetchSeriesInfoAsync(tmdbId, language, cancellationToken).ConfigureAwait(false);
-
-            if (seriesInfoResponse != null)
-            {
-                var episodesResult = seriesInfoResponse.seasons.SelectMany(season => season.episodes.Select(episode =>
-                        new RemoteSearchResult
+                if (seriesInfoResponse?.seasons != null)
+                {
+                    return seriesInfoResponse.seasons.Where(season => season?.episodes != null)
+                        .SelectMany(season => season.episodes.Select(episode => new RemoteSearchResult
                         {
                             SearchProviderName = Name,
                             IndexNumber = episode.episode_number,
@@ -122,13 +141,18 @@ namespace StrmAssistant.Provider
                             ProviderIds = new ProviderIdDictionary
                             {
                                 {
-                                    MetadataProviders.Tmdb.ToString(), episode.id.ToString(CultureInfo.InvariantCulture)
+                                    MetadataProviders.Tmdb.ToString(),
+                                    episode.id.ToString(CultureInfo.InvariantCulture)
                                 }
                             }
                         }))
-                    .ToArray();
-
-                return episodesResult;
+                        .ToArray();
+                }
+            }
+            catch (Exception e)
+            {
+                Plugin.Instance.Logger.Debug(e.Message);
+                Plugin.Instance.Logger.Debug(e.StackTrace);
             }
 
             return Array.Empty<RemoteSearchResult>();
