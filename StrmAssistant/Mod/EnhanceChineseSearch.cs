@@ -25,6 +25,7 @@ namespace StrmAssistant.Mod
         private static FieldInfo sqlite3_db;
         private static MethodInfo _createConnection;
         private static PropertyInfo _dbFilePath;
+        private static MethodInfo _enableJoinFtsSearch;
         private static MethodInfo _getJoinCommandText;
         private static MethodInfo _createSearchTerm;
         private static MethodInfo _cacheIdsFromTextParams;
@@ -81,6 +82,8 @@ namespace StrmAssistant.Mod
             var embyServerImplementationsAssembly = Assembly.Load("Emby.Server.Implementations");
             var sqliteItemRepository =
                 embyServerImplementationsAssembly.GetType("Emby.Server.Implementations.Data.SqliteItemRepository");
+            _enableJoinFtsSearch =
+                sqliteItemRepository.GetMethod("EnableJoinFtsSearch", BindingFlags.Static | BindingFlags.NonPublic);
             _getJoinCommandText = sqliteItemRepository.GetMethod("GetJoinCommandText",
                 BindingFlags.NonPublic | BindingFlags.Instance);
             _createSearchTerm =
@@ -394,7 +397,9 @@ namespace StrmAssistant.Mod
 
         private static bool PatchSearchFunctions()
         {
-            return PatchUnpatch(Instance.PatchTracker, true, _getJoinCommandText,
+            return PatchUnpatch(Instance.PatchTracker, true, _enableJoinFtsSearch,
+                       prefix: nameof(EnableJoinFtsSearchPrefix)) &&
+                   PatchUnpatch(Instance.PatchTracker, true, _getJoinCommandText,
                        postfix: nameof(GetJoinCommandTextPostfix)) &&
                    PatchUnpatch(Instance.PatchTracker, true, _createSearchTerm,
                        prefix: nameof(CreateSearchTermPrefix)) &&
@@ -454,6 +459,14 @@ namespace StrmAssistant.Mod
             }
         }
 
+        [HarmonyPrefix]
+        private static bool EnableJoinFtsSearchPrefix(InternalItemsQuery query, ref bool __result)
+        {
+            __result = !string.IsNullOrEmpty(query.SearchTerm);
+
+            return false;
+        }
+
         [HarmonyPostfix]
         private static void GetJoinCommandTextPostfix(InternalItemsQuery query,
             List<KeyValuePair<string, string>> bindParams, string mediaItemsTableQualifier, ref string __result)
@@ -467,31 +480,6 @@ namespace StrmAssistant.Mod
                 else
                 {
                     __result = __result.Replace("match @SearchTerm", "match '-OriginalTitle:' || simple_query(@SearchTerm)");
-                }
-            }
-
-            if (!string.IsNullOrEmpty(query.Name) && __result.Contains("match @SearchTerm"))
-            {
-                __result = __result.Replace("match @SearchTerm", "match 'Name:' || simple_query(@SearchTerm)");
-
-                for (var i = 0; i < bindParams.Count; i++)
-                {
-                    var kvp = bindParams[i];
-                    if (kvp.Key == "@SearchTerm")
-                    {
-                        var currentValue = kvp.Value;
-
-                        if (currentValue.StartsWith("Name:", StringComparison.Ordinal))
-                        {
-                            currentValue = currentValue
-                                .Substring(currentValue.IndexOf(":", StringComparison.Ordinal) + 1)
-                                .Trim('\"', '^', '$')
-                                .Replace(".", string.Empty)
-                                .Replace("'", string.Empty);
-                        }
-
-                        bindParams[i] = new KeyValuePair<string, string>(kvp.Key, currentValue);
-                    }
                 }
             }
         }
