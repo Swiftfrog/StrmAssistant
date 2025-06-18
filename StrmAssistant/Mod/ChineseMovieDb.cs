@@ -1,4 +1,4 @@
-﻿using HarmonyLib;
+using HarmonyLib;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
@@ -43,8 +43,6 @@ namespace StrmAssistant.Mod
         private static MethodInfo _movieDbEpisodeProviderImportData;
         private static MethodInfo _getEpisodeInfoAsync;
         private static FieldInfo _cacheTime;
-
-        private static readonly AsyncLocal<string> CurrentLookupLanguageCountryCode = new AsyncLocal<string>();
 
         private static readonly object _lock = new object();
 
@@ -128,7 +126,7 @@ namespace StrmAssistant.Mod
         protected override void Prepare(bool apply)
         {
             PatchUnpatch(PatchTracker, apply, _getMovieDbMetadataLanguages, postfix: nameof(MetadataLanguagesPostfix));
-            PatchUnpatch(PatchTracker, apply, _getImageLanguagesParam, postfix: nameof(GetImageLanguagesParamPostfix));
+            PatchUnpatch(PatchTracker, apply, _getImageLanguagesParam, prefix: nameof(GetImageLanguagesParamPrefix));
 
             PatchUnpatch(PatchTracker, apply, _movieGetMetadata, prefix: nameof(MovieGetMetadataPrefix));
             if (!apply)
@@ -362,8 +360,7 @@ namespace StrmAssistant.Mod
                 item.Overview = WebUtility.HtmlDecode(overview).Replace("\n\n", "\n");
             }
 
-            if (isFirstLanguage && string.Equals(CurrentLookupLanguageCountryCode.Value, "CN",
-                    StringComparison.OrdinalIgnoreCase))
+            if (isFirstLanguage)
             {
                 var genresList = Traverse.Create(seriesInfo).Property("genres").GetValue<IEnumerable<object>>();
 
@@ -391,13 +388,11 @@ namespace StrmAssistant.Mod
         private static void EnsureSeriesInfoPostfix(string tmdbId, string language, CancellationToken cancellationToken,
             Task __result)
         {
-            if (WasCalledByMethod(_movieDbAssembly, "FetchImages")) return;
+            if (string.IsNullOrEmpty(language)) return;
 
             var lookupLanguageCountryCode = !string.IsNullOrEmpty(language) && language.Contains('-')
                 ? language.Split('-')[1]
                 : null;
-
-            CurrentLookupLanguageCountryCode.Value = lookupLanguageCountryCode;
 
             object seriesInfo = null;
 
@@ -485,51 +480,47 @@ namespace StrmAssistant.Mod
         private static void MetadataLanguagesPostfix(object __instance, ItemLookupInfo searchInfo,
             string[] providerLanguages, ref string[] __result)
         {
-            if (searchInfo.MetadataLanguage.StartsWith("zh", StringComparison.OrdinalIgnoreCase))
+            var list = __result.ToList();
+            var index = list.FindIndex(l => string.Equals(l, "en", StringComparison.OrdinalIgnoreCase) ||
+                                            string.Equals(l, "en-us", StringComparison.OrdinalIgnoreCase));
+
+            var currentFallbackLanguages = GetMovieDbFallbackLanguages();
+
+            foreach (var fallbackLanguage in currentFallbackLanguages)
             {
-                var list = __result.ToList();
-                var index = list.FindIndex(l => string.Equals(l, "en", StringComparison.OrdinalIgnoreCase) ||
-                                                string.Equals(l, "en-us", StringComparison.OrdinalIgnoreCase));
-
-                var currentFallbackLanguages = GetMovieDbFallbackLanguages();
-
-                foreach (var fallbackLanguage in currentFallbackLanguages)
+                if (!list.Contains(fallbackLanguage, StringComparer.OrdinalIgnoreCase))
                 {
-                    if (!list.Contains(fallbackLanguage, StringComparer.OrdinalIgnoreCase))
-                    {
-                        var mappedLanguage = MapLanguageToProviderLanguageStub(__instance, fallbackLanguage, null, false,
-                            providerLanguages);
+                    var mappedLanguage = MapLanguageToProviderLanguageStub(__instance, fallbackLanguage, null, false,
+                        providerLanguages);
 
-                        if (!string.IsNullOrEmpty(mappedLanguage))
+                    if (!string.IsNullOrEmpty(mappedLanguage))
+                    {
+                        if (index >= 0)
                         {
-                            if (index >= 0)
-                            {
-                                list.Insert(index, mappedLanguage);
-                                index++;
-                            }
-                            else
-                            {
-                                list.Add(mappedLanguage);
-                            }
+                            list.Insert(index, mappedLanguage);
+                            index++;
+                        }
+                        else
+                        {
+                            list.Add(mappedLanguage);
                         }
                     }
                 }
-
-                __result = list.ToArray();
             }
+
+            __result = list.ToArray();
         }
 
-        [HarmonyPostfix]
-        private static void GetImageLanguagesParamPostfix(ref string __result)
+        [HarmonyPrefix]
+        private static void GetImageLanguagesParamPrefix(ref string[] configuredLanguages)
         {
-            var list = __result.Split(',').ToList();
+            var list = configuredLanguages.ToList();
 
-            if (list.Any(i => i.StartsWith("zh")) && !list.Contains("zh"))
+            if (list.Count > 0)
             {
-                list.Insert(list.FindIndex(i => i.StartsWith("zh")) + 1, "zh");
+                list.Add("zh");
+                configuredLanguages = list.ToArray();
             }
-
-            __result = string.Join(",", list.ToArray());
         }
     }
 }

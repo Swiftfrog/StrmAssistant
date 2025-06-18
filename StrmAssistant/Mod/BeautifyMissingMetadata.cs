@@ -61,9 +61,7 @@ namespace StrmAssistant.Mod
 
             var checkItem = items.FirstOrDefault();
 
-            if (checkItem is null || !string.Equals(checkItem.GetPreferredMetadataLanguage(), "zh-CN",
-                    StringComparison.OrdinalIgnoreCase))
-                return;
+            if (checkItem is null) return;
 
             if (checkItem.ExtraType == ExtraType.AdditionalPart)
             {
@@ -107,7 +105,6 @@ namespace StrmAssistant.Mod
             ref BaseItemDto __result)
         {
             if (item is Episode && item.IndexNumber.HasValue &&
-                item.GetPreferredMetadataLanguage().Equals("zh-CN", StringComparison.OrdinalIgnoreCase) &&
                 string.Equals(item.Name, item.FileNameWithoutExtension, StringComparison.Ordinal))
             {
                 __result.Name = $"第 {item.IndexNumber} 集";

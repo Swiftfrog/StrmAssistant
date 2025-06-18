@@ -1,4 +1,4 @@
-﻿using HarmonyLib;
+using HarmonyLib;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
@@ -55,8 +55,6 @@ namespace StrmAssistant.Mod
             new ConcurrentDictionary<string, string>();
 
         private static readonly AsyncLocal<ContextItem> CurrentLookupItem = new AsyncLocal<ContextItem>();
-
-        private static readonly AsyncLocal<bool> WasCalledByImageProvider = new AsyncLocal<bool>();
 
         public PreferOriginalPoster()
         {
@@ -279,10 +277,9 @@ namespace StrmAssistant.Mod
         }
 
         [HarmonyPostfix]
-        private static void EnsureSeriesInfoTmdbPostfix(string tmdbId, string language,
-            CancellationToken cancellationToken, Task __result)
+        private static void EnsureSeriesInfoTmdbPostfix(string tmdbId, string language, Task __result)
         {
-            if (WasCalledByMethod(_movieDbAssembly, "FetchImages")) WasCalledByImageProvider.Value = true;
+            if (!WasCalledByMethod(_movieDbAssembly, "FetchImages")) return;
 
             object seriesInfo = null;
 
@@ -294,8 +291,6 @@ namespace StrmAssistant.Mod
             {
                 // ignored
             }
-
-            if (!WasCalledByImageProvider.Value) return;
 
             if (seriesInfo != null)
             {
@@ -313,10 +308,9 @@ namespace StrmAssistant.Mod
         }
 
         [HarmonyPostfix]
-        private static void EnsureMovieInfoTvdbPostfix(string tvdbId, IDirectoryService directoryService,
-            CancellationToken cancellationToken, Task __result)
+        private static void EnsureMovieInfoTvdbPostfix(string tvdbId, Task __result)
         {
-            if (WasCalledByMethod(_tvdbAssembly, "GetImages")) WasCalledByImageProvider.Value = true;
+            if (!WasCalledByMethod(_tvdbAssembly, "GetImages")) return;
 
             object movieData = null;
 
@@ -328,8 +322,6 @@ namespace StrmAssistant.Mod
             {
                 // ignored
             }
-
-            if (!WasCalledByImageProvider.Value) return;
 
             if (movieData != null)
             {
@@ -345,10 +337,9 @@ namespace StrmAssistant.Mod
         }
 
         [HarmonyPostfix]
-        private static void EnsureSeriesInfoTvdbPostfix(string tvdbId, IDirectoryService directoryService,
-            CancellationToken cancellationToken, Task __result)
+        private static void EnsureSeriesInfoTvdbPostfix(string tvdbId, Task __result)
         {
-            if (WasCalledByMethod(_tvdbAssembly, "GetImages")) WasCalledByImageProvider.Value = true;
+            if (!WasCalledByMethod(_tvdbAssembly, "GetImages")) return;
 
             object seriesData = null;
 
@@ -360,8 +351,6 @@ namespace StrmAssistant.Mod
             {
                 // ignored
             }
-
-            if (!WasCalledByImageProvider.Value) return;
 
             if (seriesData != null)
             {
