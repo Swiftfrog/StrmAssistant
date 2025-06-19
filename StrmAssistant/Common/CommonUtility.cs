@@ -1,4 +1,4 @@
-﻿using MediaBrowser.Model.IO;
+using MediaBrowser.Model.IO;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -105,11 +105,9 @@ namespace StrmAssistant.Common
             return (false, null);
         }
 
-        public static (bool isReachable, double? httpPing) CheckProxyReachability(string scheme, string host, int port,
-            string username, string password)
+        public static (bool isReachable, double? httpPing) CheckProxyReachability(string scheme, string host,
+            int port, string username, string password)
         {
-            double? httpPing = null;
-
             try
             {
                 var proxyUrl = new UriBuilder(scheme, host, port).Uri;
@@ -123,27 +121,48 @@ namespace StrmAssistant.Common
                 handler.UseProxy = true;
 
                 using var client = new HttpClient(handler);
-                client.Timeout = TimeSpan.FromMilliseconds(666);
+                client.Timeout = TimeSpan.FromMilliseconds(999);
 
                 var task1 = client.GetAsync("http://www.gstatic.com/generate_204");
                 var task2 = client.GetAsync("http://www.google.com/generate_204");
+                var task3 = client.GetAsync("http://cp.cloudflare.com/generate_204");
+
+                var allTasks = new[] { task1, task2, task3 };
 
                 var stopwatch = Stopwatch.StartNew();
-                var completedTask = Task.WhenAny(task1, task2).Result;
+                var completedTask = Task.WhenAny(allTasks).GetAwaiter().GetResult();
                 stopwatch.Stop();
 
-                if (completedTask.Status == TaskStatus.RanToCompletion && completedTask.Result.IsSuccessStatusCode &&
-                    completedTask.Result.StatusCode == HttpStatusCode.NoContent)
+                try
                 {
-                    httpPing = stopwatch.Elapsed.TotalMilliseconds;
-                }
-                else
-                {
-                    var otherTask = completedTask == task1 ? task2 : task1;
-                    if (otherTask.Status == TaskStatus.RanToCompletion && otherTask.Result.IsSuccessStatusCode &&
-                        otherTask.Result.StatusCode == HttpStatusCode.NoContent)
+                    var response = completedTask.GetAwaiter().GetResult();
+                    if (response.IsSuccessStatusCode && response.StatusCode == HttpStatusCode.NoContent)
                     {
-                        httpPing = stopwatch.Elapsed.TotalMilliseconds;
+                        var httpPing = stopwatch.Elapsed.TotalMilliseconds;
+                        return (true, httpPing);
+                    }
+                }
+                catch
+                {
+                    // ignored
+                }
+
+                foreach (var task in allTasks)
+                {
+                    if (task == completedTask) continue;
+
+                    try
+                    {
+                        var response = task.GetAwaiter().GetResult();
+                        if (response.IsSuccessStatusCode && response.StatusCode == HttpStatusCode.NoContent)
+                        {
+                            var httpPing = stopwatch.Elapsed.TotalMilliseconds;
+                            return (true, httpPing);
+                        }
+                    }
+                    catch
+                    {
+                        // ignored
                     }
                 }
             }
@@ -152,7 +171,7 @@ namespace StrmAssistant.Common
                 // ignored
             }
 
-            return (httpPing.HasValue, httpPing);
+            return (false, null);
         }
 
         public static string GenerateFixedCode(string input, string prefix, int length)
