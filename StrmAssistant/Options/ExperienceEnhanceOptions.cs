@@ -48,9 +48,9 @@ namespace StrmAssistant.Options
         public MergeSeriesScopeOption MergeSeriesPreference { get; set; } = MergeSeriesScopeOption.LibraryScope;
 
         [VisibleCondition(nameof(MergeMultiVersion), SimpleCondition.IsTrue)]
-        public ButtonItem SplitMoviesButton =>
-            new ButtonItem(
-                Resources.ExperienceEnhanceOptions_SplitMovieButton_Split_multi_version_movies_in_all_libraries)
+        public ButtonItem SplitMoviesButton { get; set; } =
+            new ButtonItem(Resources
+                .ExperienceEnhanceOptions_SplitMovieButton_Split_multi_version_movies_in_all_libraries)
             {
                 Icon = IconNames.clear_all, Data1 = "SplitMovies", ConfirmationPrompt = Resources.AreYouSureToContinue
             };

@@ -80,10 +80,18 @@ namespace StrmAssistant.Options.View
             {
                 Plugin.ChapterApi.RemoveIntroCreditsMarkers(item);
                 current++;
-                var percentDone = current * 100 / total;
-                var adjustedProgress = 20 + percentDone * 80 / 100;
-                progressItem.PercentComplete = adjustedProgress;
+                progressItem.PercentComplete = 20 + current * 80 / total;
                 Plugin.Instance.Logger.Info("IntroSkipClear - Task " + current + "/" + total + " - " + item.Path);
+                
+                if (current % 10 == 0)
+                {
+                    RaiseUIViewInfoChanged();
+                    await Task.Delay(10.ms());
+                }
+            }
+
+            if (current % 10 != 0)
+            {
                 RaiseUIViewInfoChanged();
                 await Task.Delay(10.ms());
             }

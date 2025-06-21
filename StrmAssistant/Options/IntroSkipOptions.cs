@@ -125,11 +125,12 @@ namespace StrmAssistant.Options
         public string IntroSkipPreferences { get; set; } = string.Empty;
 
         [VisibleCondition(nameof(EnableIntroSkip), SimpleCondition.IsTrue)]
-        public ButtonItem ClearIntroButton =>
+        public ButtonItem ClearIntroButton { get; set; } =
             new ButtonItem(
                 Resources.ClearChapterMarkersTask_Description_Clears_behavior_based_intro_and_credits_markers)
             {
-                Icon = IconNames.clear_all, Data1 = "ClearIntroCreditsMarkers",
+                Icon = IconNames.clear_all,
+                Data1 = "ClearIntroCreditsMarkers",
                 ConfirmationPrompt = Resources.AreYouSureToContinue
             };
 
