@@ -28,13 +28,14 @@ namespace StrmAssistant.Mod
         private static MethodInfo _logThumbnailImageExtractionFailure;
         private static MethodInfo _extractVideoImagesOnInterval;
         private static MethodInfo _enableQuickImageSeriesExtractor;
-        private static ConstructorInfo _baseOptionsConstructor;
+        private static MethodInfo _addHdrAdjustFilter;
 
         private static readonly AsyncLocal<BaseItem> ShortcutItem = new AsyncLocal<BaseItem>();
         private static readonly AsyncLocal<BaseItem> ImageCaptureItem = new AsyncLocal<BaseItem>();
         private static readonly AsyncLocal<MediaContainers?> VideoThumbnailMediaContainer =
             new AsyncLocal<MediaContainers?>();
         private static int _isShortcutPatchUsageCount;
+        private static readonly object AddHdrAdjustFilterLock = new object();
 
         private static SemaphoreSlim SemaphoreFFmpeg;
         public static int SemaphoreFFmpegMaxCount { get; private set; }
@@ -105,12 +106,9 @@ namespace StrmAssistant.Mod
             _extractVideoImagesOnInterval = imageExtractionManager.GetMethod("ExtractVideoImagesOnInterval");
             _enableQuickImageSeriesExtractor = imageExtractionManager.GetMethod("EnableQuickImageSeriesExtractor",
                 BindingFlags.Instance | BindingFlags.NonPublic);
-
-            var optionDefCollection = AccessTools.TypeByName("Emby.Ffmpeg.Model.Options.Collections.OptionDefCollection");
-            var optionOwner = AccessTools.TypeByName("Emby.Ffmpeg.Model.Options.Interfaces.IOptionOwner");
-            _baseOptionsConstructor = AccessTools.Constructor(
-                AccessTools.TypeByName("Emby.Ffmpeg.Model.Options.Collections.BaseOptions"),
-                new[] { optionDefCollection, optionOwner });
+            _addHdrAdjustFilter =
+                imageExtractorBaseType.GetMethod("AddHdrAdjustFilter", BindingFlags.Instance | BindingFlags.NonPublic);
+            ReversePatch(PatchTracker, _addHdrAdjustFilter, nameof(AddHdrAdjustFilterStub));
         }
 
         protected override void Prepare(bool apply)
@@ -131,7 +129,7 @@ namespace StrmAssistant.Mod
                 prefix: nameof(ExtractVideoImagesOnIntervalPrefix));
             PatchUnpatch(PatchTracker, apply, _enableQuickImageSeriesExtractor,
                 postfix: nameof(EnableQuickImageSeriesExtractorPostfix));
-            PatchUnpatch(PatchTracker, apply, _baseOptionsConstructor, prefix: nameof(BaseOptionsConstructorPrefix));
+            PatchUnpatch(PatchTracker, apply, _addHdrAdjustFilter, prefix: nameof(AddHdrAdjustFilterPrefix));
         }
 
         private static void PatchResourcePool()
@@ -474,21 +472,19 @@ namespace StrmAssistant.Mod
             }
         }
 
+        [HarmonyReversePatch]
+        private static void AddHdrAdjustFilterStub(object instance, List<string> filters, MediaStream mediaStream) =>
+            throw new NotImplementedException();
+
         [HarmonyPrefix]
-        private static void BaseOptionsConstructorPrefix(ref List<object> commonOptions)
+        private static bool AddHdrAdjustFilterPrefix(object __instance, List<string> filters, MediaStream mediaStream)
         {
-            var seen = new HashSet<string>();
-
-            for (var i = commonOptions.Count - 1; i >= 0; i--)
+            lock (AddHdrAdjustFilterLock)
             {
-                var option = commonOptions[i];
-                var name = Traverse.Create(option).Property("Name").GetValue<string>();
-
-                if (name == "threads" && !seen.Add(name))
-                {
-                    commonOptions.RemoveAt(i);
-                }
+                AddHdrAdjustFilterStub(__instance, filters, mediaStream);
             }
+
+            return false;
         }
     }
 }
