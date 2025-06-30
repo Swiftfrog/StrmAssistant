@@ -440,12 +440,11 @@ namespace StrmAssistant.Mod
             }
 
             var reorderedImages = remoteImages.OrderBy(i =>
-                i.Type == ImageType.Backdrop ? 3 :
+                (i.Type == ImageType.Backdrop || item is Episode) && string.IsNullOrEmpty(i.Language) ? 0 :
                 !string.IsNullOrEmpty(libraryPreferredImageLanguage) && string.Equals(i.Language,
                     libraryPreferredImageLanguage, StringComparison.OrdinalIgnoreCase) ? 0 :
                 !string.IsNullOrEmpty(originalLanguage) &&
-                string.Equals(i.Language, originalLanguage, StringComparison.OrdinalIgnoreCase) ? 1 :
-                string.IsNullOrEmpty(i.Language) && item is Episode ? 2 : 3);
+                string.Equals(i.Language, originalLanguage, StringComparison.OrdinalIgnoreCase) ? 1 : 2);
 
             return Task.FromResult(reorderedImages.AsEnumerable());
         }
