@@ -416,7 +416,7 @@ namespace StrmAssistant.Common
                 HasAudioStream = true
             };
 
-            if (libraryIds.All(i => i == "-1"))
+            if (libraryIds.Contains("-1") && libraryIds.All(i => i == "-1"))
             {
                 itemsFingerprintQuery.ParentIds = GetAllFavoriteSeasons().DefaultIfEmpty(-1).ToArray();
             }
