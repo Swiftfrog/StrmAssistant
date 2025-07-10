@@ -61,7 +61,7 @@ namespace StrmAssistant.Mod
 
                 var nameToProcess = __instance is BoxSet ? RemoveDefaultCollectionName(result) : result;
 
-                __result = ConvertToPinyinInitials(nameToProcess).AsSpan();
+                __result = ConvertToPinyinInitials(nameToProcess, __instance is MusicArtist).AsSpan();
             }
         }
 

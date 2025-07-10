@@ -1,9 +1,9 @@
-﻿using Microsoft.International.Converters.TraditionalChineseToSimplifiedConverter;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
-using TinyPinyin;
+using ToolGood.Words;
 
 namespace StrmAssistant.Common
 {
@@ -51,7 +51,7 @@ namespace StrmAssistant.Common
 
         public static string ConvertTraditionalToSimplified(string input)
         {
-            return ChineseConverter.Convert(input, ChineseConversionDirection.TraditionalToSimplified);
+            return WordsHelper.ToSimplifiedChinese(input);
         }
 
         public static string GetLanguageByTitle(string input)
@@ -61,9 +61,28 @@ namespace StrmAssistant.Common
             return IsJapanese(input) ? "ja" : IsKorean(input) ? "ko" : IsChinese(input) ? "zh" : "en";
         }
 
-        public static string ConvertToPinyinInitials(string input)
+        public static string ConvertToPinyinInitials(string input, bool isName)
         {
-            return PinyinHelper.GetPinyinInitials(input);
+            return GetFirstPinyin(input, isName);
+        }
+
+        private static string GetFirstPinyin(string text, bool isName = false)
+        {
+            var pinyinList = isName
+                ? (IEnumerable<string>)WordsHelper.GetPinyinListForName(text)
+                : WordsHelper.GetPinyinList(text);
+
+            var sb = new StringBuilder(text.Length);
+
+            foreach (var pinyin in pinyinList)
+            {
+                if (pinyin[0] <= '\u0080')
+                    sb.Append(pinyin[0]);
+                else
+                    sb.Append(pinyin);
+            }
+
+            return sb.ToString();
         }
 
         public static string RemoveDefaultCollectionName(string input)
