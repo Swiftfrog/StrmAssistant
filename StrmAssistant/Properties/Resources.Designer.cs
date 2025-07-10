@@ -1464,7 +1464,7 @@ namespace StrmAssistant.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Support http(s) proxy server. Latency to Google must be less than 999 milliseconds. Disabled if unavailabe or leave blank. Restart if any changes..
+        ///   Looks up a localized string similar to Support http(s) proxy server. Latency to Google must be less than 2000 milliseconds. Disabled if unavailabe or leave blank. Restart if any changes..
         /// </summary>
         public static string ModOptions_ProxyServer_Enable_http_proxy_server__Blank_is_OFF_ {
             get {

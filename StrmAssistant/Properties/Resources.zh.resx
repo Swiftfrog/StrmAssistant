@@ -381,7 +381,7 @@
     <value>代理服务器</value>
   </data>
   <data name="ModOptions_ProxyServer_Enable_http_proxy_server__Blank_is_OFF_" xml:space="preserve">
-    <value>支持 HTTP(S) 代理服务器，至 Google 的延迟必须小于 999 毫秒，测试失败或留空则禁用，设置变更后须重启生效。</value>
+    <value>支持 HTTP(S) 代理服务器，至 Google 的延迟必须小于 2000 毫秒，测试失败或留空则禁用，设置变更后须重启生效。</value>
   </data>
   <data name="ProxyServer_Available" xml:space="preserve">
     <value>可用</value>

@@ -6,7 +6,6 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -85,26 +84,6 @@ namespace StrmAssistant.Common
             return false;
         }
 
-        public static (bool isReachable, double? tcpPing) CheckProxyReachability(string host, int port)
-        {
-            try
-            {
-                using var tcpClient = new TcpClient();
-                var stopwatch = Stopwatch.StartNew();
-                if (tcpClient.ConnectAsync(host, port).Wait(999))
-                {
-                    stopwatch.Stop();
-                    return (true, stopwatch.Elapsed.TotalMilliseconds);
-                }
-            }
-            catch
-            {
-                // ignored
-            }
-
-            return (false, null);
-        }
-
         public static (bool isReachable, double? httpPing) CheckProxyReachability(string scheme, string host,
             int port, string username, string password)
         {
@@ -121,7 +100,7 @@ namespace StrmAssistant.Common
                 handler.UseProxy = true;
 
                 using var client = new HttpClient(handler);
-                client.Timeout = TimeSpan.FromMilliseconds(999);
+                client.Timeout = TimeSpan.FromMilliseconds(2000);
 
                 var task1 = client.GetAsync("http://www.gstatic.com/generate_204");
                 var task2 = client.GetAsync("http://www.google.com/generate_204");
