@@ -43,6 +43,7 @@ namespace StrmAssistant.Mod
 
         private static MethodInfo _canRefreshMetadata;
         private static MethodInfo _canRefreshImage;
+        private static MethodInfo _getEnabledMetadataProviders;
         private static MethodInfo _clearImages;
         private static MethodInfo _isSaverEnabledForItem;
         private static MethodInfo _afterMetadataRefresh;
@@ -61,6 +62,7 @@ namespace StrmAssistant.Mod
 
         private static MethodInfo _getRefreshOptions;
 
+        private static readonly AsyncLocal<bool> WasCalledByGetEnabledMetadataProviders = new AsyncLocal<bool>();
         private static readonly AsyncLocal<bool> ShouldCleanEmbeddedMetadata = new AsyncLocal<bool>();
         private static readonly AsyncLocal<long> ExclusiveItem = new AsyncLocal<long>();
         private static readonly AsyncLocal<long> ProtectIntroItem = new AsyncLocal<long>();
@@ -84,6 +86,9 @@ namespace StrmAssistant.Mod
             var providerManager = embyProviders.GetType("Emby.Providers.Manager.ProviderManager");
             _canRefreshMetadata = providerManager.GetMethod("CanRefresh", BindingFlags.Static | BindingFlags.NonPublic);
             _canRefreshImage = providerManager.GetMethod("CanRefresh", BindingFlags.Instance | BindingFlags.NonPublic);
+            _getEnabledMetadataProviders = providerManager.GetMethod("GetEnabledMetadataProviders",
+                BindingFlags.Instance | BindingFlags.Public);
+
             var itemImageProvider = embyProviders.GetType("Emby.Providers.Manager.ItemImageProvider");
             _clearImages = itemImageProvider.GetMethod("ClearImages", BindingFlags.Instance | BindingFlags.NonPublic);
             _isSaverEnabledForItem =
@@ -137,6 +142,8 @@ namespace StrmAssistant.Mod
             PatchUnpatch(PatchTracker, apply, _canRefreshImage, prefix: nameof(CanRefreshImagePrefix));
             PatchUnpatch(PatchTracker, apply, _canRefreshMetadata, prefix: nameof(CanRefreshMetadataPrefix),
                 postfix: nameof(CanRefreshMetadataPostfix));
+            PatchUnpatch(PatchTracker, apply, _getEnabledMetadataProviders,
+                prefix: nameof(GetEnabledMetadataProvidersPrefix));
             PatchUnpatch(PatchTracker, apply, _clearImages, prefix: nameof(ClearImagesPrefix));
             PatchUnpatch(PatchTracker, apply, _isSaverEnabledForItem, prefix: nameof(IsSaverEnabledForItemPrefix));
             PatchUnpatch(PatchTracker, apply, _afterMetadataRefresh, prefix: nameof(AfterMetadataRefreshPrefix));
@@ -349,24 +356,26 @@ namespace StrmAssistant.Mod
         }
 
         [HarmonyPrefix]
+        private static void GetEnabledMetadataProvidersPrefix(BaseItem item, LibraryOptions libraryOptions)
+        {
+            WasCalledByGetEnabledMetadataProviders.Value = true;
+        }
+
+        [HarmonyPrefix]
         private static bool CanRefreshMetadataPrefix(IMetadataProvider provider, BaseItem item,
             LibraryOptions libraryOptions, bool includeDisabled, bool forceEnableInternetMetadata,
             bool ignoreMetadataLock, ref bool __result, out bool __state)
         {
             __state = false;
-            
-            if (ExclusiveItem.Value != 0 && ExclusiveItem.Value == item.InternalId)
-            {
-                return true;
-            }
 
-            if ((item.Parent is null && item.ExtraType is null) ||
-                !(provider is IPreRefreshProvider && provider.Name == "ffprobe"))
-            {
-                return true;
-            }
+            if (ExclusiveItem.Value != 0L && ExclusiveItem.Value == item.InternalId) return true;
 
-            if (CurrentRefreshContext.Value != null && CurrentRefreshContext.Value.InternalId == item.InternalId)
+            if (item.Parent is null && item.ExtraType is null) return true;
+
+            if (WasCalledByGetEnabledMetadataProviders.Value) return true;
+
+            if (CurrentRefreshContext.Value != null && CurrentRefreshContext.Value.InternalId == item.InternalId &&
+                provider is IPreRefreshProvider && provider.Name == "ffprobe")
             {
                 __state = true;
 

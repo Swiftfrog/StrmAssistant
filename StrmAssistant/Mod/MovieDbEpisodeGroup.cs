@@ -43,9 +43,12 @@ namespace StrmAssistant.Mod
         private static MethodInfo _episodeGetMetadata;
         private static MethodInfo _seasonGetImages;
         private static MethodInfo _episodeGetImages;
+
         private static MethodInfo _canRefreshMetadata;
+        private static MethodInfo _getEnabledMetadataProviders;
 
         private static readonly AsyncLocal<Series> CurrentSeries = new AsyncLocal<Series>();
+        private static readonly AsyncLocal<bool> WasCalledByGetEnabledMetadataProviders = new AsyncLocal<bool>();
 
         public const string LocalEpisodeGroupFileName = "episodegroup.json";
 
@@ -92,6 +95,8 @@ namespace StrmAssistant.Mod
                 var providerManager = embyProviders.GetType("Emby.Providers.Manager.ProviderManager");
                 _canRefreshMetadata =
                     providerManager.GetMethod("CanRefresh", BindingFlags.Static | BindingFlags.NonPublic);
+                _getEnabledMetadataProviders = providerManager.GetMethod("GetEnabledMetadataProviders",
+                    BindingFlags.Instance | BindingFlags.Public);
             }
             else
             {
@@ -114,6 +119,14 @@ namespace StrmAssistant.Mod
             PatchUnpatch(PatchTracker, apply, _episodeGetImages, prefix: nameof(EpisodeGetImagesPrefix),
                 postfix: nameof(EpisodeGetImagesPostfix));
             PatchUnpatch(PatchTracker, apply, _canRefreshMetadata, prefix: nameof(CanRefreshMetadataPrefix));
+            PatchUnpatch(PatchTracker, apply, _getEnabledMetadataProviders,
+                prefix: nameof(GetEnabledMetadataProvidersPrefix));
+        }
+
+        [HarmonyPrefix]
+        private static void GetEnabledMetadataProvidersPrefix(BaseItem item, LibraryOptions libraryOptions)
+        {
+            WasCalledByGetEnabledMetadataProviders.Value = true;
         }
 
         [HarmonyPrefix]
@@ -121,6 +134,8 @@ namespace StrmAssistant.Mod
             LibraryOptions libraryOptions, bool includeDisabled, bool forceEnableInternetMetadata,
             bool ignoreMetadataLock)
         {
+            if (WasCalledByGetEnabledMetadataProviders.Value) return;
+
             if (CurrentSeries.Value != null) return;
 
             if (item.Parent is null && item.ExtraType is null) return;
