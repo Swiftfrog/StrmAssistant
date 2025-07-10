@@ -1,9 +1,10 @@
-﻿using Emby.Media.Common.Extensions;
+using Emby.Media.Common.Extensions;
 using Emby.Web.GenericEdit.Elements;
 using Emby.Web.GenericEdit.Elements.List;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Tasks;
+using MediaBrowser.Model.Logging;
 using MediaBrowser.Model.Plugins;
 using MediaBrowser.Model.Plugins.UI.Views;
 using StrmAssistant.Options.Store;
@@ -16,15 +17,25 @@ namespace StrmAssistant.Options.View
 {
     internal class IntroSkipPageView : PluginPageView
     {
+        private readonly ILogger _logger;
         private readonly IntroSkipOptionsStore _store;
+
+        private static Task _clearIntroTask;
 
         public IntroSkipPageView(PluginInfo pluginInfo, ILibraryManager libraryManager,
             IntroSkipOptionsStore store)
             : base(pluginInfo.Id)
         {
+            _logger = Plugin.Instance.Logger;
             _store = store;
             ContentData = store.GetOptions();
             IntroSkipOptions.Initialize(libraryManager);
+
+            if (_clearIntroTask is null || _clearIntroTask.IsCompleted)
+            {
+                IntroSkipOptions.ClearIntroButton.IsEnabled = true;
+                IntroSkipOptions.ClearIntroResult.Clear();
+            }
         }
 
         public IntroSkipOptions IntroSkipOptions => ContentData as IntroSkipOptions;
@@ -45,7 +56,12 @@ namespace StrmAssistant.Options.View
             switch (commandId)
             {
                 case "ClearIntroCreditsMarkers":
-                    Task.Run(HandleClearIntroButton).FireAndForget(Plugin.Instance.Logger);
+                    if (_clearIntroTask is null || _clearIntroTask.IsCompleted)
+                    {
+                        _clearIntroTask = Task.Run(HandleClearIntroButton);
+                        _clearIntroTask.FireAndForget(_logger);
+                    }
+
                     return Task.FromResult<IPluginUIView>(this);
             }
 
@@ -81,8 +97,8 @@ namespace StrmAssistant.Options.View
                 Plugin.ChapterApi.RemoveIntroCreditsMarkers(item);
                 current++;
                 progressItem.PercentComplete = 20 + current * 80 / total;
-                Plugin.Instance.Logger.Info("IntroSkipClear - Task " + current + "/" + total + " - " + item.Path);
-                
+                _logger.Info("IntroSkipClear - Task " + current + "/" + total + " - " + item.Path);
+
                 if (current % 10 == 0)
                 {
                     RaiseUIViewInfoChanged();

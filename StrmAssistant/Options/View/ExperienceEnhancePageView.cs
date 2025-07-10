@@ -3,6 +3,7 @@ using Emby.Web.GenericEdit.Elements;
 using Emby.Web.GenericEdit.Elements.List;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Tasks;
+using MediaBrowser.Model.Logging;
 using MediaBrowser.Model.Plugins;
 using MediaBrowser.Model.Plugins.UI.Views;
 using StrmAssistant.Options.Store;
@@ -14,16 +15,26 @@ namespace StrmAssistant.Options.View
 {
     internal class ExperienceEnhancePageView : PluginPageView
     {
+        private readonly ILogger _logger;
         private readonly ILibraryManager _libraryManager;
         private readonly ExperienceEnhanceOptionsStore _store;
+
+        private static Task _splitMovieTask;
 
         public ExperienceEnhancePageView(PluginInfo pluginInfo, ILibraryManager libraryManager,
             ExperienceEnhanceOptionsStore store) : base(pluginInfo.Id)
         {
+            _logger = Plugin.Instance.Logger;
             _libraryManager = libraryManager;
             _store = store;
             ContentData = store.GetOptions();
             ExperienceEnhanceOptions.UIFunctionOptions.Initialize();
+
+            if (_splitMovieTask is null || _splitMovieTask.IsCompleted)
+            {
+                ExperienceEnhanceOptions.SplitMoviesButton.IsEnabled = true;
+                ExperienceEnhanceOptions.SplitMoviesProgress.Clear();
+            }
         }
 
         public ExperienceEnhanceOptions ExperienceEnhanceOptions => ContentData as ExperienceEnhanceOptions;
@@ -39,7 +50,12 @@ namespace StrmAssistant.Options.View
             switch (commandId)
             {
                 case "SplitMovies":
-                    Task.Run(HandleSplitMovieButton).FireAndForget(Plugin.Instance.Logger);
+                    if (_splitMovieTask is null || _splitMovieTask.IsCompleted)
+                    {
+                        _splitMovieTask = Task.Run(HandleSplitMovieButton);
+                        _splitMovieTask.FireAndForget(_logger);
+                    }
+
                     return Task.FromResult<IPluginUIView>(this);
             }
 
@@ -74,7 +90,7 @@ namespace StrmAssistant.Options.View
                 _libraryManager.SplitItems(item);
                 current++;
                 progressItem.PercentComplete = 20 + current * 80 / total;
-                Plugin.Instance.Logger.Info("MergeMovie - Split group " + current + "/" + total + " - " + item.Path);
+                _logger.Info("MergeMovie - Split group " + current + "/" + total + " - " + item.Path);
 
                 if (current % 10 == 0)
                 {
