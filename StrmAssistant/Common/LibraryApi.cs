@@ -881,7 +881,7 @@ namespace StrmAssistant.Common
             }
         }
 
-        private FileSystemMetadata[] GetRelatedPaths(string basename, string folder)
+        private FileSystemMetadata[] GetRelatedPaths(string basename, string folder, List<string> altBasename)
         {
             var extensions = new List<string>
             {
@@ -901,31 +901,58 @@ namespace StrmAssistant.Common
             };
 
             extensions.AddRange(BaseItem.SupportedImageExtensions);
-            return _fileSystem.GetFiles(folder, extensions.ToArray(), false, false)
-                .Where(i => !string.IsNullOrEmpty(i.FullName) && Path.GetFileNameWithoutExtension(i.FullName)
-                    .StartsWith(basename, StringComparison.OrdinalIgnoreCase))
+
+            var files = _fileSystem.GetFiles(folder, extensions.ToArray(), false, false);
+
+            return files.Where(i =>
+                {
+                    var nameWithoutExt = Path.GetFileNameWithoutExtension(i.FullName);
+                    if (string.IsNullOrEmpty(nameWithoutExt)) return false;
+
+                    if (!nameWithoutExt.StartsWith(basename, StringComparison.OrdinalIgnoreCase)) return false;
+
+                    if (altBasename != null &&
+                        altBasename.Any(alt => nameWithoutExt.StartsWith(alt, StringComparison.OrdinalIgnoreCase)))
+                        return false;
+
+                    return true;
+                })
                 .ToArray();
         }
 
-        public FileSystemMetadata[] GetDeletePaths(BaseItem item)
+        public FileSystemMetadata[] GetVersionDeletePaths(BaseItem item)
         {
             var basename = item.FileNameWithoutExtension;
             var folder = _fileSystem.GetDirectoryName(item.Path);
-            var relatedFiles = GetRelatedPaths(basename, folder);
 
-            return new[] { new FileSystemMetadata { FullName = item.Path, IsDirectory = item.IsFolder } }
+            var altBasename = item is Video video && !string.IsNullOrEmpty(video.PresentationUniqueKey)
+                ? _libraryManager.GetItemList(new InternalItemsQuery
+                    {
+                        PresentationUniqueKey = video.PresentationUniqueKey,
+                        ExcludeItemIds = new[] { video.InternalId },
+                        IncludeLiveTVView = false,
+                        IncludeItemTypes = new[] { video.GetType().Name },
+                        Recursive = true
+                    })
+                    .Select(i => i.FileNameWithoutExtension)
+                    .ToList()
+                : null;
+
+            var relatedFiles = GetRelatedPaths(basename, folder, altBasename);
+
+            return new[] { new FileSystemMetadata { FullName = item.Path, IsDirectory = item is Folder } }
                 .Concat(relatedFiles)
                 .ToArray();
         }
 
-        public FileSystemMetadata[] GetDeletePaths(string path)
+        public FileSystemMetadata[] GetRemoteDeletePaths(string path)
         {
             var folder = _fileSystem.GetDirectoryName(path);
 
             if (!_fileSystem.DirectoryExists(folder)) return Array.Empty<FileSystemMetadata>();
 
             var basename = Path.GetFileNameWithoutExtension(path);
-            var relatedFiles = GetRelatedPaths(basename, folder);
+            var relatedFiles = GetRelatedPaths(basename, folder, null);
 
             return new[] { _fileSystem.GetFileInfo(path) }.Concat(relatedFiles).Where(f => f.Exists).ToArray();
         }
@@ -1002,7 +1029,7 @@ namespace StrmAssistant.Common
 
             foreach (var mountPath in mountPaths)
             {
-                foreach (var path in GetDeletePaths(mountPath))
+                foreach (var path in GetRemoteDeletePaths(mountPath))
                 {
                     deletePaths.Add(path);
                     var folderPath = _fileSystem.GetDirectoryName(path.FullName);

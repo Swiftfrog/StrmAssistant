@@ -73,7 +73,7 @@ namespace StrmAssistant.Web.Service
                     : null;
                 
                 var proceedToDelete = true;
-                var deletePaths = Plugin.LibraryApi.GetDeletePaths(deleteItem);
+                var deletePaths = Plugin.LibraryApi.GetVersionDeletePaths(deleteItem);
 
                 foreach (var path in deletePaths)
                 {
