@@ -49,7 +49,7 @@ namespace StrmAssistant.Common
             {
                 var embyProviders = Assembly.Load("Emby.Providers");
                 var thumbnailGenerator = embyProviders.GetType("Emby.Providers.MediaInfo.ThumbnailGenerator");
-                var thumbnailGeneratorConstructor = thumbnailGenerator.GetConstructor(
+                var thumbnailGeneratorConstructor = thumbnailGenerator?.GetConstructor(
                     BindingFlags.Public | BindingFlags.Instance, null,
                     new[]
                     {
@@ -62,7 +62,7 @@ namespace StrmAssistant.Common
                     fileSystem, _logger, imageExtractionManager, itemRepository, mediaMountManager,
                     applicationPaths, libraryMonitor, ffmpegManager
                 });
-                _refreshThumbnailImages = thumbnailGenerator.GetMethod("RefreshThumbnailImages",
+                _refreshThumbnailImages = thumbnailGenerator?.GetMethod("RefreshThumbnailImages",
                     BindingFlags.Public | BindingFlags.Instance);
             }
             catch (Exception e)

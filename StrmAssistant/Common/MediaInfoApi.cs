@@ -314,7 +314,7 @@ namespace StrmAssistant.Common
                             .DeserializeFromFileAsync<List<MediaSourceWithChapters>>(mediaInfoJsonPath)
                             .ConfigureAwait(false)).ToArray()[0];
 
-                    if (mediaSourceWithChapters?.MediaSourceInfo?.RunTimeTicks.HasValue is true &&
+                    if (mediaSourceWithChapters?.MediaSourceInfo?.Size > 0L &&
                         (ignoreFileChange || !Plugin.LibraryApi.HasFileChanged(item, directoryService)))
                     {
                         foreach (var subtitle in mediaSourceWithChapters.MediaSourceInfo.MediaStreams.Where(m =>

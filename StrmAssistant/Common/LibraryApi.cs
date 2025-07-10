@@ -1,4 +1,3 @@
-using Emby.Media.Common.Extensions;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Audio;
 using MediaBrowser.Controller.Entities.Movies;
@@ -10,7 +9,6 @@ using MediaBrowser.Model.Configuration;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.IO;
 using MediaBrowser.Model.Logging;
-using MediaBrowser.Model.MediaInfo;
 using MediaBrowser.Model.Querying;
 using StrmAssistant.Mod;
 using StrmAssistant.Options;
@@ -442,30 +440,36 @@ namespace StrmAssistant.Common
             return results;
         }
 
-        public bool IsExtractNeeded(BaseItem item, bool enableImageCapture)
+        public static bool IsExtractExclude(BaseItem item)
         {
-            if (!item.MediaContainer.HasValue &&
-                string.Equals(item.Container, "rm", StringComparison.OrdinalIgnoreCase))
-            {
-                item.Container = "rmvb";
-            }
-
-            if (enableImageCapture && item.MediaContainer.HasValue &&
-                ImageCaptureExcludeMediaContainers.Contains(item.MediaContainer.Value))
-                return false;
-
             if (!item.IsShortcut && item.IsFileProtocol && !string.IsNullOrEmpty(item.Path))
             {
-                var fileExtension = Path.GetExtension(item.Path).TrimStart('.');
-                if (MediaInfoExcludeMediaExtensions.Contains(fileExtension)) return false;
+                var ext = Path.GetExtension(item.Path).TrimStart('.');
+                if (MediaInfoExcludeMediaExtensions.Contains(ext)) return true;
             }
 
+            return false;
+        }
+
+        public bool IsExtractNeeded(BaseItem item, bool enableImageCapture)
+        {
             if (!HasMediaInfo(item)) return true;
 
             if (!enableImageCapture) return false;
 
             if (Plugin.Instance.MediaInfoExtractStore.GetOptions().PersistMediaInfoMode ==
                 PersistMediaInfoOption.Restore.ToString()) return false;
+
+            if (!item.MediaContainer.HasValue &&
+                string.Equals(item.Container, "rm", StringComparison.OrdinalIgnoreCase))
+            {
+                item.Container = "rmvb";
+            }
+
+            if (item.MediaContainer is { } container && ImageCaptureExcludeMediaContainers.Contains(container))
+            {
+                return false;
+            }
 
             var libraryOptions = _libraryManager.GetLibraryOptions(item);
 
@@ -989,7 +993,8 @@ namespace StrmAssistant.Common
                     .ToList();
 
                 var staticMediaSources = Plugin.MediaInfoApi.GetStaticMediaSources(workItem, !single)
-                    .ToDictionary(s => s.Id, s => s.Path);
+                    .GroupBy(s => s.Id)
+                    .ToDictionary(g => g.Key, g => g.First().Path);
 
                 foreach (var source in mediaSources)
                 {

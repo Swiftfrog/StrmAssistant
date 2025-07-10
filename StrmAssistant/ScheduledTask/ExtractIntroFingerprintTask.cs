@@ -19,13 +19,11 @@ namespace StrmAssistant.ScheduledTask
     {
         private readonly ILogger _logger;
         private readonly IFileSystem _fileSystem;
-        private readonly ITaskManager _taskManager;
 
-        public ExtractIntroFingerprintTask(IFileSystem fileSystem, ITaskManager taskManager)
+        public ExtractIntroFingerprintTask(IFileSystem fileSystem)
         {
             _logger = Plugin.Instance.Logger;
             _fileSystem = fileSystem;
-            _taskManager = taskManager;
         }
 
         public async Task Execute(CancellationToken cancellationToken, IProgress<double> progress)
@@ -56,8 +54,9 @@ namespace StrmAssistant.ScheduledTask
             var persistMediaInfo = persistMediaInfoMode != PersistMediaInfoOption.None.ToString();
             var mediaInfoRestoreMode = persistMediaInfoMode == PersistMediaInfoOption.Restore.ToString();
 
-            var preExtractEpisodes = Plugin.FingerprintApi.FetchIntroPreExtractTaskItems();
-            var postExtractEpisodes = Plugin.FingerprintApi.FetchIntroFingerprintTaskItems();
+            var blacklistSeasons = Plugin.FingerprintApi.GetBlacklistSeasons();
+            var preExtractEpisodes = Plugin.FingerprintApi.FetchIntroPreExtractTaskItems(blacklistSeasons);
+            var postExtractEpisodes = Plugin.FingerprintApi.FetchIntroFingerprintTaskItems(blacklistSeasons);
             var episodes= preExtractEpisodes.Concat(postExtractEpisodes).ToList();
             var groupedBySeason = episodes.GroupBy(e => e.Season).ToList();
             var seasonTasks = new List<Task>();

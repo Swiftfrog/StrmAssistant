@@ -4,7 +4,6 @@ using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Notifications;
 using MediaBrowser.Controller.Session;
-using MediaBrowser.Model.Logging;
 using MediaBrowser.Model.Session;
 using StrmAssistant.Properties;
 using System;
@@ -17,14 +16,13 @@ namespace StrmAssistant.Common
 {
     public class NotificationApi
     {
-        private readonly ILogger _logger;
         private readonly INotificationManager _notificationManager;
         private readonly IUserManager _userManager;
         private readonly ISessionManager _sessionManager;
 
-        public NotificationApi(INotificationManager notificationManager, IUserManager userManager, ISessionManager sessionManager)
+        public NotificationApi(INotificationManager notificationManager, IUserManager userManager,
+            ISessionManager sessionManager)
         {
-            _logger = Plugin.Instance.Logger;
             _notificationManager = notificationManager;
             _userManager = userManager;
             _sessionManager = sessionManager;

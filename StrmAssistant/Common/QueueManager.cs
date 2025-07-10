@@ -1,5 +1,6 @@
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.TV;
+using MediaBrowser.Controller.Tasks;
 using MediaBrowser.Model.Logging;
 using System;
 using System.Collections.Concurrent;
@@ -54,76 +55,25 @@ namespace StrmAssistant.Common
 
         public static void Initialize()
         {
-            if (MediaInfoProcessTask is null)
+            if (MediaInfoProcessTask is null || MediaInfoProcessTask.IsCompleted)
             {
                 MediaInfoExtractItemQueue.Clear();
-                MediaInfoProcessTask = MediaInfo_ProcessItemQueueAsync()
-                    .ContinueWith(task =>
-                    {
-                        if (task.IsFaulted)
-                        {
-                            Logger.Debug(
-                                $"(Trace) MediaInfo_ProcessItemQueueAsync terminated unexpectedly. Exception: {task.Exception?.Flatten()}");
-                        }
-                        else if (task.IsCanceled)
-                        {
-                            Logger.Debug("(Trace) MediaInfo_ProcessItemQueueAsync was canceled.");
-                        }
-                        else
-                        {
-                            Logger.Debug("(Trace) MediaInfo_ProcessItemQueueAsync completed successfully.");
-                        }
-
-                        MediaInfoProcessTask = null;
-                    }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+                MediaInfoProcessTask = MediaInfo_ProcessItemQueueAsync();
+                MediaInfoProcessTask.FireAndForget(Logger);
             }
 
-            if (FingerprintProcessTask is null)
+            if (FingerprintProcessTask is null || FingerprintProcessTask.IsCompleted)
             {
                 FingerprintItemQueue.Clear();
-                FingerprintProcessTask = Fingerprint_ProcessItemQueueAsync()
-                    .ContinueWith(task =>
-                    {
-                        if (task.IsFaulted)
-                        {
-                            Logger.Debug(
-                                $"(Trace) Fingerprint_ProcessItemQueueAsync terminated unexpectedly. Exception: {task.Exception?.Flatten()}");
-                        }
-                        else if (task.IsCanceled)
-                        {
-                            Logger.Debug("(Trace) Fingerprint_ProcessItemQueueAsync was canceled.");
-                        }
-                        else
-                        {
-                            Logger.Debug("(Trace) Fingerprint_ProcessItemQueueAsync completed successfully.");
-                        }
-
-                        FingerprintProcessTask = null;
-                    }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+                FingerprintProcessTask = Fingerprint_ProcessItemQueueAsync();
+                FingerprintProcessTask.FireAndForget(Logger);
             }
 
-            if (EpisodeRefreshProcessTask is null)
+            if (EpisodeRefreshProcessTask is null || EpisodeRefreshProcessTask.IsCompleted)
             {
                 EpisodeRefreshItemQueue.Clear();
-                EpisodeRefreshProcessTask = EpisodeRefresh_ProcessItemQueueAsync()
-                    .ContinueWith(task =>
-                    {
-                        if (task.IsFaulted)
-                        {
-                            Logger.Debug(
-                                $"(Trace) EpisodeRefresh_ProcessItemQueueAsync terminated unexpectedly. Exception: {task.Exception?.Flatten()}");
-                        }
-                        else if (task.IsCanceled)
-                        {
-                            Logger.Debug("(Trace) EpisodeRefresh_ProcessItemQueueAsync was canceled.");
-                        }
-                        else
-                        {
-                            Logger.Debug("(Trace) EpisodeRefresh_ProcessItemQueueAsync completed successfully.");
-                        }
-
-                        EpisodeRefreshProcessTask = null;
-                    }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+                EpisodeRefreshProcessTask = EpisodeRefresh_ProcessItemQueueAsync();
+                EpisodeRefreshProcessTask.FireAndForget(Logger);
             }
         }
 

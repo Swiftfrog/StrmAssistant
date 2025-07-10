@@ -86,13 +86,17 @@ namespace StrmAssistant.Mod
         }
 
         [HarmonyPostfix]
-        private static void CreateQueryForEpisodeIntroDetectionPostfix(LibraryOptions libraryOptions, ref InternalItemsQuery __result)
+        private static void CreateQueryForEpisodeIntroDetectionPostfix(LibraryOptions libraryOptions,
+            ref InternalItemsQuery __result)
         {
             var markerEnabledLibraryScope = Plugin.Instance.IntroSkipStore.GetOptions().MarkerEnabledLibraryScope;
+            var blacklistSeasons = Plugin.FingerprintApi.GetBlacklistSeasons();
 
             if (!string.IsNullOrEmpty(markerEnabledLibraryScope) && markerEnabledLibraryScope.Contains("-1"))
             {
-                __result.ParentIds = Plugin.FingerprintApi.GetAllFavoriteSeasons().DefaultIfEmpty(-1).ToArray();
+                __result.ParentIds = Plugin.FingerprintApi.GetFavoriteSeasons(blacklistSeasons)
+                    .DefaultIfEmpty(-1)
+                    .ToArray();
             }
             else
             {
@@ -100,11 +104,10 @@ namespace StrmAssistant.Mod
                 {
                     __result.PathStartsWithAny = FingerprintApi.LibraryPathsInScope.ToArray();
                 }
-                
-                var blackListSeasons = Plugin.FingerprintApi.GetAllBlacklistSeasons().ToArray();
-                if (blackListSeasons.Any())
+
+                if (blacklistSeasons.Any())
                 {
-                    __result.ExcludeParentIds = blackListSeasons;
+                    __result.ExcludeParentIds = blacklistSeasons.ToArray();
                 }
             }
         }

@@ -38,6 +38,7 @@ namespace StrmAssistant.Common
                 Plugin.Instance.IsModSupported ? PatchApproach.Harmony : PatchApproach.Reflection);
         private readonly object _audioFingerprintManager;
         private readonly MethodInfo _createTitleFingerprint;
+        private readonly MethodInfo _getTitleFingerprintFileName;
         private readonly MethodInfo _getAllFingerprintFilesForSeason;
         private readonly MethodInfo _updateSequencesForSeason;
         private readonly FieldInfo _timeoutMs;
@@ -80,6 +81,8 @@ namespace StrmAssistant.Common
                         typeof(Episode), typeof(LibraryOptions), typeof(IDirectoryService),
                         typeof(CancellationToken)
                     }, null);
+                _getTitleFingerprintFileName = audioFingerprintManager.GetMethod("GetTitleFingerprintFileName",
+                    BindingFlags.NonPublic | BindingFlags.Static);
                 _getAllFingerprintFilesForSeason = audioFingerprintManager.GetMethod("GetAllFingerprintFilesForSeason",
                     BindingFlags.Public | BindingFlags.Instance);
                 _updateSequencesForSeason = audioFingerprintManager.GetMethod("UpdateSequencesForSeason",
@@ -99,7 +102,8 @@ namespace StrmAssistant.Common
             }
 
             if (_audioFingerprintManager is null || _createTitleFingerprint is null ||
-                _getAllFingerprintFilesForSeason is null || _updateSequencesForSeason is null || _timeoutMs is null)
+                _getTitleFingerprintFileName is null || _getAllFingerprintFilesForSeason is null ||
+                _updateSequencesForSeason is null || _timeoutMs is null)
             {
                 _logger.Warn($"{PatchTracker.PatchType.Name} Init Failed");
                 PatchTracker.FallbackPatchApproach = PatchApproach.None;
@@ -107,6 +111,8 @@ namespace StrmAssistant.Common
             else if (Plugin.Instance.IsModSupported)
             {
                 PatchManager.ReversePatch(PatchTracker, _createTitleFingerprint, nameof(CreateTitleFingerprintStub));
+                PatchManager.ReversePatch(PatchTracker, _getTitleFingerprintFileName,
+                    nameof(GetTitleFingerprintFileNameStub));
                 PatchManager.ReversePatch(PatchTracker, _getAllFingerprintFilesForSeason,
                     nameof(GetAllFingerprintFilesForSeasonStub));
                 PatchManager.ReversePatch(PatchTracker, _updateSequencesForSeason,
@@ -115,6 +121,16 @@ namespace StrmAssistant.Common
         }
 
 #pragma warning disable CS1998
+        [HarmonyReversePatch]
+        private static string GetTitleFingerprintFileNameStub(Episode item, LibraryOptions libraryOptions) =>
+            throw new NotImplementedException();
+
+        [HarmonyReversePatch]
+        private static async Task<object> GetAllFingerprintFilesForSeasonStub(object instance, Season season,
+            Episode[] episodes, LibraryOptions libraryOptions, IDirectoryService directoryService,
+            CancellationToken cancellationToken) =>
+            throw new NotImplementedException();
+
         [HarmonyReversePatch]
         private static async Task<Tuple<string, bool>> CreateTitleFingerprintStub(object instance, Episode item,
             LibraryOptions libraryOptions, IDirectoryService directoryService, CancellationToken cancellationToken) =>
@@ -145,14 +161,6 @@ namespace StrmAssistant.Common
 
             return CreateTitleFingerprint(item, directoryService, cancellationToken);
         }
-
-#pragma warning disable CS1998
-        [HarmonyReversePatch]
-        private static async Task<object> GetAllFingerprintFilesForSeasonStub(object instance, Season season,
-            Episode[] episodes, LibraryOptions libraryOptions, IDirectoryService directoryService,
-            CancellationToken cancellationToken) =>
-            throw new NotImplementedException();
-#pragma warning restore CS1998
 
         private Task<object> GetAllFingerprintFilesForSeason(Season season, Episode[] episodes,
             LibraryOptions libraryOptions, IDirectoryService directoryService, CancellationToken cancellationToken)
@@ -227,7 +235,7 @@ namespace StrmAssistant.Common
             UpdateLibraryPathsInScope(Plugin.Instance.IntroSkipStore.GetOptions().MarkerEnabledLibraryScope);
         }
 
-        public HashSet<long> GetAllBlacklistSeasons()
+        public HashSet<long> GetBlacklistSeasons()
         {
             var blacklistShowIds = Plugin.Instance.IntroSkipStore.GetOptions()
                 .FingerprintBlacklistShows.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
@@ -253,7 +261,7 @@ namespace StrmAssistant.Common
             return new HashSet<long>(seasons);
         }
 
-        public long[] GetAllFavoriteSeasons()
+        public long[] GetFavoriteSeasons(HashSet<long> blacklistSeasons)
         {
             var favorites = LibraryApi.AllUsers.Select(e => e.Key)
                 .SelectMany(u => _libraryManager.GetItemList(new InternalItemsQuery
@@ -271,8 +279,7 @@ namespace StrmAssistant.Common
 
             var result = expanded.GroupBy(e => e.ParentId).Select(g => g.Key).ToArray();
 
-            var blackListSeasons = GetAllBlacklistSeasons();
-            result = result.Where(s => !blackListSeasons.Contains(s)).ToArray();
+            result = result.Where(s => !blacklistSeasons.Contains(s)).ToArray();
 
             return result;
         }
@@ -308,9 +315,6 @@ namespace StrmAssistant.Common
             resultItems = resultItems.Where(i => isModSupported || !i.IsShortcut).GroupBy(i => i.InternalId)
                 .Select(g => g.First()).ToList();
 
-            var blackListSeasons = GetAllBlacklistSeasons();
-            resultItems = resultItems.Where(e => !blackListSeasons.Contains(e.ParentId)).ToList();
-
             var unprocessedItems = FilterUnprocessed(resultItems);
 
             return unprocessedItems;
@@ -319,16 +323,22 @@ namespace StrmAssistant.Common
         private List<Episode> FilterUnprocessed(List<Episode> items)
         {
             var enableImageCapture = Plugin.Instance.MediaInfoExtractStore.GetOptions().EnableImageCapture;
+            var blacklistSeasons = GetBlacklistSeasons();
 
             var results = new List<Episode>();
 
             foreach (var item in items)
             {
+                if (blacklistSeasons.Contains(item.ParentId) || LibraryApi.IsExtractExclude(item))
+                {
+                    continue;
+                }
+
                 if (Plugin.LibraryApi.IsExtractNeeded(item, enableImageCapture))
                 {
                     results.Add(item);
                 }
-                else if (IsExtractNeeded(item))
+                else if (!IsExtractExclude(item) && IsExtractNeeded(item))
                 {
                     results.Add(item);
                 }
@@ -339,13 +349,22 @@ namespace StrmAssistant.Common
             return results;
         }
 
+        private bool IsExtractExclude(BaseItem item)
+        {
+            var length = _libraryManager.GetLibraryOptions(item).IntroDetectionFingerprintLength;
+
+            if (length < 2 || length > 20) return true;
+
+            return !item.RunTimeTicks.HasValue || item.RunTimeTicks < TimeSpan.FromMinutes(length).Ticks;
+        }
+
         public bool IsExtractNeeded(BaseItem item)
         {
             return !Plugin.ChapterApi.HasIntro(item) &&
                    string.IsNullOrEmpty(_itemRepository.GetIntroDetectionFailureResult(item.InternalId));
         }
 
-        public List<Episode> FetchIntroPreExtractTaskItems()
+        public List<Episode> FetchIntroPreExtractTaskItems(HashSet<long> blacklistSeasons)
         {
             var markerEnabledLibraryScope = Plugin.Instance.IntroSkipStore.GetOptions().MarkerEnabledLibraryScope;
 
@@ -360,7 +379,7 @@ namespace StrmAssistant.Common
 
             if (!string.IsNullOrEmpty(markerEnabledLibraryScope) && markerEnabledLibraryScope.Contains("-1"))
             {
-                itemsFingerprintQuery.ParentIds = GetAllFavoriteSeasons().DefaultIfEmpty(-1).ToArray();
+                itemsFingerprintQuery.ParentIds = GetFavoriteSeasons(blacklistSeasons).DefaultIfEmpty(-1).ToArray();
             }
             else
             {
@@ -369,21 +388,22 @@ namespace StrmAssistant.Common
                     itemsFingerprintQuery.PathStartsWithAny = LibraryPathsInScope.ToArray();
                 }
 
-                var blackListSeasons = GetAllBlacklistSeasons();
-                if (blackListSeasons.Any())
+                if (blacklistSeasons.Any())
                 {
-                    itemsFingerprintQuery.ExcludeParentIds = blackListSeasons.ToArray();
+                    itemsFingerprintQuery.ExcludeParentIds = blacklistSeasons.ToArray();
                 }
             }
 
             var isModSupported = Plugin.Instance.IsModSupported;
-            var items = _libraryManager.GetItemList(itemsFingerprintQuery).Where(i => isModSupported || !i.IsShortcut)
-                .OfType<Episode>().ToList();
+            var items = _libraryManager.GetItemList(itemsFingerprintQuery)
+                .Where(i => (isModSupported || !i.IsShortcut) && !LibraryApi.IsExtractExclude(i))
+                .OfType<Episode>()
+                .ToList();
 
             return items;
         }
 
-        public List<Episode> FetchIntroFingerprintTaskItems()
+        public List<Episode> FetchIntroFingerprintTaskItems(HashSet<long> blacklistSeasons)
         {
             var libraryIds = Plugin.Instance.IntroSkipStore.GetOptions()
                 .MarkerEnabledLibraryScope.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
@@ -418,7 +438,7 @@ namespace StrmAssistant.Common
 
             if (libraryIds.Contains("-1") && libraryIds.All(i => i == "-1"))
             {
-                itemsFingerprintQuery.ParentIds = GetAllFavoriteSeasons().DefaultIfEmpty(-1).ToArray();
+                itemsFingerprintQuery.ParentIds = GetFavoriteSeasons(blacklistSeasons).DefaultIfEmpty(-1).ToArray();
             }
             else
             {
@@ -427,16 +447,17 @@ namespace StrmAssistant.Common
                     itemsFingerprintQuery.PathStartsWithAny = LibraryPathsInScope.ToArray();
                 }
 
-                var blackListSeasons = GetAllBlacklistSeasons();
-                if (blackListSeasons.Any())
+                if (blacklistSeasons.Any())
                 {
-                    itemsFingerprintQuery.ExcludeParentIds = blackListSeasons.ToArray();
+                    itemsFingerprintQuery.ExcludeParentIds = blacklistSeasons.ToArray();
                 }
             }
 
             var isModSupported = Plugin.Instance.IsModSupported;
-            var items = _libraryManager.GetItemList(itemsFingerprintQuery).Where(i => isModSupported || !i.IsShortcut)
-                .OfType<Episode>().ToList();
+            var items = _libraryManager.GetItemList(itemsFingerprintQuery)
+                .Where(i => (isModSupported || !i.IsShortcut) && !IsExtractExclude(i))
+                .OfType<Episode>()
+                .ToList();
 
             return items;
         }
@@ -486,11 +507,20 @@ namespace StrmAssistant.Common
             };
             var allEpisodes = season.GetEpisodes(episodeQuery).Items.OfType<Episode>().ToArray();
 
+            var episodesWithFingerprints = allEpisodes.Where(e =>
+                {
+                    var fp = GetTitleFingerprintFileNameStub(e, libraryOptions);
+                    var file = directoryService.GetFile(e.GetInternalMetadataPath(), fp, false);
+                    return file != null && file.Exists;
+                })
+                .ToArray();
+
             episodeQuery.WithoutChapterMarkers = new[] { MarkerType.IntroStart };
             var episodesWithoutMarkers = season.GetEpisodes(episodeQuery).Items.OfType<Episode>().ToList();
 
-            var seasonFingerprintInfo = await GetAllFingerprintFilesForSeason(season,
-                allEpisodes, libraryOptions, directoryService, cancellationToken).ConfigureAwait(false);
+            var seasonFingerprintInfo = await GetAllFingerprintFilesForSeason(season, episodesWithFingerprints,
+                    libraryOptions, directoryService, cancellationToken)
+                .ConfigureAwait(false);
 
             double total = episodesWithoutMarkers.Count;
             var index = 0;

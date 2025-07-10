@@ -44,59 +44,36 @@ namespace StrmAssistant.Options
             ExtraType.Interview, ExtraType.Sample, ExtraType.Scene, ExtraType.ThemeSong, ExtraType.ThemeVideo,
             ExtraType.Trailer
         };
-        
-        public static string[] MediaInfoExcludeMediaExtensions
-        {
-            get
-            {
-                return Plugin.Instance.MediaInfoExtractStore.GetOptions()
-                    .MediaInfoExcludeMediaContainers.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
-                    .SelectMany(c =>
-                    {
-                        if (Enum.TryParse<MediaContainers>(c.Trim(), true, out var container))
-                        {
-                            var aliases = container.GetAliases();
-                            return aliases?.Where(a => !string.IsNullOrWhiteSpace(a)) ?? Array.Empty<string>();
-                        }
 
-                        return Array.Empty<string>();
-                    })
-                    .Where(alias => !string.IsNullOrWhiteSpace(alias))
-                    .ToArray();
-            }
-        }
-
-        public static MediaContainers[] ImageCaptureExcludeMediaContainers
-        {
-            get
+        public static readonly HashSet<string> MediaInfoExcludeMediaExtensions = Plugin.Instance.MediaInfoExtractStore
+            .GetOptions()
+            .MediaInfoExcludeMediaContainers.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+            .SelectMany(c =>
             {
-                return Plugin.Instance.MediaInfoExtractStore.GetOptions().ImageCaptureExcludeMediaContainers
-                    .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
-                    .Select(c =>
-                        Enum.TryParse<MediaContainers>(c.Trim(), true, out var container)
-                            ? container
-                            : (MediaContainers?)null)
-                    .Where(container => container.HasValue)
-                    .Select(container => container.Value)
-                    .ToArray();
-            }
-        }
+                if (!Enum.TryParse<MediaContainers>(c.Trim(), true, out var container)) return Array.Empty<string>();
+                var aliases = container.GetAliases();
+                return aliases?.Where(a => !string.IsNullOrWhiteSpace(a)) ?? Array.Empty<string>();
+            })
+            .Where(alias => !string.IsNullOrWhiteSpace(alias))
+            .ToHashSet();
 
-        public static MediaContainers[] VideoThumbnailExcludeMediaContainers
-        {
-            get
-            {
-                return Plugin.Instance.MediaInfoExtractStore.GetOptions()
-                    .VideoThumbnailExcludeMediaContainers.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
-                    .Select(c =>
-                        Enum.TryParse<MediaContainers>(c.Trim(), true, out var container)
-                            ? container
-                            : (MediaContainers?)null)
-                    .Where(container => container.HasValue)
-                    .Select(container => container.Value)
-                    .ToArray();
-            }
-        }
+        public static readonly HashSet<MediaContainers> ImageCaptureExcludeMediaContainers = Plugin.Instance
+            .MediaInfoExtractStore.GetOptions()
+            .ImageCaptureExcludeMediaContainers.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(c =>
+                Enum.TryParse<MediaContainers>(c.Trim(), true, out var container) ? container : (MediaContainers?)null)
+            .Where(container => container.HasValue)
+            .Select(container => container.Value)
+            .ToHashSet();
+
+        public static readonly HashSet<MediaContainers> VideoThumbnailExcludeMediaContainers = Plugin.Instance
+            .MediaInfoExtractStore.GetOptions()
+            .VideoThumbnailExcludeMediaContainers.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(c =>
+                Enum.TryParse<MediaContainers>(c.Trim(), true, out var container) ? container : (MediaContainers?)null)
+            .Where(container => container.HasValue)
+            .Select(container => container.Value)
+            .ToHashSet();
 
         public static void InitializeOptionCache()
         {
