@@ -17,6 +17,7 @@ using StrmAssistant.Options;
 using StrmAssistant.Properties;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -28,10 +29,11 @@ namespace StrmAssistant.Common
 {
     public class FingerprintApi
     {
+        private readonly ILogger _logger;
         private readonly ILibraryManager _libraryManager;
         private readonly IFileSystem _fileSystem;
         private readonly IItemRepository _itemRepository;
-        private readonly ILogger _logger;
+        private static long _introFingerprintExtradataId;
 
         private static readonly PatchTracker PatchTracker =
             new PatchTracker(typeof(FingerprintApi),
@@ -42,6 +44,7 @@ namespace StrmAssistant.Common
         private readonly MethodInfo _getAllFingerprintFilesForSeason;
         private readonly MethodInfo _updateSequencesForSeason;
         private readonly FieldInfo _timeoutMs;
+        private readonly MethodInfo _clearItemExtradata;
 
         public static List<string> LibraryPathsInScope;
 
@@ -54,6 +57,7 @@ namespace StrmAssistant.Common
             _libraryManager = libraryManager;
             _fileSystem = fileSystem;
             _itemRepository = itemRepository;
+            _introFingerprintExtradataId = _itemRepository.GetExtradataTypeId("IntroFingerprint");
 
             UpdateLibraryPathsInScope();
 
@@ -89,6 +93,11 @@ namespace StrmAssistant.Common
                     BindingFlags.Public | BindingFlags.Instance);
                 _timeoutMs = audioFingerprintManager.GetField("TimeoutMs",
                     BindingFlags.NonPublic | BindingFlags.Instance);
+                var embyServerImplementationsAssembly = Assembly.Load("Emby.Server.Implementations");
+                var sqliteItemRepository =
+                    embyServerImplementationsAssembly.GetType("Emby.Server.Implementations.Data.SqliteItemRepository");
+                _clearItemExtradata = sqliteItemRepository?.GetMethod("ClearItemExtradata",
+                    BindingFlags.Public | BindingFlags.Instance, null, new[] { typeof(long), typeof(long) }, null);
 
                 PatchTimeout(Plugin.Instance.MainOptionsStore.GetOptions().GeneralOptions.MaxConcurrentCount);
             }
@@ -103,7 +112,7 @@ namespace StrmAssistant.Common
 
             if (_audioFingerprintManager is null || _createTitleFingerprint is null ||
                 _getTitleFingerprintFileName is null || _getAllFingerprintFilesForSeason is null ||
-                _updateSequencesForSeason is null || _timeoutMs is null)
+                _updateSequencesForSeason is null || _timeoutMs is null || _clearItemExtradata is null)
             {
                 _logger.Warn($"{PatchTracker.PatchType.Name} Init Failed");
                 PatchTracker.FallbackPatchApproach = PatchApproach.None;
@@ -117,6 +126,7 @@ namespace StrmAssistant.Common
                     nameof(GetAllFingerprintFilesForSeasonStub));
                 PatchManager.ReversePatch(PatchTracker, _updateSequencesForSeason,
                     nameof(UpdateSequencesForSeasonStub));
+                PatchManager.ReversePatch(PatchTracker, _clearItemExtradata, nameof(ClearItemExtradataStub));
             }
         }
 
@@ -135,6 +145,10 @@ namespace StrmAssistant.Common
         private static async Task<Tuple<string, bool>> CreateTitleFingerprintStub(object instance, Episode item,
             LibraryOptions libraryOptions, IDirectoryService directoryService, CancellationToken cancellationToken) =>
             throw new NotImplementedException();
+
+        [HarmonyReversePatch]
+        internal static void ClearItemExtradataStub(object instance, long itemId, long extradataTypeId) =>
+            throw new NoNullAllowedException();
 #pragma warning restore CS1998
 
         public Task<Tuple<string, bool>> CreateTitleFingerprint(Episode item, IDirectoryService directoryService,
@@ -537,5 +551,24 @@ namespace StrmAssistant.Common
             progress?.Report(1.0);
         }
 #nullable restore
+        
+        public void ClearFingerprintCache(BaseItem item)
+        {
+            var fingerprints = _fileSystem.GetFilePaths(item.GetInternalMetadataPath(), new[] { ".fp" }, false, false);
+
+            foreach (var fp in fingerprints)
+            {
+                try
+                {
+                    _fileSystem.DeleteFile(fp);
+                }
+                catch
+                {
+                    // ignored
+                }
+            }
+
+            ClearItemExtradataStub(_itemRepository, item.InternalId, _introFingerprintExtradataId);
+        }
     }
 }

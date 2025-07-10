@@ -30,6 +30,7 @@ namespace StrmAssistant.Web.Service
             foreach (var item in episodes)
             {
                 Plugin.ChapterApi.RemoveIntroCreditsMarkers(item);
+                Plugin.FingerprintApi.ClearFingerprintCache(item);
                 _logger.Info("IntroSkipClear - " + item.Name + " - " + item.Path);
             }
         }
