@@ -9,6 +9,7 @@ using StrmAssistant.Common;
 using StrmAssistant.Options;
 using StrmAssistant.Properties;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -146,6 +147,8 @@ namespace StrmAssistant.ScheduledTask
 
                 if (personItems.Count == 0) break;
 
+                var personsToUpdate = new ConcurrentBag<BaseItem>();
+
                 foreach (var item in personItems)
                 {
                     var taskItem = item;
@@ -208,22 +211,46 @@ namespace StrmAssistant.ScheduledTask
                                     .GetPersonMetadataFromMovieDb(taskItem, serverPreferredMetadataLanguage,
                                         refreshOptions.DirectoryService, cancellationToken).ConfigureAwait(false);
 
-                                if (result?.Item != null)
+                                if (result?.Item is { } person)
                                 {
-                                    var newName = result.Item.Name;
-                                    if (!taskItem.IsFieldLocked(MetadataFields.Name) && !string.IsNullOrEmpty(newName))
+                                    var needsUpdate = false;
+
+                                    var newName = person.Name;
+                                    if (!taskItem.IsFieldLocked(MetadataFields.Name) &&
+                                        !string.IsNullOrEmpty(newName) && !string.IsNullOrEmpty(newName))
                                     {
                                         taskItem.Name = Plugin.MetadataApi.ProcessPersonInfo(newName, true);
+                                        needsUpdate = true;
                                     }
 
-                                    var newOverview = result.Item.Overview;
-                                    if (!taskItem.IsFieldLocked(MetadataFields.Overview) && !string.IsNullOrEmpty(newOverview))
+                                    var newOverview = person.Overview;
+                                    if (!taskItem.IsFieldLocked(MetadataFields.Overview) &&
+                                        !string.IsNullOrEmpty(newOverview))
                                     {
                                         taskItem.Overview = Plugin.MetadataApi.ProcessPersonInfo(newOverview, false);
+                                        needsUpdate = true;
                                     }
 
-                                    _libraryManager.UpdateItems(new List<BaseItem> { taskItem }, null,
-                                        ItemUpdateType.MetadataDownload, true, false, null, CancellationToken.None);
+                                    if (!taskItem.PremiereDate.HasValue && person.PremiereDate.HasValue)
+                                    {
+                                        taskItem.PremiereDate = person.PremiereDate;
+                                        taskItem.ProductionYear = person.PremiereDate.Value.Year;
+                                        needsUpdate = true;
+                                    }
+
+                                    if (!taskItem.EndDate.HasValue && person.EndDate.HasValue)
+                                    {
+                                        taskItem.EndDate = person.EndDate;
+                                        needsUpdate = true;
+                                    }
+
+                                    if (!taskItem.ProductionLocations.Any() && person.ProductionLocations.Any())
+                                    {
+                                        taskItem.ProductionLocations = person.ProductionLocations;
+                                        needsUpdate = true;
+                                    }
+
+                                    if (needsUpdate) personsToUpdate.Add(taskItem);
                                 }
                             }
 
@@ -256,6 +283,10 @@ namespace StrmAssistant.ScheduledTask
                     Task.Delay(10).Wait();
                 }
                 await Task.WhenAll(tasks).ConfigureAwait(false);
+
+                _libraryManager.UpdateItems(personsToUpdate.ToList(), null, ItemUpdateType.MetadataDownload, true,
+                    false, null, cancellationToken);
+
                 tasks.Clear();
                 personItems.Clear();
             }
