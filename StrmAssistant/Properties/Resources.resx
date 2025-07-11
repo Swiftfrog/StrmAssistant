@@ -132,7 +132,7 @@
     <value>Library scope to extract. Blank includes all.</value>
   </data>
   <data name="PluginOptions_EnableImageCapture_Enable_Image_Capture" xml:space="preserve">
-    <value>Image Capture and Thumbnail Preview Enhanced</value>
+    <value>Image Capture / Thumbnail Preview Enhanced</value>
   </data>
   <data name="PluginOptions_EnableImageCapture_Perform_image_capture_for_videos_without_primary_image__Default_is_False_" xml:space="preserve">
     <value>Unlock image capture, video thumbnail BIF for Strm. Skip embedded image. Default is OFF.</value>

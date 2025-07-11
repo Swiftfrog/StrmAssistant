@@ -45,7 +45,7 @@
     <value>僅處理 STRM</value>
   </data>
   <data name="PluginOptions_EnableImageCapture_Enable_Image_Capture" xml:space="preserve">
-    <value>影片截圖預覽縮圖增強</value>
+    <value>影片截圖 / 預覽縮圖增強</value>
   </data>
   <data name="PluginOptions_EnableImageCapture_Perform_image_capture_for_videos_without_primary_image__Default_is_False_" xml:space="preserve">
     <value>解鎖 STRM 影片截圖，預覽縮圖 BIF，跳過內嵌封面，預設為關閉。</value>
