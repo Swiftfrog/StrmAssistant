@@ -197,11 +197,8 @@ namespace StrmAssistant.ScheduledTask
                             QueueManager.MasterSemaphore.Release();
 
                             var currentCount = Interlocked.Increment(ref processedEpisodes);
-
-                            var totalSeasonFraction = seasonProgressMap.Values.Sum();
                             var currentProgress = episodeWeight * currentCount / totalEpisodes +
-                                                  seasonWeight * (processedSeasons + totalSeasonFraction) /
-                                                  totalSeasons;
+                                                  seasonWeight * seasonProgressMap.Values.Sum() / totalSeasons;
                             progress.Report(currentProgress * 100);
 
                             if (!mediaInfoRestoreMode)
@@ -225,10 +222,8 @@ namespace StrmAssistant.ScheduledTask
                 var seasonProgress = new Progress<double>(fraction =>
                 {
                     seasonProgressMap[taskSeason] = fraction;
-                    var totalSeasonFraction = seasonProgressMap.Values.Sum();
-
                     var currentProgress = episodeWeight * processedEpisodes / totalEpisodes +
-                                          seasonWeight * (processedSeasons + totalSeasonFraction) / totalSeasons;
+                                          seasonWeight * seasonProgressMap.Values.Sum() / totalSeasons;
                     progress.Report(currentProgress * 100);
                 });
 
@@ -287,7 +282,6 @@ namespace StrmAssistant.ScheduledTask
                     {
                         QueueManager.Tier2Semaphore.Release();
 
-                        seasonProgressMap.TryRemove(taskSeason, out _);
                         var currentCount = Interlocked.Increment(ref processedSeasons);
 
                         if (!mediaInfoRestoreMode)
