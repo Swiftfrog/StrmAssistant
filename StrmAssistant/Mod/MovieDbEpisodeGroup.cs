@@ -279,7 +279,7 @@ namespace StrmAssistant.Mod
             
             if (metadataResult is null) return;
 
-            var isZh = __state.LookupLanguage.StartsWith("zh", StringComparison.OrdinalIgnoreCase);
+            var isZh = __state.LookupLanguage?.StartsWith("zh", StringComparison.OrdinalIgnoreCase) is true;
             var isJapaneseFallback = Plugin.Instance.MetadataEnhanceStore.GetOptions().ChineseMovieDb &&
                                      HasMovieDbJapaneseFallback();
 

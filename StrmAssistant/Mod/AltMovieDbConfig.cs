@@ -223,7 +223,7 @@ namespace StrmAssistant.Mod
             foreach (var remoteSearchResult in searchResult)
             {
                 var imageUrl = remoteSearchResult.ImageUrl;
-                if (imageUrl.StartsWith(DefaultMovieDbImageUrl))
+                if (!string.IsNullOrEmpty(imageUrl) && imageUrl.StartsWith(DefaultMovieDbImageUrl))
                 {
                     remoteSearchResult.ImageUrl = imageUrl.Replace(DefaultMovieDbImageUrl, CurrentMovieDbImageUrl);
                 }

@@ -87,7 +87,7 @@ namespace StrmAssistant.Mod
         [HarmonyPostfix]
         private static void ConvertToTvdbLanguagesPostfix(ItemLookupInfo lookupInfo, ref string[] __result)
         {
-            if (lookupInfo.MetadataLanguage.StartsWith("zh", StringComparison.OrdinalIgnoreCase))
+            if (lookupInfo.MetadataLanguage?.StartsWith("zh", StringComparison.OrdinalIgnoreCase) is true)
             {
                 var list = __result.ToList();
                 var index = list.FindIndex(l => string.Equals(l, "eng", StringComparison.OrdinalIgnoreCase));
