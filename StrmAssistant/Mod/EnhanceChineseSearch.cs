@@ -143,9 +143,16 @@ namespace StrmAssistant.Mod
             {
                 using (var statement = connection.PrepareStatement(tokenizerCheckQuery))
                 {
-                    if (statement.MoveNext())
+                    try
                     {
-                        CurrentTokenizerName = statement.Current?.GetString(0) ?? "unknown";
+                        if (statement.MoveNext())
+                        {
+                            CurrentTokenizerName = statement.Current?.GetString(0) ?? "unknown";
+                        }
+                    }
+                    finally
+                    {
+                        statement.Reset();
                     }
                 }
 
@@ -231,7 +238,7 @@ namespace StrmAssistant.Mod
                     " from MediaItems";
             }
 
-            connection.BeginTransaction(TransactionMode.Deferred);
+            connection.BeginTransaction(TransactionMode.Immediate);
             try
             {
                 var dropFtsTableQuery = $"DROP TABLE IF EXISTS {ftsTableName}";
@@ -487,55 +494,59 @@ namespace StrmAssistant.Mod
         [HarmonyPrefix]
         private static bool CreateSearchTermPrefix(string searchTerm, ref string __result)
         {
-            __result = searchTerm.Replace(".", string.Empty).Replace("'", string.Empty);
+            var parts = searchTerm.Split('.', StringSplitOptions.RemoveEmptyEntries);
+            var normalized = string.Concat(parts.Select((part, index) =>
+                index < parts.Length - 1 && part.Length > 1 ? part + " " : part));
+
+            var terms = normalized.Trim()
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Select(i => i.Replace("\"", string.Empty).Replace("'", string.Empty));
+
+            __result = string.Join(" ", terms);
 
             return false;
         }
 
         [HarmonyPrefix]
-        private static bool CacheIdsFromTextParamsPrefix(InternalItemsQuery query, IDatabaseConnection db)
+        private static void CacheIdsFromTextParamsPrefix(InternalItemsQuery query, IDatabaseConnection db)
         {
-            if ((query.PersonTypes?.Length ?? 0) == 0)
+            var nameStartsWith = query.NameStartsWith;
+            if (!string.IsNullOrEmpty(nameStartsWith))
             {
-                var nameStartsWith = query.NameStartsWith;
-                if (!string.IsNullOrEmpty(nameStartsWith))
-                {
-                    query.SearchTerm = nameStartsWith;
-                    query.NameStartsWith = null;
-                }
+                query.SearchTerm = nameStartsWith;
+                query.NameStartsWith = null;
+            }
 
-                var searchTerm = query.SearchTerm;
-                if (query.IncludeItemTypes.Length == 0 && !string.IsNullOrEmpty(searchTerm))
-                {
-                    query.IncludeItemTypes = GetSearchScope();
-                }
+            var searchTerm = query.SearchTerm;
+            if (query.IncludeItemTypes.Length == 0 && !string.IsNullOrEmpty(searchTerm))
+            {
+                query.IncludeItemTypes = GetSearchScope();
+            }
 
-                if (!string.IsNullOrEmpty(searchTerm))
+            if (!string.IsNullOrEmpty(searchTerm))
+            {
+                foreach (var provider in patterns)
                 {
-                    foreach (var provider in patterns)
+                    var match = provider.Value.Match(searchTerm.Trim());
+                    if (match.Success)
                     {
-                        var match = provider.Value.Match(searchTerm.Trim());
-                        if (match.Success)
+                        var idValue = provider.Key == "imdb" ? match.Value : match.Groups[2].Value;
+
+                        query.HasAnyProviderId = new[] { provider.Key };
+                        query.AnyProviderIdEquals = new List<KeyValuePair<string, string>>
                         {
-                            var idValue = provider.Key == "imdb" ? match.Value : match.Groups[2].Value;
-
-                            query.AnyProviderIdEquals = new List<KeyValuePair<string, string>>
-                            {
-                                new KeyValuePair<string, string>(provider.Key, idValue)
-                            };
-                            query.SearchTerm = null;
-                            break;
-                        }
+                            new KeyValuePair<string, string>(provider.Key, idValue)
+                        };
+                        query.SearchTerm = null;
+                        break;
                     }
-                }
-
-                if (AppVer >= Ver4937 && !string.IsNullOrEmpty(query.SearchTerm))
-                {
-                    var result = LoadTokenizerExtension(db);
                 }
             }
 
-            return true;
+            if (AppVer >= Ver4937 && !string.IsNullOrEmpty(query.SearchTerm))
+            {
+                var result = LoadTokenizerExtension(db);
+            }
         }
     }
 }
