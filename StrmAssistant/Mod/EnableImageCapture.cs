@@ -20,6 +20,7 @@ namespace StrmAssistant.Mod
         private static MethodInfo _isShortcutGetter;
         private static PropertyInfo _isShortcutProperty;
         private static MethodInfo _supportsVideoImageCapture;
+        private static MethodInfo _getThumbnailPositionTicks;
         private static MethodInfo _supportsAudioEmbeddedImages;
         private static MethodInfo _getImage;
         private static MethodInfo _runExtraction;
@@ -54,8 +55,7 @@ namespace StrmAssistant.Mod
 
                 if (Plugin.Instance.DebugMode)
                 {
-                    Plugin.Instance.Logger.Debug("Current FFmpeg ResourcePool: " + resourcePool?.CurrentCount ??
-                                                 string.Empty);
+                    Plugin.Instance.Logger.Debug("Current FFmpeg ResourcePool: " + resourcePool?.CurrentCount);
                 }
 
                 Patch();
@@ -80,6 +80,8 @@ namespace StrmAssistant.Mod
             var videoImageProvider = embyProviders.GetType("Emby.Providers.MediaInfo.VideoImageProvider");
             _supportsVideoImageCapture =
                 videoImageProvider.GetMethod("Supports", BindingFlags.Instance | BindingFlags.Public);
+            _getThumbnailPositionTicks = videoImageProvider.GetMethod("GetThumbnailPositionTicks",
+                BindingFlags.Instance | BindingFlags.NonPublic);
             _getImage = videoImageProvider.GetMethods(BindingFlags.Public | BindingFlags.Instance)
                 .Where(m => m.Name == "GetImage")
                 .OrderByDescending(m => m.GetParameters().Length)
@@ -117,6 +119,8 @@ namespace StrmAssistant.Mod
 
             PatchUnpatch(PatchTracker, apply, _supportsVideoImageCapture, prefix: nameof(SupportsImageCapturePrefix),
                 postfix: nameof(SupportsImageCapturePostfix));
+            PatchUnpatch(PatchTracker, apply, _getThumbnailPositionTicks,
+                prefix: nameof(GetThumbnailPositionTicksPrefix));
             PatchUnpatch(PatchTracker, apply, _supportsAudioEmbeddedImages, prefix: nameof(SupportsImageCapturePrefix),
                 postfix: nameof(SupportsImageCapturePostfix));
             PatchUnpatch(PatchTracker, apply, _getImage, prefix: nameof(GetImagePrefix));
@@ -329,7 +333,7 @@ namespace StrmAssistant.Mod
         }
 
         [HarmonyPrefix]
-        private static bool SupportsImageCapturePrefix(BaseItem item, ref bool __result, out bool __state)
+        private static void SupportsImageCapturePrefix(BaseItem item, out bool __state)
         {
             __state = false;
 
@@ -339,12 +343,10 @@ namespace StrmAssistant.Mod
                 PatchIsShortcutInstance(item);
                 __state = true;
             }
-
-            return true;
         }
 
         [HarmonyPostfix]
-        private static void SupportsImageCapturePostfix(BaseItem item, ref bool __result, bool __state)
+        private static void SupportsImageCapturePostfix(BaseItem item, bool __result, bool __state)
         {
             if (__state)
             {
@@ -375,29 +377,34 @@ namespace StrmAssistant.Mod
         }
 
         [HarmonyPrefix]
+        private static bool GetThumbnailPositionTicksPrefix(long runtimeTicks, ref long __result)
+        {
+            __result = GetThumbnailPositionTicks(runtimeTicks);
+
+            return false;
+        }
+
+        [HarmonyPrefix]
         private static void RunExtractionPrefix(object __instance, ref string inputPath, MediaContainers? container,
             MediaStream videoStream, MediaProtocol? protocol, int? streamIndex, Video3DFormat? threedFormat,
             ref TimeSpan? startOffset, TimeSpan? interval, string targetDirectory, string targetFilename, int? maxWidth,
             bool enableThumbnailFilter)
         {
-            var timeoutProperty = Traverse.Create(__instance).Property("TotalTimeoutMs");
-            var origTimeout = timeoutProperty.GetValue<int>();
-            var newTimeout = origTimeout *
-                             Plugin.Instance.MainOptionsStore.GetOptions().GeneralOptions.MaxConcurrentCount;
-
             if (ImageCaptureItem.Value != null && __instance.GetType() == _quickSingleImageExtractor)
             {
+                var timeoutProperty = Traverse.Create(__instance).Property("TotalTimeoutMs");
+                var origTimeout = timeoutProperty.GetValue<int>();
+                var newTimeout = origTimeout *
+                                 Plugin.Instance.MainOptionsStore.GetOptions().GeneralOptions.MaxConcurrentCount;
                 timeoutProperty.SetValue(newTimeout);
 
-                if (startOffset.HasValue)
+                if (startOffset.HasValue && startOffset.Value == TimeSpan.FromSeconds(10.0))
                 {
-                    var timeSpan =
+                    startOffset =
                         ImageCaptureItem.Value.MediaContainer.GetValueOrDefault() == MediaContainers.Dvd ||
                         !ImageCaptureItem.Value.RunTimeTicks.HasValue || ImageCaptureItem.Value.RunTimeTicks.Value <= 0L
                             ? TimeSpan.FromSeconds(10.0)
                             : TimeSpan.FromTicks(GetThumbnailPositionTicks(ImageCaptureItem.Value.RunTimeTicks.Value));
-
-                    startOffset = timeSpan;
                 }
 
                 ImageCaptureItem.Value = null;
