@@ -410,7 +410,7 @@ namespace StrmAssistant.Mod
                 var nameProperty = Traverse.Create(seriesInfo).Property("name");
                 var nameValue = nameProperty.GetValue<string>();
 
-                if (!HasMovieDbJapaneseFallback() ? !IsChinese(nameValue) : !IsChineseJapanese(nameValue))
+                if (!HasMovieDbJapaneseFallback() ? !IsChineseNoJapanese(nameValue) : !IsChineseJapanese(nameValue))
                 {
                     var alternativeTitles = Traverse.Create(seriesInfo)
                         .Property("alternative_titles")

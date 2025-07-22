@@ -119,12 +119,9 @@ namespace StrmAssistant.Mod
             var considerJapanese = isJapaneseFallback && !string.IsNullOrEmpty(placeOfBirth) &&
                                    placeOfBirth.Contains("Japan", StringComparison.Ordinal);
 
-            if (IsChinese(input))
-            {
-                input = ConvertTraditionalToSimplified(input);
-            }
+            if (IsChinese(input)) input = ConvertTraditionalToSimplified(input);
 
-            if (!considerJapanese ? IsChinese(input) : IsChineseJapanese(input))
+            if (!considerJapanese ? IsChineseNoJapanese(input) : IsChineseJapanese(input))
             {
                 return new Tuple<string, bool>(input, true);
             }

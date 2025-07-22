@@ -1136,7 +1136,7 @@ namespace StrmAssistant.Common
                                (episodeRefreshOptions.Contains(EpisodeRefreshOption.NoImage) &&
                                 primaryImageInfo is null) ||
                                (episodeRefreshOptions.Contains(EpisodeRefreshOption.NonChineseOverview) &&
-                                !IsChinese(overview)) ||
+                                !IsChineseNoJapanese(overview)) ||
                                (episodeRefreshOptions.Contains(EpisodeRefreshOption.DefaultEpisodeName) &&
                                 IsDefaultChineseEpisodeName(name)) ||
                                (episodeRefreshOptions.Contains(EpisodeRefreshOption.ReplaceCapturedImage) &&

@@ -156,8 +156,9 @@ namespace StrmAssistant.ScheduledTask
                     var metadataRefreshSkip =
                         (taskItem.IsFieldLocked(MetadataFields.Name) &&
                          taskItem.IsFieldLocked(MetadataFields.Overview)) ||
-                        (!refreshPersonOptions.Contains(RefreshPersonOption.FullRefresh) && IsChinese(taskItem.Name) &&
-                         IsChinese(taskItem.Overview) && taskItem.DateLastSaved >= DateTimeOffset.UtcNow.AddDays(-30));
+                        (!refreshPersonOptions.Contains(RefreshPersonOption.FullRefresh) &&
+                         IsChineseNoJapanese(taskItem.Name) && IsChineseNoJapanese(taskItem.Overview) &&
+                         taskItem.DateLastSaved >= DateTimeOffset.UtcNow.AddDays(-30));
                     var imageRefreshSkip = !refreshPersonOptions.Contains(RefreshPersonOption.FullImageRefresh) &&
                                            taskItem.HasImage(ImageType.Primary);
 
@@ -219,7 +220,7 @@ namespace StrmAssistant.ScheduledTask
                                     if (!taskItem.IsFieldLocked(MetadataFields.Name) &&
                                         !string.IsNullOrEmpty(newName) && !string.IsNullOrEmpty(newName))
                                     {
-                                        taskItem.Name = Plugin.MetadataApi.ProcessPersonInfo(newName, true);
+                                        taskItem.Name = MetadataApi.ProcessPersonInfo(newName, true);
                                         needsUpdate = true;
                                     }
 
@@ -227,7 +228,7 @@ namespace StrmAssistant.ScheduledTask
                                     if (!taskItem.IsFieldLocked(MetadataFields.Overview) &&
                                         !string.IsNullOrEmpty(newOverview))
                                     {
-                                        taskItem.Overview = Plugin.MetadataApi.ProcessPersonInfo(newOverview, false);
+                                        taskItem.Overview = MetadataApi.ProcessPersonInfo(newOverview, false);
                                         needsUpdate = true;
                                     }
 

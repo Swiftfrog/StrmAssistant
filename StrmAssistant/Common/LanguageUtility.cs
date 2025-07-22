@@ -27,16 +27,18 @@ namespace StrmAssistant.Common
 
         public static bool IsEnglish(string input) => !string.IsNullOrEmpty(input) && EnglishRegex.IsMatch(input);
 
-        public static bool IsChinese(string input) => !string.IsNullOrEmpty(input) && ChineseRegex.IsMatch(input) &&
-                                                      !JapaneseRegex.IsMatch(input.Replace("\u30FB", string.Empty));
+        public static bool IsChinese(string input) => !string.IsNullOrEmpty(input) && ChineseRegex.IsMatch(input);
 
-        public static bool IsJapanese(string input) => !string.IsNullOrEmpty(input) &&
-                                                       JapaneseRegex.IsMatch(input.Replace("\u30FB", string.Empty));
+        public static bool IsJapanese(string input) =>
+            !string.IsNullOrEmpty(input) && JapaneseRegex.IsMatch(input.Replace("\u30FB", string.Empty));
 
-        public static bool IsChineseJapanese(string input) => !string.IsNullOrEmpty(input) &&
-                                                              (ChineseRegex.IsMatch(input) ||
-                                                               JapaneseRegex.IsMatch(input.Replace("\u30FB",
-                                                                   string.Empty)));
+        public static bool IsChineseNoJapanese(string input) =>
+            !string.IsNullOrEmpty(input) && ChineseRegex.IsMatch(input) &&
+            !JapaneseRegex.IsMatch(input.Replace("\u30FB", string.Empty));
+
+        public static bool IsChineseJapanese(string input) =>
+            !string.IsNullOrEmpty(input) && (ChineseRegex.IsMatch(input) ||
+                                             JapaneseRegex.IsMatch(input.Replace("\u30FB", string.Empty)));
 
         public static bool IsKorean(string input) => !string.IsNullOrEmpty(input) && KoreanRegex.IsMatch(input);
         

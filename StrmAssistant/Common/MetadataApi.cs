@@ -151,7 +151,7 @@ namespace StrmAssistant.Common
             return providerWithOptions.GetMetadata(options, cancellationToken);
         }
 
-        public string ProcessPersonInfo(string input, bool clean)
+        public static string ProcessPersonInfo(string input, bool clean)
         {
             if (IsChinese(input)) input = ConvertTraditionalToSimplified(input);
 
