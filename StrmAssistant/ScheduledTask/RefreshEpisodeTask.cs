@@ -11,7 +11,7 @@ using static StrmAssistant.Options.Utility;
 
 namespace StrmAssistant.ScheduledTask
 {
-    public class RefreshEpisodeTask : IScheduledTask, IConfigurableScheduledTask
+    public class RefreshEpisodeTask : IScheduledTask
     {
         private readonly ILogger _logger = Plugin.Instance.Logger;
 
@@ -127,12 +127,6 @@ namespace StrmAssistant.ScheduledTask
         {
             return Array.Empty<TaskTriggerInfo>();
         }
-
-        public bool IsHidden => false;
-
-        public bool IsEnabled => true;
-
-        public bool IsLogged => true;
 
         public static bool IsRunning { get; private set; }
     }

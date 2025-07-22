@@ -32,7 +32,7 @@ namespace StrmAssistant.ScheduledTask
         }
     }
 
-    public class MergeMultiVersionTask : IScheduledTask, IConfigurableScheduledTask
+    public class MergeMultiVersionTask : IScheduledTask
     {
         private readonly ILogger _logger;
         private readonly ILibraryManager _libraryManager;
@@ -174,12 +174,6 @@ namespace StrmAssistant.ScheduledTask
         {
             return Array.Empty<TaskTriggerInfo>();
         }
-
-        public bool IsHidden => false;
-
-        public bool IsEnabled => true;
-        
-        public bool IsLogged => true;
 
         private long[] PrepareMergeSeries()
         {

@@ -1,8 +1,7 @@
-﻿using System;
-using MediaBrowser.Controller.Net;
+﻿using MediaBrowser.Controller.Net;
 using MediaBrowser.Model.Services;
 using StrmAssistant.Web.Api;
-using StrmAssistant.Web.Helper;
+using static StrmAssistant.Web.Helper.ShortcutMenuHelper;
 
 namespace StrmAssistant.Web.Service
 {
@@ -20,14 +19,12 @@ namespace StrmAssistant.Web.Service
 
         public object Get(GetStrmAssistantJs request)
         {
-            return _resultFactory.GetResult(Request,
-                (ReadOnlyMemory<byte>)ShortcutMenuHelper.StrmAssistantJs.GetBuffer(), "application/x-javascript");
+            return _resultFactory.GetResult(Request, StrmAssistantJsBytes, "application/x-javascript");
         }
 
         public object Get(GetShortcutMenu request)
         {
-            return _resultFactory.GetResult(ShortcutMenuHelper.ModifiedShortcutsString.AsSpan(),
-                "application/x-javascript");
+            return _resultFactory.GetResult(Request, ModifiedShortcutsBytes, "application/x-javascript");
         }
     }
 }

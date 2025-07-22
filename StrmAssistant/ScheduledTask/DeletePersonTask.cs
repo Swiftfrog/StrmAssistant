@@ -56,7 +56,7 @@ namespace StrmAssistant.ScheduledTask
             return Array.Empty<TaskTriggerInfo>();
         }
 
-        public bool IsHidden => !Plugin.Instance.DebugMode;
+        public bool IsHidden => !IsEnabled;
 
         public bool IsEnabled => Plugin.Instance.DebugMode;
         

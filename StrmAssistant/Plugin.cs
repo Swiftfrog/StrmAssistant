@@ -73,6 +73,7 @@ namespace StrmAssistant
         public readonly ILogger Logger;
         public readonly IApplicationHost ApplicationHost;
         public readonly IApplicationPaths ApplicationPaths;
+        public readonly IServerConfigurationManager ConfigurationManager;
 
         private readonly ILibraryManager _libraryManager;
         private readonly IUserManager _userManager;
@@ -98,6 +99,7 @@ namespace StrmAssistant
             Logger.Info("Plugin is getting loaded.");
             ApplicationHost = applicationHost;
             ApplicationPaths = applicationPaths;
+            ConfigurationManager = configurationManager;
 
             _libraryManager = libraryManager;
             _userManager = userManager;
@@ -128,8 +130,6 @@ namespace StrmAssistant
                 DebugMode = true;
             }
 
-            if (IsModSupported) PatchManager.Initialize();
-
             LibraryApi = new LibraryApi(libraryManager, providerManager, fileSystem, mediaMountManager, userManager);
             MediaInfoApi = new MediaInfoApi(libraryManager, fileSystem, providerManager, mediaSourceManager,
                 itemRepository, jsonSerializer, libraryMonitor);
@@ -144,7 +144,15 @@ namespace StrmAssistant
                 jsonSerializer, httpClient);
             VideoThumbnailApi = new VideoThumbnailApi(libraryManager, fileSystem, imageExtractionManager, itemRepository,
                 mediaMountManager, serverApplicationPaths, libraryMonitor, ffmpegManager);
-            ShortcutMenuHelper.Initialize(configurationManager);
+
+            Initialize();
+        }
+
+        private void Initialize()
+        {
+            ShortcutMenuHelper.Initialize();
+
+            if (IsModSupported) PatchManager.Initialize();
 
             if (MainOptionsStore.GetOptions().GeneralOptions.CatchupMode) QueueManager.Initialize();
             if (IntroSkipStore.GetOptions().EnableIntroSkip) PlaySessionMonitor.Initialize();
@@ -401,7 +409,7 @@ namespace StrmAssistant
 
         public sealed override string Name => "Strm Assistant";
 
-        public string CurrentVersion => Assembly.GetExecutingAssembly().GetName().Version?.ToString();
+        public string CurrentVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString();
 
         public string UserAgent => $"{Name}/{CurrentVersion}";
 
@@ -410,7 +418,7 @@ namespace StrmAssistant
 
         public bool DebugMode;
 
-        public bool IsModSupported => RuntimeInformation.ProcessArchitecture == Architecture.X64;
+        public bool IsModSupported = RuntimeInformation.ProcessArchitecture == Architecture.X64;
 
         public Stream GetThumbImage()
         {

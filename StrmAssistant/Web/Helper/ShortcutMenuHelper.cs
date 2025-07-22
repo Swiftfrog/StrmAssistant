@@ -1,23 +1,26 @@
-﻿using MediaBrowser.Controller.Configuration;
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 
 namespace StrmAssistant.Web.Helper
 {
     internal static class ShortcutMenuHelper
     {
-        public static string ModifiedShortcutsString { get; private set; }
+        public static ReadOnlyMemory<byte> ModifiedShortcutsBytes { get; private set; }
+        public static ReadOnlyMemory<byte> StrmAssistantJsBytes { get; private set; }
 
-        public static MemoryStream StrmAssistantJs { get; private set; }
-
-        public static void Initialize(IServerConfigurationManager configurationManager)
+        public static void Initialize()
         {
             try
             {
-                StrmAssistantJs = GetResourceStream("strmassistant.js");
-                ModifyShortcutMenu(configurationManager);
+                StrmAssistantJsBytes = GetResourceBytes("strmassistant.js");
+                var configurationManager = Plugin.Instance.ConfigurationManager;
+                var dashboardSourcePath = configurationManager.Configuration.DashboardSourcePath ??
+                                          Path.Combine(configurationManager.ApplicationPaths.ApplicationResourcesPath,
+                                              "dashboard-ui");
+                ModifyShortcutMenu(dashboardSourcePath);
             }
             catch (Exception e)
             {
@@ -27,21 +30,26 @@ namespace StrmAssistant.Web.Helper
             }
         }
 
-        private static MemoryStream GetResourceStream(string resourceName)
+        private static ReadOnlyMemory<byte> GetResourceBytes(string resourceName)
         {
             var name = typeof(Plugin).Namespace + ".Web.Resources." + resourceName;
-            var manifestResourceStream = typeof (ShortcutMenuHelper).GetTypeInfo().Assembly.GetManifestResourceStream(name);
-            var destination = new MemoryStream((int) manifestResourceStream.Length);
-            manifestResourceStream.CopyTo((Stream) destination);
-            return destination;
+            using var stream = typeof(ShortcutMenuHelper).GetTypeInfo().Assembly.GetManifestResourceStream(name) ??
+                               throw new InvalidOperationException($"Resource not found: {name}");
+
+            var length = (int)stream.Length;
+            var buffer = new byte[length];
+
+            var bytesRead = stream.Read(buffer, 0, length);
+            if (bytesRead != length)
+            {
+                throw new EndOfStreamException($"Could not read entire resource: {name}");
+            }
+
+            return new ReadOnlyMemory<byte>(buffer);
         }
 
-        private static void ModifyShortcutMenu(IServerConfigurationManager configurationManager)
+        private static void ModifyShortcutMenu(string dashboardSourcePath)
         {
-            var dashboardSourcePath = configurationManager.Configuration.DashboardSourcePath ??
-                                      Path.Combine(configurationManager.ApplicationPaths.ApplicationResourcesPath,
-                                          "dashboard-ui");
-
             const string injectShortcutCommand = @"
 const strmAssistantCommandSource = {
     getCommands: function(options) {
@@ -159,8 +167,9 @@ setTimeout(() => {
             var dataExplorer2Assembly = AppDomain.CurrentDomain.GetAssemblies()
                 .FirstOrDefault(a => a.GetName().Name == "Emby.DataExplorer2");
 
-            ModifiedShortcutsString = File.ReadAllText(Path.Combine(dashboardSourcePath, "modules", "shortcuts.js")) +
-                                      injectShortcutCommand;
+            var modifiedShortcutsString =
+                File.ReadAllText(Path.Combine(dashboardSourcePath, "modules", "shortcuts.js")) + injectShortcutCommand;
+            ModifiedShortcutsBytes = new ReadOnlyMemory<byte>(Encoding.UTF8.GetBytes(modifiedShortcutsString));
 
             if (dataExplorer2Assembly != null)
             {
@@ -202,8 +211,8 @@ setTimeout(() => {
     });
 }, 5000);
 ";
-                    ModifiedShortcutsString += injectDataExplorerCommand;
-                    setMethod.Invoke(null, new object[] { ModifiedShortcutsString });
+                    modifiedShortcutsString += injectDataExplorerCommand;
+                    setMethod.Invoke(null, new object[] { modifiedShortcutsString });
                 }
             }
         }
