@@ -77,45 +77,48 @@ namespace StrmAssistant.Mod
 
         private static BaseItem[] GetAllCollectionFolders(Series series)
         {
-            if (!(series.HasProviderId(MetadataProviders.Tmdb) || series.HasProviderId(MetadataProviders.Imdb) ||
-                  series.HasProviderId(MetadataProviders.Tvdb)))
+            var providerIds = new List<KeyValuePair<string, string>>();
+
+            var tmdbId = series.GetProviderId(MetadataProviders.Tmdb);
+            if (!string.IsNullOrEmpty(tmdbId))
             {
-                return Array.Empty<BaseItem>();
+                providerIds.Add(new KeyValuePair<string, string>(MetadataProviders.Tmdb.ToString(), tmdbId));
             }
+
+            var imdbId = series.GetProviderId(MetadataProviders.Imdb);
+            if (!string.IsNullOrEmpty(imdbId))
+            {
+                providerIds.Add(new KeyValuePair<string, string>(MetadataProviders.Imdb.ToString(), imdbId));
+            }
+
+            var tvdbId = series.GetProviderId(MetadataProviders.Tvdb);
+            if (!string.IsNullOrEmpty(tvdbId))
+            {
+                providerIds.Add(new KeyValuePair<string, string>(MetadataProviders.Tvdb.ToString(), tvdbId));
+            }
+
+            if (providerIds.Count == 0) return Array.Empty<BaseItem>();
 
             var allSeries = BaseItem.LibraryManager.GetItemList(new InternalItemsQuery
-            {
-                EnableTotalRecordCount = false,
-                Recursive = false,
-                ExcludeItemIds = new[] { series.InternalId },
-                IncludeItemTypes = new[] { nameof(Series) },
-                AnyProviderIdEquals = new List<KeyValuePair<string, string>>
                 {
-                    new KeyValuePair<string, string>(MetadataProviders.Tmdb.ToString(),
-                        series.GetProviderId(MetadataProviders.Tmdb)),
-                    new KeyValuePair<string, string>(MetadataProviders.Imdb.ToString(),
-                        series.GetProviderId(MetadataProviders.Imdb)),
-                    new KeyValuePair<string, string>(MetadataProviders.Tvdb.ToString(),
-                        series.GetProviderId(MetadataProviders.Tvdb))
-                }
-            }).Concat(new[] { series }).ToList();
+                    EnableTotalRecordCount = false,
+                    Recursive = false,
+                    ExcludeItemIds = new[] { series.InternalId },
+                    IncludeItemTypes = new[] { nameof(Series) },
+                    HasAnyProviderId = providerIds.Select(p => p.Key).ToArray(),
+                    AnyProviderIdEquals = providerIds
+                })
+                .Concat(new[] { series })
+                .ToList();
 
-            var collectionFolders = new HashSet<BaseItem>();
+            var collectionFolders = allSeries.SelectMany(i => BaseItem.LibraryManager.GetCollectionFolders(i))
+                .GroupBy(i => i.InternalId)
+                .Select(g => g.First())
+                .OrderBy(i => i.InternalId)
+                .Cast<BaseItem>()
+                .ToArray();
 
-            foreach (var item in allSeries)
-            {
-                var options = BaseItem.LibraryManager.GetLibraryOptions(item);
-
-                if (options.EnableAutomaticSeriesGrouping)
-                {
-                    foreach (var library in BaseItem.LibraryManager.GetCollectionFolders(item))
-                    {
-                        collectionFolders.Add(library);
-                    }
-                }
-            }
-
-            return collectionFolders.OrderBy(c => c.InternalId).ToArray();
+            return collectionFolders;
         }
 
         [HarmonyPrefix]
