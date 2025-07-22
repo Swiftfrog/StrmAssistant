@@ -212,9 +212,9 @@ namespace StrmAssistant.Common
                 }
             }
 
-            var isModSupported = Plugin.Instance.IsModSupported;
+            var enableVideoThumbnail = Plugin.Instance.MediaInfoExtractStore.GetOptions().EnableImageCapture;
             var combined = favoritesWithExtra.Concat(items).Concat(extras).GroupBy(i => i.InternalId)
-                .Select(g => g.First()).Where(i => isModSupported || !i.IsShortcut).OfType<Video>().ToList();
+                .Select(g => g.First()).Where(i => enableVideoThumbnail || !i.IsShortcut).OfType<Video>().ToList();
 
             var filteredItems = FilterUnprocessed(combined);
 

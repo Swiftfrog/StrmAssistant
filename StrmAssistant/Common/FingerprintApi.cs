@@ -325,8 +325,8 @@ namespace StrmAssistant.Common
                 }
             }
 
-            var isModSupported = Plugin.Instance.IsModSupported;
-            resultItems = resultItems.Where(i => isModSupported || !i.IsShortcut).GroupBy(i => i.InternalId)
+            var unlockIntroSkip = Plugin.Instance.IntroSkipStore.GetOptions().UnlockIntroSkip;
+            resultItems = resultItems.Where(i => unlockIntroSkip || !i.IsShortcut).GroupBy(i => i.InternalId)
                 .Select(g => g.First()).ToList();
 
             var unprocessedItems = FilterUnprocessed(resultItems);
@@ -408,9 +408,9 @@ namespace StrmAssistant.Common
                 }
             }
 
-            var isModSupported = Plugin.Instance.IsModSupported;
+            var unlockIntroSkip = Plugin.Instance.IntroSkipStore.GetOptions().UnlockIntroSkip;
             var items = _libraryManager.GetItemList(itemsFingerprintQuery)
-                .Where(i => (isModSupported || !i.IsShortcut) && !LibraryApi.IsExtractExclude(i))
+                .Where(i => (unlockIntroSkip || !i.IsShortcut) && !LibraryApi.IsExtractExclude(i))
                 .OfType<Episode>()
                 .ToList();
 
@@ -467,9 +467,9 @@ namespace StrmAssistant.Common
                 }
             }
 
-            var isModSupported = Plugin.Instance.IsModSupported;
+            var unlockIntroSkip = Plugin.Instance.IntroSkipStore.GetOptions().UnlockIntroSkip;
             var items = _libraryManager.GetItemList(itemsFingerprintQuery)
-                .Where(i => (isModSupported || !i.IsShortcut) && !IsExtractExclude(i))
+                .Where(i => (unlockIntroSkip || !i.IsShortcut) && !IsExtractExclude(i))
                 .OfType<Episode>()
                 .ToList();
 
