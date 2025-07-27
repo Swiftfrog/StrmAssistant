@@ -806,9 +806,18 @@ namespace StrmAssistant.Common
         {
             var path = strmPath.AsMemory();
 
-            using var mediaMount = await _mediaMountManager.Mount(path, null, CancellationToken.None);
-            
-            return mediaMount?.MountedPath;
+            try
+            {
+                using var mediaMount = await _mediaMountManager.Mount(path, null, CancellationToken.None);
+
+                return mediaMount?.MountedPath;
+            }
+            catch
+            {
+                // ignored
+            }
+
+            return null;
         }
 
         public BaseItem[] GetItemsByIds(long[] itemIds)
