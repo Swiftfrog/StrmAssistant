@@ -15,6 +15,8 @@ namespace StrmAssistant.Reflection
         internal static MethodInfo _addHdrAdjustFilter;
         internal static MethodInfo _runFfProcess;
         internal static MethodInfo _getInputArgument;
+        internal static MethodInfo _getAnalyzeDurationArgument;
+        internal static MethodInfo _getProbeSizeArgument;
         internal static MethodInfo _getMediaInfo;
 
         static EmbyServerMediaEncoding()
@@ -52,6 +54,10 @@ namespace StrmAssistant.Reflection
             var encodingHelpers = mediaEncodingAssembly.GetType("Emby.Server.MediaEncoding.Encoder.EncodingHelpers");
             _getInputArgument =
                 encodingHelpers.GetMethod("GetInputArgument", BindingFlags.Static | BindingFlags.Public);
+            _getAnalyzeDurationArgument = encodingHelpers.GetMethod("GetAnalyzeDurationArgument",
+                BindingFlags.Static | BindingFlags.Public);
+            _getProbeSizeArgument = encodingHelpers.GetMethod("GetProbeSizeArgument",
+                BindingFlags.Static | BindingFlags.Public);
 
             var probeResultNormalizer =
                 mediaEncodingAssembly.GetType("Emby.Server.MediaEncoding.Probing.ProbeResultNormalizer");

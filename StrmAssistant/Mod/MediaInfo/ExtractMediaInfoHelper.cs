@@ -29,6 +29,9 @@ namespace StrmAssistant.Mod.MediaInfo
                 finalizer: nameof(RunFfProcessFinalizer));
             PatchUnpatch(PatchTracker, true, _getInputArgument, prefix: nameof(GetInputArgumentPrefix));
             PatchUnpatch(PatchTracker, true, _isProbingAllowed, prefix: nameof(IsProbingAllowedPrefix));
+            PatchUnpatch(PatchTracker, apply, _getAnalyzeDurationArgument,
+                prefix: nameof(GetAnalyzeDurationArgumentPrefix));
+            PatchUnpatch(PatchTracker, apply, _getProbeSizeArgument, prefix: nameof(GetProbeSizeArgumentPrefix));
             PatchUnpatch(PatchTracker, true, _getMediaInfo, postfix: nameof(GetMediaInfoPostfix));
         }
         
@@ -79,14 +82,8 @@ namespace StrmAssistant.Mod.MediaInfo
         }
 
         [HarmonyPrefix]
-        private static bool GetInputArgumentPrefix(ref string input, MediaProtocol protocol, ref string __result)
+        private static bool GetInputArgumentPrefix(ref string input, ref MediaProtocol protocol, ref string __result)
         {
-            if (protocol == MediaProtocol.Http)
-            {
-                __result = string.Format(CultureInfo.InvariantCulture, "\"{0}\"", input);
-                return false;
-            }
-
             if (LibraryApi.IsFileShortcut(input))
             {
                 var inputPath = input;
@@ -94,7 +91,44 @@ namespace StrmAssistant.Mod.MediaInfo
                 if (!string.IsNullOrEmpty(mountPath))
                 {
                     input = mountPath;
+
+                    if (mountPath.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+                    {
+                        protocol = MediaProtocol.Http;
+                    }
                 }
+            }
+
+            if (protocol == MediaProtocol.Http)
+            {
+                __result = string.Format(CultureInfo.InvariantCulture, "\"{0}\"", input);
+                return false;
+            }
+
+            return true;
+        }
+
+        [HarmonyPrefix]
+        private static bool GetAnalyzeDurationArgumentPrefix(string inputPath, MediaProtocol protocol,
+            bool isInfiniteStream, ref string __result)
+        {
+            if (!isInfiniteStream && protocol == MediaProtocol.Http)
+            {
+                __result = "";
+                return false;
+            }
+
+            return true;
+        }
+
+        [HarmonyPrefix]
+        private static bool GetProbeSizeArgumentPrefix(string inputPath, bool isInfiniteStream, ref string __result)
+        {
+            if (!isInfiniteStream && !string.IsNullOrEmpty(inputPath) &&
+                inputPath.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+            {
+                __result = "";
+                return false;
             }
 
             return true;
