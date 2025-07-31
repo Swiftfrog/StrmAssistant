@@ -14,10 +14,13 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using static StrmAssistant.Mod.PatchManager;
+using static StrmAssistant.Reflection.EmbyLocalMetadata;
+using static StrmAssistant.Reflection.EmbyProviders;
+using static StrmAssistant.Reflection.MovieDb;
+using static StrmAssistant.Reflection.Tvdb;
 
 namespace StrmAssistant.Mod
 {
@@ -30,20 +33,6 @@ namespace StrmAssistant.Mod
             public string TvdbId { get; set; }
             public string OriginalLanguage { get; set; }
         }
-
-        private static Assembly _movieDbAssembly;
-        private static MethodInfo _getMovieInfo;
-        private static MethodInfo _ensureSeriesInfo;
-        private static MethodInfo _getBackdrops;
-
-        private static Assembly _tvdbAssembly;
-        private static MethodInfo _ensureMovieInfoTvdb;
-        private static MethodInfo _ensureSeriesInfoTvdb;
-
-        private static MethodInfo _getAvailableRemoteImages;
-        private static MethodInfo _addLocalImage;
-        private static MethodInfo _getLocalFiles;
-        private static MethodInfo _populateSeasonImagesFromSeasonOrSeriesFolder;
 
         private static readonly ConcurrentDictionary<string, ContextItem> CurrentItemsByTmdbId =
             new ConcurrentDictionary<string, ContextItem>();
@@ -68,77 +57,10 @@ namespace StrmAssistant.Mod
 
         protected override void OnInitialize()
         {
-            _movieDbAssembly = AppDomain.CurrentDomain
-                .GetAssemblies()
-                .FirstOrDefault(a => a.GetName().Name == "MovieDb");
-
-            if (_movieDbAssembly != null)
-            {
-                var movieDbImageProvider = _movieDbAssembly.GetType("MovieDb.MovieDbImageProvider");
-                _getMovieInfo = movieDbImageProvider.GetMethod("GetMovieInfo",
-                    BindingFlags.Instance | BindingFlags.NonPublic, null,
-                    new[] { typeof(BaseItem), typeof(string), typeof(IJsonSerializer), typeof(CancellationToken) },
-                    null);
-
-                var movieDbSeriesProvider = _movieDbAssembly.GetType("MovieDb.MovieDbSeriesProvider");
-                _ensureSeriesInfo = movieDbSeriesProvider.GetMethod("EnsureSeriesInfo",
-                    BindingFlags.Instance | BindingFlags.NonPublic);
-
-                var movieDbProviderBase = _movieDbAssembly.GetType("MovieDb.MovieDbProviderBase");
-                _getBackdrops = movieDbProviderBase.GetMethod("GetBackdrops",
-                    BindingFlags.Instance | BindingFlags.NonPublic);
-            }
-            else
-            {
-                Plugin.Instance.Logger.Warn("OriginalPoster - MovieDb plugin is not installed");
-            }
-
-            _tvdbAssembly = AppDomain.CurrentDomain
-                .GetAssemblies()
-                .FirstOrDefault(a => a.GetName().Name == "Tvdb");
-
-            if (_tvdbAssembly != null)
-            {
-                var tvdbMovieProvider = _tvdbAssembly.GetType("Tvdb.TvdbMovieProvider");
-                _ensureMovieInfoTvdb = tvdbMovieProvider.GetMethod("EnsureMovieInfo",
-                    BindingFlags.NonPublic | BindingFlags.Instance);
-                var tvdbSeriesProvider = _tvdbAssembly.GetType("Tvdb.TvdbSeriesProvider");
-                _ensureSeriesInfoTvdb = tvdbSeriesProvider.GetMethod("EnsureSeriesInfo",
-                    BindingFlags.NonPublic | BindingFlags.Instance);
-            }
-            else
-            {
-                Plugin.Instance.Logger.Warn("OriginalPoster - Tvdb plugin is not installed");
-            }
-
             if (_movieDbAssembly != null || _tvdbAssembly != null)
             {
-                var embyProvidersAssembly = Assembly.Load("Emby.Providers");
-                var providerManager = embyProvidersAssembly.GetType("Emby.Providers.Manager.ProviderManager");
-                _getAvailableRemoteImages = providerManager.GetMethod("GetAvailableRemoteImages",
-                    BindingFlags.Instance | BindingFlags.Public, null,
-                    new[]
-                    {
-                        typeof(BaseItem), typeof(LibraryOptions), typeof(RemoteImageQuery),
-                        typeof(IDirectoryService), typeof(CancellationToken)
-                    }, null);
-
-                var embyLocalMetadata = Assembly.Load("Emby.LocalMetadata");
-                var localImageProvider = embyLocalMetadata.GetType("Emby.LocalMetadata.Images.LocalImageProvider");
-                _addLocalImage = localImageProvider.GetMethod("AddImage",
-                    BindingFlags.Instance | BindingFlags.NonPublic,
-                    new[]
-                    {
-                        typeof(FileSystemMetadata[]), typeof(List<LocalImageInfo>), typeof(string), typeof(ImageType)
-                    });
                 ReversePatch(PatchTracker, _addLocalImage, nameof(AddLocalImageStub));
-                _getLocalFiles = localImageProvider.GetMethod("GetFiles",
-                    BindingFlags.Instance | BindingFlags.NonPublic,
-                    new[] { typeof(BaseItem), typeof(LibraryOptions), typeof(bool), typeof(IDirectoryService) });
                 ReversePatch(PatchTracker, _getLocalFiles, nameof(GetLocalFilesStub));
-                _populateSeasonImagesFromSeasonOrSeriesFolder = localImageProvider
-                    .GetMethods(BindingFlags.Instance | BindingFlags.NonPublic)
-                    .FirstOrDefault(m => m.Name.StartsWith("PopulateSeasonImagesFrom"));
             }
             else
             {

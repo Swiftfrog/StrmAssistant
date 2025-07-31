@@ -6,34 +6,22 @@ using MediaBrowser.Model.Configuration;
 using MediaBrowser.Model.Entities;
 using StrmAssistant.Provider;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using static StrmAssistant.Mod.PatchManager;
+using static StrmAssistant.Reflection.EmbyProviders;
 
 namespace StrmAssistant.Mod
 {
     public class EnhanceMissingEpisodes : PatchBase<EnhanceMissingEpisodes>
     {
-        private static MethodInfo _getEnabledMetadataProviders;
-
         public static AsyncLocal<string> CurrentSeriesContainingFolderPath = new AsyncLocal<string>();
 
         public EnhanceMissingEpisodes()
         {
-            Initialize();
-
             if (Plugin.Instance.ExperienceEnhanceStore.GetOptions().UIFunctionOptions.EnhanceMissingEpisodes)
             {
                 Patch();
             }
-        }
-
-        protected override void OnInitialize()
-        {
-            var embyProviders = Assembly.Load("Emby.Providers");
-            var providerManager = embyProviders.GetType("Emby.Providers.Manager.ProviderManager");
-            _getEnabledMetadataProviders = providerManager.GetMethod("GetEnabledMetadataProviders",
-                BindingFlags.Instance | BindingFlags.Public);
         }
 
         protected override void Prepare(bool apply)

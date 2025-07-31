@@ -7,54 +7,25 @@ using StrmAssistant.Common;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using static StrmAssistant.Mod.PatchManager;
 using static StrmAssistant.Options.MediaInfoExtractOptions;
+using static StrmAssistant.Reflection.EmbyProviders;
+using static StrmAssistant.Reflection.EmbyServerImplementations;
 
 namespace StrmAssistant.Mod
 {
     public class PersistMediaInfoHelper : PatchBase<PersistMediaInfoHelper>
     {
-        private static MethodInfo _saveChapters;
-        private static MethodInfo _deleteChapters;
-        private static MethodInfo _onFailedToFindIntro;
-        private static MethodInfo _deleteItem;
-
         private static readonly AsyncLocal<long> BypassChapterItem = new AsyncLocal<long>();
 
         public PersistMediaInfoHelper()
         {
-            Initialize();
-
             if (Plugin.Instance.MediaInfoExtractStore.GetOptions().PersistMediaInfoMode !=
                 PersistMediaInfoOption.None.ToString())
             {
                 Patch();
             }
-        }
-
-        protected override void OnInitialize()
-        {
-            var embyServerImplementationsAssembly = Assembly.Load("Emby.Server.Implementations");
-            var sqliteItemRepository =
-                embyServerImplementationsAssembly.GetType("Emby.Server.Implementations.Data.SqliteItemRepository");
-            _saveChapters = sqliteItemRepository.GetMethod("SaveChapters",
-                BindingFlags.Instance | BindingFlags.Public, null,
-                new[] { typeof(long), typeof(bool), typeof(List<ChapterInfo>) }, null);
-            _deleteChapters =
-                sqliteItemRepository.GetMethod("DeleteChapters", BindingFlags.Instance | BindingFlags.Public);
-
-            var embyProviders = Assembly.Load("Emby.Providers");
-            var audioFingerprintManager = embyProviders.GetType("Emby.Providers.Markers.AudioFingerprintManager");
-            _onFailedToFindIntro = audioFingerprintManager.GetMethod("OnFailedToFindIntro",
-                BindingFlags.NonPublic | BindingFlags.Static);
-
-            var libraryManager =
-                embyServerImplementationsAssembly.GetType("Emby.Server.Implementations.Library.LibraryManager");
-            _deleteItem = libraryManager.GetMethod("DeleteItem",
-                BindingFlags.Instance | BindingFlags.Public, null,
-                new[] { typeof(BaseItem), typeof(DeleteOptions), typeof(BaseItem), typeof(bool) }, null);
         }
 
         protected override void Prepare(bool apply)

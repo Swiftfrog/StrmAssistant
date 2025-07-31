@@ -16,10 +16,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using static StrmAssistant.Options.Utility;
+using static StrmAssistant.Reflection.EmbyProviders;
 
 namespace StrmAssistant.Common
 {
@@ -32,10 +32,6 @@ namespace StrmAssistant.Common
             Plugin.Instance.IsModSupported ? PatchApproach.Harmony : PatchApproach.Reflection);
 
         private readonly object _thumbnailGenerator;
-        private readonly MethodInfo _refreshThumbnailImages;
-
-        private static readonly Version AppVer = Plugin.Instance.ApplicationHost.ApplicationVersion;
-        private static readonly Version Ver4936 = new Version("4.9.0.36");
 
         internal VideoThumbnailApi(ILibraryManager libraryManager, IFileSystem fileSystem,
             IImageExtractionManager imageExtractionManager, IItemRepository itemRepository,
@@ -47,23 +43,11 @@ namespace StrmAssistant.Common
 
             try
             {
-                var embyProviders = Assembly.Load("Emby.Providers");
-                var thumbnailGenerator = embyProviders.GetType("Emby.Providers.MediaInfo.ThumbnailGenerator");
-                var thumbnailGeneratorConstructor = thumbnailGenerator?.GetConstructor(
-                    BindingFlags.Public | BindingFlags.Instance, null,
-                    new[]
-                    {
-                        typeof(IFileSystem), typeof(ILogger), typeof(IImageExtractionManager),
-                        typeof(IItemRepository), typeof(IMediaMountManager), typeof(IServerApplicationPaths),
-                        typeof(ILibraryMonitor), typeof(IFfmpegManager)
-                    }, null);
-                _thumbnailGenerator = thumbnailGeneratorConstructor?.Invoke(new object[]
+                _thumbnailGenerator = _thumbnailGeneratorConstructor?.Invoke(new object[]
                 {
                     fileSystem, _logger, imageExtractionManager, itemRepository, mediaMountManager,
                     applicationPaths, libraryMonitor, ffmpegManager
                 });
-                _refreshThumbnailImages = thumbnailGenerator?.GetMethod("RefreshThumbnailImages",
-                    BindingFlags.Public | BindingFlags.Instance);
             }
             catch (Exception e)
             {
@@ -82,7 +66,7 @@ namespace StrmAssistant.Common
             else if (Plugin.Instance.IsModSupported)
             {
                 PatchManager.ReversePatch(PatchTracker, _refreshThumbnailImages,
-                    AppVer >= Ver4936 ? nameof(RefreshThumbnailImagesStub49) : nameof(RefreshThumbnailImagesStub48));
+                    AppVer >= Ver49036 ? nameof(RefreshThumbnailImagesStub49) : nameof(RefreshThumbnailImagesStub48));
             }
         }
 
@@ -105,21 +89,21 @@ namespace StrmAssistant.Common
             IDirectoryService directoryService, List<ChapterInfo> chapters, bool extractImages, bool saveChapters,
             CancellationToken cancellationToken)
         {
-            var mediaSource = AppVer >= Ver4936
+            var mediaSource = AppVer >= Ver49036
                 ? item.GetMediaSources(false, false, libraryOptions).FirstOrDefault()
                 : null;
 
             switch (PatchTracker.FallbackPatchApproach)
             {
                 case PatchApproach.Harmony:
-                    return AppVer >= Ver4936
+                    return AppVer >= Ver49036
                         ? RefreshThumbnailImagesStub49(_thumbnailGenerator, item, mediaSource, null, libraryOptions,
                             directoryService, chapters, extractImages, saveChapters, cancellationToken)
                         : RefreshThumbnailImagesStub48(_thumbnailGenerator, item, null, libraryOptions,
                             directoryService, chapters, extractImages, saveChapters, cancellationToken);
                 case PatchApproach.Reflection:
                 {
-                    var parameters = AppVer >= Ver4936
+                    var parameters = AppVer >= Ver49036
                         ? new object[]
                         {
                             item, mediaSource, null, libraryOptions, directoryService, chapters, extractImages,

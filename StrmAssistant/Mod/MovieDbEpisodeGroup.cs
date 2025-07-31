@@ -10,11 +10,12 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using static StrmAssistant.Common.LanguageUtility;
 using static StrmAssistant.Mod.PatchManager;
+using static StrmAssistant.Reflection.EmbyProviders;
+using static StrmAssistant.Reflection.MovieDb;
 
 namespace StrmAssistant.Mod
 {
@@ -37,16 +38,6 @@ namespace StrmAssistant.Mod
             public int? MappedEpisodeNumber { get; set; }
         }
 
-        private static Assembly _movieDbAssembly;
-        private static MethodInfo _seriesGetMetadata;
-        private static MethodInfo _seasonGetMetadata;
-        private static MethodInfo _episodeGetMetadata;
-        private static MethodInfo _seasonGetImages;
-        private static MethodInfo _episodeGetImages;
-
-        private static MethodInfo _canRefreshMetadata;
-        private static MethodInfo _getEnabledMetadataProviders;
-
         private static readonly AsyncLocal<Series> CurrentSeries = new AsyncLocal<Series>();
         private static readonly AsyncLocal<bool> WasCalledByGetEnabledMetadataProviders = new AsyncLocal<bool>();
 
@@ -64,43 +55,8 @@ namespace StrmAssistant.Mod
 
         protected override void OnInitialize()
         {
-            _movieDbAssembly = AppDomain.CurrentDomain
-                .GetAssemblies()
-                .FirstOrDefault(a => a.GetName().Name == "MovieDb");
-
-            if (_movieDbAssembly != null)
+            if (_movieDbAssembly is null)
             {
-                var movieDbSeriesProvider = _movieDbAssembly.GetType("MovieDb.MovieDbSeriesProvider");
-                _seriesGetMetadata =
-                    movieDbSeriesProvider.GetMethod("GetMetadata", BindingFlags.Public | BindingFlags.Instance);
-                var movieDbSeasonProvider = _movieDbAssembly.GetType("MovieDb.MovieDbSeasonProvider");
-                _seasonGetMetadata = movieDbSeasonProvider.GetMethod("GetMetadata",
-                    BindingFlags.Public | BindingFlags.Instance, null,
-                    new[] { typeof(RemoteMetadataFetchOptions<SeasonInfo>), typeof(CancellationToken) }, null);
-                var movieDbEpisodeProvider = _movieDbAssembly.GetType("MovieDb.MovieDbEpisodeProvider");
-                _episodeGetMetadata = movieDbEpisodeProvider.GetMethod("GetMetadata",
-                    BindingFlags.Public | BindingFlags.Instance, null,
-                    new[] { typeof(RemoteMetadataFetchOptions<EpisodeInfo>), typeof(CancellationToken) }, null);
-
-                var movieDbSeasonImageProvider = _movieDbAssembly.GetType("MovieDb.MovieDbSeasonImageProvider");
-                _seasonGetImages = movieDbSeasonImageProvider.GetMethod("GetImages",
-                    BindingFlags.Public | BindingFlags.Instance, null,
-                    new[] { typeof(RemoteImageFetchOptions), typeof(CancellationToken) }, null);
-                var movieDbEpisodeImageProvider = _movieDbAssembly.GetType("MovieDb.MovieDbEpisodeImageProvider");
-                _episodeGetImages = movieDbEpisodeImageProvider.GetMethod("GetImages",
-                    BindingFlags.Public | BindingFlags.Instance, null,
-                    new[] { typeof(RemoteImageFetchOptions), typeof(CancellationToken) }, null);
-
-                var embyProviders = Assembly.Load("Emby.Providers");
-                var providerManager = embyProviders.GetType("Emby.Providers.Manager.ProviderManager");
-                _canRefreshMetadata =
-                    providerManager.GetMethod("CanRefresh", BindingFlags.Static | BindingFlags.NonPublic);
-                _getEnabledMetadataProviders = providerManager.GetMethod("GetEnabledMetadataProviders",
-                    BindingFlags.Instance | BindingFlags.Public);
-            }
-            else
-            {
-                Plugin.Instance.Logger.Warn("MovieDbEpisodeGroup - MovieDb plugin is not installed");
                 PatchTracker.FallbackPatchApproach = PatchApproach.None;
                 PatchTracker.IsSupported = false;
             }

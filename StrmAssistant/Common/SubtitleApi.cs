@@ -16,9 +16,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using static StrmAssistant.Reflection.EmbyProviders;
 
 namespace StrmAssistant.Common
 {
@@ -32,10 +32,9 @@ namespace StrmAssistant.Common
         private static readonly PatchTracker PatchTracker =
             new PatchTracker(typeof(SubtitleApi),
                 Plugin.Instance.IsModSupported ? PatchApproach.Harmony : PatchApproach.Reflection);
+
         private readonly object _subtitleResolver;
-        private readonly MethodInfo _getExternalSubtitleStreams;
         private readonly object _ffProbeSubtitleInfo;
-        private readonly MethodInfo _updateExternalSubtitleStream;
 
         private static readonly HashSet<string> ProbeExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             { ".sub", ".smi", ".sami", ".mpl" };
@@ -50,25 +49,11 @@ namespace StrmAssistant.Common
 
             try
             {
-                var embyProviders = Assembly.Load("Emby.Providers");
-                var subtitleResolverType = embyProviders.GetType("Emby.Providers.MediaInfo.SubtitleResolver");
-                var subtitleResolverConstructor = subtitleResolverType.GetConstructor(new[]
-                {
-                    typeof(ILocalizationManager), typeof(IFileSystem), typeof(ILibraryManager)
-                });
-                _subtitleResolver = subtitleResolverConstructor?.Invoke(new object[]
+                _subtitleResolver = _subtitleResolverConstructor?.Invoke(new object[]
                 {
                     localizationManager, fileSystem, libraryManager
                 });
-                _getExternalSubtitleStreams = subtitleResolverType.GetMethod("GetExternalSubtitleStreams");
-
-                var ffProbeSubtitleInfoType = embyProviders.GetType("Emby.Providers.MediaInfo.FFProbeSubtitleInfo");
-                var ffProbeSubtitleInfoConstructor = ffProbeSubtitleInfoType.GetConstructor(new[]
-                {
-                    typeof(IMediaProbeManager)
-                });
-                _ffProbeSubtitleInfo = ffProbeSubtitleInfoConstructor?.Invoke(new object[] { mediaProbeManager });
-                _updateExternalSubtitleStream = ffProbeSubtitleInfoType.GetMethod("UpdateExternalSubtitleStream");
+                _ffProbeSubtitleInfo = _ffProbeSubtitleInfoConstructor?.Invoke(new object[] { mediaProbeManager });
             }
             catch (Exception e)
             {

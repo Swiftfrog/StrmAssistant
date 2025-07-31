@@ -3,16 +3,14 @@ using HarmonyLib;
 using System;
 using System.Net;
 using System.Net.Http;
-using System.Reflection;
 using static StrmAssistant.Common.CommonUtility;
 using static StrmAssistant.Mod.PatchManager;
+using static StrmAssistant.Reflection.EmbyServerImplementations;
 
 namespace StrmAssistant.Mod
 {
     public class EnableProxyServer : PatchBase<EnableProxyServer>
     {
-        private static MethodInfo _createHttpClientHandler;
-
         private static readonly string[] BypassAddressList =
         {
             "10.*", "172.1[6-9].*", "172.2[0-9].*", "172.3[0-1].*", "192.168.*"
@@ -20,21 +18,10 @@ namespace StrmAssistant.Mod
 
         public EnableProxyServer()
         {
-            Initialize();
-
             if (Plugin.Instance.MainOptionsStore.GetOptions().NetworkOptions.EnableProxyServer)
             {
                 Patch();
             }
-        }
-
-        protected override void OnInitialize()
-        {
-            var embyServerImplementationsAssembly = Assembly.Load("Emby.Server.Implementations");
-            var applicationHost =
-                embyServerImplementationsAssembly.GetType("Emby.Server.Implementations.ApplicationHost");
-            _createHttpClientHandler = applicationHost.GetMethod("CreateHttpClientHandler",
-                BindingFlags.NonPublic | BindingFlags.Instance);
         }
 
         protected override void Prepare(bool apply)

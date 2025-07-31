@@ -6,39 +6,21 @@ using MediaBrowser.Model.Entities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using static StrmAssistant.Common.LanguageUtility;
 using static StrmAssistant.Mod.PatchManager;
+using static StrmAssistant.Reflection.EmbyApi;
+using static StrmAssistant.Reflection.MediaBrowserController;
 
 namespace StrmAssistant.Mod
 {
     public class PinyinSortName : PatchBase<PinyinSortName>
     {
-        private static MethodInfo _createSortName;
-        private static MethodInfo _getPrefixes;
-        private static MethodInfo _getArtistPrefixes;
-
         public PinyinSortName()
         {
-            Initialize();
-
             if (Plugin.Instance.MetadataEnhanceStore.GetOptions().PinyinSortName)
             {
                 Patch();
             }
-        }
-
-        protected override void OnInitialize()
-        {
-            _createSortName = typeof(BaseItem).GetMethod("CreateSortName",
-                BindingFlags.Instance | BindingFlags.NonPublic, null,
-                new[] { typeof(ReadOnlySpan<char>) }, null);
-            var embyApi = Assembly.Load("Emby.Api");
-            var tagService = embyApi.GetType("Emby.Api.UserLibrary.TagService");
-            _getPrefixes =
-                tagService.GetMethod("Get", new[] { embyApi.GetType("Emby.Api.UserLibrary.GetPrefixes") });
-            _getArtistPrefixes =
-                tagService.GetMethod("Get", new[] { embyApi.GetType("Emby.Api.UserLibrary.GetArtistPrefixes") });
         }
 
         protected override void Prepare(bool apply)

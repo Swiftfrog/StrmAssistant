@@ -11,49 +11,26 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using static StrmAssistant.Mod.PatchManager;
 using static StrmAssistant.Options.ExperienceEnhanceOptions;
+using static StrmAssistant.Reflection.EmbyApi;
+using static StrmAssistant.Reflection.EmbyNaming;
+using static StrmAssistant.Reflection.EmbyProviders;
+using static StrmAssistant.Reflection.MediaBrowserController;
 
 namespace StrmAssistant.Mod
 {
     public class MergeMultiVersion : PatchBase<MergeMultiVersion>
     {
-        private static MethodInfo _isEligibleForMultiVersion;
-        private static MethodInfo _canRefreshImage;
-        private static MethodInfo _addLibrariesToPresentationUniqueKey;
-        private static MethodInfo _getRefreshOptions;
-
         public static readonly AsyncLocal<BaseItem[]> CurrentAllCollectionFolders = new AsyncLocal<BaseItem[]>();
 
         public MergeMultiVersion()
         {
-            Initialize();
-
             if (Plugin.Instance.ExperienceEnhanceStore.GetOptions().MergeMultiVersion)
             {
                 Patch();
             }
-        }
-
-        protected override void OnInitialize()
-        {
-            var namingAssembly = Assembly.Load("Emby.Naming");
-            var videoListResolverType = namingAssembly.GetType("Emby.Naming.Video.VideoListResolver");
-            _isEligibleForMultiVersion = videoListResolverType.GetMethod("IsEligibleForMultiVersion",
-                BindingFlags.Static | BindingFlags.NonPublic);
-
-            var embyProviders = Assembly.Load("Emby.Providers");
-            var providerManager = embyProviders.GetType("Emby.Providers.Manager.ProviderManager");
-            _canRefreshImage = providerManager.GetMethod("CanRefresh", BindingFlags.Instance | BindingFlags.NonPublic);
-            _addLibrariesToPresentationUniqueKey = typeof(Series).GetMethod("AddLibrariesToPresentationUniqueKey",
-                BindingFlags.NonPublic | BindingFlags.Instance);
-
-            var embyApi = Assembly.Load("Emby.Api");
-            var itemRefreshService = embyApi.GetType("Emby.Api.ItemRefreshService");
-            _getRefreshOptions =
-                itemRefreshService.GetMethod("GetRefreshOptions", BindingFlags.Instance | BindingFlags.NonPublic);
         }
 
         protected override void Prepare(bool apply)

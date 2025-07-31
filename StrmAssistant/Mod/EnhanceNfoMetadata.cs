@@ -1,28 +1,19 @@
 ﻿using HarmonyLib;
-using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller.Entities;
-using MediaBrowser.Controller.Providers;
-using MediaBrowser.Model.IO;
-using MediaBrowser.Model.Logging;
 using System;
 using System.IO;
-using System.Linq;
-using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using static StrmAssistant.Common.CommonUtility;
 using static StrmAssistant.Mod.PatchManager;
+using static StrmAssistant.Reflection.NfoMetadata;
 
 namespace StrmAssistant.Mod
 {
     public class EnhanceNfoMetadata : PatchBase<EnhanceNfoMetadata>
     {
-        private static Assembly _nfoMetadataAssembly;
-        private static ConstructorInfo _genericBaseNfoParserConstructor;
-        private static MethodInfo _getPersonFromXmlNode;
-
         private static readonly AsyncLocal<string> PersonContent = new AsyncLocal<string>();
 
         private static readonly XmlReaderSettings ReaderSettings = new XmlReaderSettings
@@ -52,27 +43,8 @@ namespace StrmAssistant.Mod
 
         protected override void OnInitialize()
         {
-            _nfoMetadataAssembly = AppDomain.CurrentDomain
-                .GetAssemblies()
-                .FirstOrDefault(a => a.GetName().Name == "NfoMetadata");
-
-            if (_nfoMetadataAssembly != null)
+            if (_nfoMetadataAssembly is null)
             {
-                var genericBaseNfoParser = _nfoMetadataAssembly.GetType("NfoMetadata.Parsers.BaseNfoParser`1");
-                var genericBaseNfoParserVideo = genericBaseNfoParser.MakeGenericType(typeof(Video));
-                _genericBaseNfoParserConstructor = genericBaseNfoParserVideo.GetConstructor(
-                    BindingFlags.Instance | BindingFlags.Public, null,
-                    new[]
-                    {
-                        typeof(ILogger), typeof(IConfigurationManager), typeof(IProviderManager),
-                        typeof(IFileSystem)
-                    }, null);
-                _getPersonFromXmlNode = genericBaseNfoParserVideo.GetMethod("GetPersonFromXmlNode",
-                    BindingFlags.NonPublic | BindingFlags.Instance);
-            }
-            else
-            {
-                Plugin.Instance.Logger.Warn("EnhanceNfoMetadata - NfoMetadata plugin is not installed");
                 PatchTracker.FallbackPatchApproach = PatchApproach.None;
                 PatchTracker.IsSupported = false;
             }

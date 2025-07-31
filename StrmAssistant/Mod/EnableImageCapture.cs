@@ -6,31 +6,18 @@ using MediaBrowser.Model.MediaInfo;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Reflection.Emit;
 using System.Threading;
 using static StrmAssistant.Mod.PatchManager;
+using static StrmAssistant.Reflection.EmbyProviders;
+using static StrmAssistant.Reflection.EmbyServerImplementations;
+using static StrmAssistant.Reflection.EmbyServerMediaEncoding;
+using static StrmAssistant.Reflection.MediaBrowserController;
 
 namespace StrmAssistant.Mod
 {
     public class EnableImageCapture : PatchBase<EnableImageCapture>
     {
-        private static ConstructorInfo _staticConstructor;
-        private static FieldInfo _resourcePoolField;
-        private static MethodInfo _isShortcutGetter;
-        private static PropertyInfo _isShortcutProperty;
-        private static MethodInfo _supportsVideoImageCapture;
-        private static MethodInfo _getThumbnailPositionTicks;
-        private static MethodInfo _supportsAudioEmbeddedImages;
-        private static MethodInfo _getImage;
-        private static MethodInfo _runExtraction;
-        private static Type _quickSingleImageExtractor;
-        private static MethodInfo _supportsThumbnailsGetter;
-        private static MethodInfo _logThumbnailImageExtractionFailure;
-        private static MethodInfo _extractVideoImagesOnInterval;
-        private static MethodInfo _enableQuickImageSeriesExtractor;
-        private static MethodInfo _addHdrAdjustFilter;
-
         private static readonly AsyncLocal<BaseItem> ShortcutItem = new AsyncLocal<BaseItem>();
         private static readonly AsyncLocal<BaseItem> ImageCaptureItem = new AsyncLocal<BaseItem>();
         private static readonly AsyncLocal<MediaContainers?> VideoThumbnailMediaContainer =
@@ -64,52 +51,6 @@ namespace StrmAssistant.Mod
 
         protected override void OnInitialize()
         {
-            var mediaEncodingAssembly = Assembly.Load("Emby.Server.MediaEncoding");
-            var imageExtractorBaseType =
-                mediaEncodingAssembly.GetType("Emby.Server.MediaEncoding.ImageExtraction.ImageExtractorBase");
-            _staticConstructor = imageExtractorBaseType.GetConstructor(BindingFlags.Static | BindingFlags.NonPublic,
-                null, Type.EmptyTypes, null);
-            _resourcePoolField =
-                imageExtractorBaseType.GetField("resourcePool", BindingFlags.NonPublic | BindingFlags.Static);
-            _isShortcutGetter = typeof(BaseItem).GetProperty("IsShortcut", BindingFlags.Instance | BindingFlags.Public)
-                ?.GetGetMethod();
-            _isShortcutProperty =
-                typeof(BaseItem).GetProperty("IsShortcut", BindingFlags.Instance | BindingFlags.Public);
-
-            var embyProviders = Assembly.Load("Emby.Providers");
-            var videoImageProvider = embyProviders.GetType("Emby.Providers.MediaInfo.VideoImageProvider");
-            _supportsVideoImageCapture =
-                videoImageProvider.GetMethod("Supports", BindingFlags.Instance | BindingFlags.Public);
-            _getThumbnailPositionTicks = videoImageProvider.GetMethod("GetThumbnailPositionTicks",
-                BindingFlags.Instance | BindingFlags.NonPublic);
-            _getImage = videoImageProvider.GetMethods(BindingFlags.Public | BindingFlags.Instance)
-                .Where(m => m.Name == "GetImage")
-                .OrderByDescending(m => m.GetParameters().Length)
-                .FirstOrDefault();
-            var audioImageProvider = embyProviders.GetType("Emby.Providers.MediaInfo.AudioImageProvider");
-            _supportsAudioEmbeddedImages =
-                audioImageProvider.GetMethod("Supports", BindingFlags.Instance | BindingFlags.Public);
-
-            var supportsThumbnailsProperty =
-                typeof(Video).GetProperty("SupportsThumbnails", BindingFlags.Public | BindingFlags.Instance);
-            _supportsThumbnailsGetter = supportsThumbnailsProperty?.GetGetMethod();
-            _runExtraction =
-                imageExtractorBaseType.GetMethod("RunExtraction", BindingFlags.Instance | BindingFlags.Public);
-            _quickSingleImageExtractor =
-                mediaEncodingAssembly.GetType("Emby.Server.MediaEncoding.ImageExtraction.QuickSingleImageExtractor");
-
-            var embyServerImplementationsAssembly = Assembly.Load("Emby.Server.Implementations");
-            var sqliteItemRepository =
-                embyServerImplementationsAssembly.GetType("Emby.Server.Implementations.Data.SqliteItemRepository");
-            _logThumbnailImageExtractionFailure = sqliteItemRepository.GetMethod("LogThumbnailImageExtractionFailure",
-                BindingFlags.Public | BindingFlags.Instance);
-            var imageExtractionManager =
-                mediaEncodingAssembly.GetType("Emby.Server.MediaEncoding.ImageExtraction.ImageExtractionManager");
-            _extractVideoImagesOnInterval = imageExtractionManager.GetMethod("ExtractVideoImagesOnInterval");
-            _enableQuickImageSeriesExtractor = imageExtractionManager.GetMethod("EnableQuickImageSeriesExtractor",
-                BindingFlags.Instance | BindingFlags.NonPublic);
-            _addHdrAdjustFilter =
-                imageExtractorBaseType.GetMethod("AddHdrAdjustFilter", BindingFlags.Instance | BindingFlags.NonPublic);
             ReversePatch(PatchTracker, _addHdrAdjustFilter, nameof(AddHdrAdjustFilterStub));
         }
 

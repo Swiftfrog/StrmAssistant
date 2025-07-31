@@ -4,26 +4,17 @@ using MediaBrowser.Controller.Providers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using static StrmAssistant.Common.LanguageUtility;
 using static StrmAssistant.Mod.PatchManager;
+using static StrmAssistant.Reflection.Tvdb;
 
 namespace StrmAssistant.Mod
 {
     public class ChineseTvdb : PatchBase<ChineseTvdb>
     {
-        private static Assembly _tvdbAssembly;
-        private static MethodInfo _convertToTvdbLanguages;
-        private static MethodInfo _getTranslation;
-        private static MethodInfo _addMovieInfo;
-        private static MethodInfo _addSeriesInfo;
-        private static MethodInfo _getTvdbSeason;
-        private static MethodInfo _findEpisode;
-        private static MethodInfo _getEpisodeData;
-
         private static readonly ThreadLocal<bool?> ConsiderJapanese = new ThreadLocal<bool?>();
 
         public ChineseTvdb()
@@ -38,34 +29,8 @@ namespace StrmAssistant.Mod
 
         protected override void OnInitialize()
         {
-            _tvdbAssembly = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(a => a.GetName().Name == "Tvdb");
-
-            if (_tvdbAssembly != null)
+            if (_tvdbAssembly is null)
             {
-                var entryPoint = _tvdbAssembly.GetType("Tvdb.EntryPoint");
-                _convertToTvdbLanguages = entryPoint.GetMethod("ConvertToTvdbLanguages",
-                    BindingFlags.Instance | BindingFlags.Public, null, new[] { typeof(ItemLookupInfo) }, null);
-                var translations = _tvdbAssembly.GetType("Tvdb.Translations");
-                _getTranslation =
-                    translations.GetMethod("GetTranslation", BindingFlags.Instance | BindingFlags.NonPublic);
-                var tvdbMovieProvider = _tvdbAssembly.GetType("Tvdb.TvdbMovieProvider");
-                _addMovieInfo = tvdbMovieProvider.GetMethod("AddMovieInfo",
-                    BindingFlags.Instance | BindingFlags.NonPublic);
-                var tvdbSeriesProvider = _tvdbAssembly.GetType("Tvdb.TvdbSeriesProvider");
-                _addSeriesInfo = tvdbSeriesProvider.GetMethod("AddSeriesInfo",
-                    BindingFlags.Instance | BindingFlags.NonPublic);
-                var tvdbSeasonProvider= _tvdbAssembly.GetType("Tvdb.TvdbSeasonProvider");
-                _getTvdbSeason =
-                    tvdbSeasonProvider.GetMethod("GetTvdbSeason", BindingFlags.Instance | BindingFlags.Public);
-                var tvdbEpisodeProvider = _tvdbAssembly.GetType("Tvdb.TvdbEpisodeProvider");
-                _findEpisode = tvdbEpisodeProvider.GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)
-                    .FirstOrDefault(m => m.Name == "FindEpisode" && m.GetParameters().Length == 3);
-                _getEpisodeData =
-                    tvdbEpisodeProvider.GetMethod("GetEpisodeData", BindingFlags.Instance | BindingFlags.Public);
-            }
-            else
-            {
-                Plugin.Instance.Logger.Warn("ChineseTvdb - Tvdb plugin is not installed");
                 PatchTracker.FallbackPatchApproach = PatchApproach.None;
                 PatchTracker.IsSupported = false;
             }

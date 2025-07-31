@@ -22,6 +22,7 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using static StrmAssistant.Common.CommonUtility;
+using static StrmAssistant.Options.Utility;
 
 namespace StrmAssistant.Common
 {
@@ -41,7 +42,6 @@ namespace StrmAssistant.Common
             new PatchTracker(typeof(MediaInfoApi),
                 Plugin.Instance.IsModSupported ? PatchApproach.Harmony : PatchApproach.Reflection);
 
-        private readonly bool _fallbackApproach;
         private readonly MethodInfo _getStaticMediaSources;
 
         internal class MediaSourceWithChapters
@@ -64,7 +64,7 @@ namespace StrmAssistant.Common
             _itemRepository = itemRepository;
             _jsonSerializer = jsonSerializer;
 
-            if (Plugin.Instance.ApplicationHost.ApplicationVersion >= new Version("4.9.0.25"))
+            if (AppVer >= Ver49025)
             {
                 try
                 {
@@ -75,7 +75,6 @@ namespace StrmAssistant.Common
                                 typeof(BaseItem), typeof(bool), typeof(bool), typeof(bool), typeof(LibraryOptions),
                                 typeof(DeviceProfile), typeof(User)
                             });
-                    _fallbackApproach = true;
                 }
                 catch (Exception e)
                 {
@@ -100,15 +99,10 @@ namespace StrmAssistant.Common
 
             try
             {
-                var embyServerImplementationsAssembly = Assembly.Load("Emby.Server.Implementations");
-                var libraryMonitorImpl =
-                    embyServerImplementationsAssembly.GetType("Emby.Server.Implementations.IO.LibraryMonitor");
-                var alwaysIgnoreExtensions = libraryMonitorImpl.GetField("_alwaysIgnoreExtensions",
-                    BindingFlags.Instance | BindingFlags.NonPublic);
+                var alwaysIgnoreExtensions = libraryMonitor.GetType()
+                    .GetField("_alwaysIgnoreExtensions", BindingFlags.Instance | BindingFlags.NonPublic);
                 var currentArray = (string[])alwaysIgnoreExtensions.GetValue(libraryMonitor);
-                var newArray = new string[currentArray.Length + 1];
-                Array.Copy(currentArray, newArray, currentArray.Length);
-                newArray[newArray.Length - 1] = ".json";
+                var newArray = currentArray.Concat(new[] { ".json" }).ToArray();
                 alwaysIgnoreExtensions.SetValue(libraryMonitor, newArray);
             }
             catch (Exception e)
@@ -157,9 +151,9 @@ namespace StrmAssistant.Common
         {
             var options = _libraryManager.GetLibraryOptions(item);
 
-            return !_fallbackApproach
-                ? GetStaticMediaSourcesByApi(item, enableAlternateMediaSources, options)
-                : GetStaticMediaSourcesByRef(item, enableAlternateMediaSources, options);
+            return AppVer >= Ver49025
+                ? GetStaticMediaSourcesByRef(item, enableAlternateMediaSources, options)
+                : GetStaticMediaSourcesByApi(item, enableAlternateMediaSources, options);
         }
 
         public MetadataRefreshOptions GetMediaInfoRefreshOptions()

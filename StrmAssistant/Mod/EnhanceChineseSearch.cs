@@ -10,25 +10,17 @@ using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using static StrmAssistant.Mod.PatchManager;
 using static StrmAssistant.Options.Utility;
+using static StrmAssistant.Reflection.EmbyServerImplementations;
 
 namespace StrmAssistant.Mod
 {
     public class EnhanceChineseSearch : PatchBase<EnhanceChineseSearch>
     {
-        private static readonly Version AppVer = Plugin.Instance.ApplicationHost.ApplicationVersion;
-        private static readonly Version Ver4830 = new Version("4.8.3.0");
-        private static readonly Version Ver4900 = new Version("4.9.0.0");
-        private static readonly Version Ver4937 = new Version("4.9.0.37");
-
         private static Type raw;
         private static MethodInfo sqlite3_enable_load_extension;
         private static FieldInfo sqlite3_db;
         private static MethodInfo _createConnection;
         private static PropertyInfo _dbFilePath;
-        private static MethodInfo _enableJoinFtsSearch;
-        private static MethodInfo _getJoinCommandText;
-        private static MethodInfo _createSearchTerm;
-        private static MethodInfo _cacheIdsFromTextParams;
 
         public static string CurrentTokenizerName { get; private set; } = "unknown";
 
@@ -78,18 +70,6 @@ namespace StrmAssistant.Mod
                 BindingFlags.NonPublic | BindingFlags.Instance);
             _dbFilePath =
                 baseSqliteRepository.GetProperty("DbFilePath", BindingFlags.NonPublic | BindingFlags.Instance);
-
-            var embyServerImplementationsAssembly = Assembly.Load("Emby.Server.Implementations");
-            var sqliteItemRepository =
-                embyServerImplementationsAssembly.GetType("Emby.Server.Implementations.Data.SqliteItemRepository");
-            _enableJoinFtsSearch =
-                sqliteItemRepository.GetMethod("EnableJoinFtsSearch", BindingFlags.Static | BindingFlags.NonPublic);
-            _getJoinCommandText = sqliteItemRepository.GetMethod("GetJoinCommandText",
-                BindingFlags.NonPublic | BindingFlags.Instance);
-            _createSearchTerm =
-                sqliteItemRepository.GetMethod("CreateSearchTerm", BindingFlags.NonPublic | BindingFlags.Static);
-            _cacheIdsFromTextParams = sqliteItemRepository.GetMethod("CacheIdsFromTextParams",
-                BindingFlags.Instance | BindingFlags.NonPublic);
         }
 
         protected override void Prepare(bool apply)
@@ -543,7 +523,7 @@ namespace StrmAssistant.Mod
                 }
             }
 
-            if (AppVer >= Ver4937 && !string.IsNullOrEmpty(query.SearchTerm))
+            if (AppVer >= Ver49037 && !string.IsNullOrEmpty(query.SearchTerm))
             {
                 var result = LoadTokenizerExtension(db);
             }

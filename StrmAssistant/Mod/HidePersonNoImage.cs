@@ -7,16 +7,14 @@ using MediaBrowser.Model.Dto;
 using MediaBrowser.Model.Entities;
 using System;
 using System.Linq;
-using System.Reflection;
 using static StrmAssistant.Mod.PatchManager;
 using static StrmAssistant.Options.UIFunctionOptions;
+using static StrmAssistant.Reflection.EmbyServerImplementations;
 
 namespace StrmAssistant.Mod
 {
     public class HidePersonNoImage : PatchBase<HidePersonNoImage>
     {
-        private static MethodInfo _attachPeople;
-
         public HidePersonNoImage()
         {
             Initialize();
@@ -25,15 +23,6 @@ namespace StrmAssistant.Mod
             {
                 Patch();
             }
-        }
-
-        protected override void OnInitialize()
-        {
-            var embyServerImplementationsAssembly = Assembly.Load("Emby.Server.Implementations");
-            var dtoService =
-                embyServerImplementationsAssembly.GetType("Emby.Server.Implementations.Dto.DtoService");
-            _attachPeople =
-                dtoService.GetMethod("AttachPeople", BindingFlags.NonPublic | BindingFlags.Instance);
         }
 
         protected override void Prepare(bool apply)

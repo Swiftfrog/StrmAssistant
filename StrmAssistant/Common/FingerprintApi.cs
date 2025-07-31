@@ -20,10 +20,11 @@ using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using static StrmAssistant.Options.Utility;
+using static StrmAssistant.Reflection.EmbyProviders;
+using static StrmAssistant.Reflection.EmbyServerImplementations;
 
 namespace StrmAssistant.Common
 {
@@ -38,13 +39,8 @@ namespace StrmAssistant.Common
         private static readonly PatchTracker PatchTracker =
             new PatchTracker(typeof(FingerprintApi),
                 Plugin.Instance.IsModSupported ? PatchApproach.Harmony : PatchApproach.Reflection);
+
         private readonly object _audioFingerprintManager;
-        private readonly MethodInfo _createTitleFingerprint;
-        private readonly MethodInfo _getTitleFingerprintFileName;
-        private readonly MethodInfo _getAllFingerprintFilesForSeason;
-        private readonly MethodInfo _updateSequencesForSeason;
-        private readonly FieldInfo _timeoutMs;
-        private readonly MethodInfo _clearItemExtradata;
 
         public static List<string> LibraryPathsInScope;
 
@@ -63,42 +59,11 @@ namespace StrmAssistant.Common
 
             try
             {
-                var embyProviders = Assembly.Load("Emby.Providers");
-                var audioFingerprintManager = embyProviders.GetType("Emby.Providers.Markers.AudioFingerprintManager");
-                var audioFingerprintManagerConstructor = audioFingerprintManager.GetConstructor(
-                    BindingFlags.Public | BindingFlags.Instance, null,
-                    new[]
-                    {
-                        typeof(IFileSystem), typeof(ILogger), typeof(IApplicationPaths), typeof(IFfmpegManager),
-                        typeof(IMediaEncoder), typeof(IMediaMountManager), typeof(IJsonSerializer),
-                        typeof(IServerApplicationHost)
-                    }, null);
-                _audioFingerprintManager = audioFingerprintManagerConstructor?.Invoke(new object[]
+                _audioFingerprintManager = _audioFingerprintManagerConstructor?.Invoke(new object[]
                 {
                     fileSystem, _logger, applicationPaths, ffmpegManager, mediaEncoder, mediaMountManager,
                     jsonSerializer, serverApplicationHost
                 });
-                _createTitleFingerprint = audioFingerprintManager.GetMethod("CreateTitleFingerprint",
-                    BindingFlags.Public | BindingFlags.Instance, null,
-                    new[]
-                    {
-                        typeof(Episode), typeof(LibraryOptions), typeof(IDirectoryService),
-                        typeof(CancellationToken)
-                    }, null);
-                _getTitleFingerprintFileName = audioFingerprintManager.GetMethod("GetTitleFingerprintFileName",
-                    BindingFlags.NonPublic | BindingFlags.Static);
-                _getAllFingerprintFilesForSeason = audioFingerprintManager.GetMethod("GetAllFingerprintFilesForSeason",
-                    BindingFlags.Public | BindingFlags.Instance);
-                _updateSequencesForSeason = audioFingerprintManager.GetMethod("UpdateSequencesForSeason",
-                    BindingFlags.Public | BindingFlags.Instance);
-                _timeoutMs = audioFingerprintManager.GetField("TimeoutMs",
-                    BindingFlags.NonPublic | BindingFlags.Instance);
-                var embyServerImplementationsAssembly = Assembly.Load("Emby.Server.Implementations");
-                var sqliteItemRepository =
-                    embyServerImplementationsAssembly.GetType("Emby.Server.Implementations.Data.SqliteItemRepository");
-                _clearItemExtradata = sqliteItemRepository?.GetMethod("ClearItemExtradata",
-                    BindingFlags.Public | BindingFlags.Instance, null, new[] { typeof(long), typeof(long) }, null);
-
                 PatchTimeout(Plugin.Instance.MainOptionsStore.GetOptions().GeneralOptions.MaxConcurrentCount);
             }
             catch (Exception e)

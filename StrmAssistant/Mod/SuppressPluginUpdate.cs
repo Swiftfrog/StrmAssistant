@@ -4,20 +4,16 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Threading.Tasks;
 using static StrmAssistant.Mod.PatchManager;
+using static StrmAssistant.Reflection.EmbyServerImplementations;
 
 namespace StrmAssistant.Mod
 {
     public class SuppressPluginUpdate : PatchBase<SuppressPluginUpdate>
     {
-        private static MethodInfo _getAvailablePluginUpdates;
-
         public SuppressPluginUpdate()
         {
-            Initialize();
-
             var suppressPluginUpdates = Plugin.Instance.ExperienceEnhanceStore.GetOptions().SuppressPluginUpdates;
 
             if (!string.IsNullOrWhiteSpace(suppressPluginUpdates))
@@ -26,14 +22,6 @@ namespace StrmAssistant.Mod
             }
         }
 
-        protected override void OnInitialize()
-        {
-            var embyServerImplementationsAssembly = Assembly.Load("Emby.Server.Implementations");
-            var installationManager =
-                embyServerImplementationsAssembly.GetType("Emby.Server.Implementations.Updates.InstallationManager");
-            _getAvailablePluginUpdates = installationManager.GetMethod("GetAvailablePluginUpdates",
-                BindingFlags.Instance | BindingFlags.Public);
-        }
         protected override void Prepare(bool apply)
         {
             PatchUnpatch(PatchTracker, apply, _getAvailablePluginUpdates,

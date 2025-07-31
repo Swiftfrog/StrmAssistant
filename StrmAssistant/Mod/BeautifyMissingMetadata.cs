@@ -1,5 +1,4 @@
-﻿using Emby.Naming.Common;
-using HarmonyLib;
+﻿using HarmonyLib;
 using MediaBrowser.Controller.Dto;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.TV;
@@ -7,44 +6,24 @@ using MediaBrowser.Model.Dto;
 using MediaBrowser.Model.Entities;
 using System;
 using System.Linq;
-using System.Reflection;
 using System.Text.RegularExpressions;
 using static StrmAssistant.Mod.PatchManager;
+using static StrmAssistant.Reflection.EmbyNaming;
+using static StrmAssistant.Reflection.EmbyServerImplementations;
 
 namespace StrmAssistant.Mod
 {
     public class BeautifyMissingMetadata : PatchBase<BeautifyMissingMetadata>
     {
-        private static MethodInfo _getBaseItemDtos;
-        private static MethodInfo _getBaseItemDto;
-
-        private static MethodInfo _getMainExpression;
         private static readonly string SeasonNumberAndEpisodeNumberExpression =
             "(?<![a-z]|[0-9])(?<seasonnumber>[0-9]+)(?:[ ._x-]*e|x|[ ._-]*ep[._ -]*|[ ._-]*episode[._ -]+)";
 
         public BeautifyMissingMetadata()
         {
-            Initialize();
-
             if (Plugin.Instance.ExperienceEnhanceStore.GetOptions().UIFunctionOptions.BeautifyMissingMetadata)
             {
                 Patch();
             }
-        }
-
-        protected override void OnInitialize()
-        {
-            var embyServerImplementationsAssembly = Assembly.Load("Emby.Server.Implementations");
-            var dtoService =
-                embyServerImplementationsAssembly.GetType("Emby.Server.Implementations.Dto.DtoService");
-            _getBaseItemDtos = dtoService.GetMethods(BindingFlags.Public | BindingFlags.Instance)
-                .Where(m => m.Name == "GetBaseItemDtos").OrderByDescending(m => m.GetParameters().Length)
-                .FirstOrDefault();
-            _getBaseItemDto = dtoService.GetMethod("GetBaseItemDto", BindingFlags.Public | BindingFlags.Instance,
-                null, new[] { typeof(BaseItem), typeof(DtoOptions), typeof(User) }, null);
-
-            _getMainExpression =
-                typeof(NamingOptions).GetMethod("GetMainExpression", BindingFlags.NonPublic | BindingFlags.Static);
         }
 
         protected override void Prepare(bool apply)

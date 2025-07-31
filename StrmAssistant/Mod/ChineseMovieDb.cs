@@ -9,41 +9,17 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
-using System.Reflection;
 using System.Reflection.Emit;
 using System.Threading;
 using System.Threading.Tasks;
 using static StrmAssistant.Common.LanguageUtility;
 using static StrmAssistant.Mod.PatchManager;
+using static StrmAssistant.Reflection.MovieDb;
 
 namespace StrmAssistant.Mod
 {
     public class ChineseMovieDb : PatchBase<ChineseMovieDb>
     {
-        private static Assembly _movieDbAssembly;
-
-        private static MethodInfo _genericProcessMainInfoMovie;
-        private static MethodInfo _genericIsCompleteMovie;
-        private static MethodInfo _movieGetMetadata;
-        private static MethodInfo _getTitleMovieData;
-
-        private static MethodInfo _getMovieDbMetadataLanguages;
-        private static MethodInfo _mapLanguageToProviderLanguage;
-        private static MethodInfo _getImageLanguagesParam;
-
-        private static MethodInfo _movieDbSeriesProviderIsComplete;
-        private static MethodInfo _movieDbSeriesProviderImportData;
-        private static MethodInfo _ensureSeriesInfo;
-        private static MethodInfo _getTitleSeriesInfo;
-
-        private static MethodInfo _movieDbSeasonProviderIsComplete;
-        private static MethodInfo _movieDbSeasonProviderImportData;
-
-        private static MethodInfo _movieDbEpisodeProviderIsComplete;
-        private static MethodInfo _movieDbEpisodeProviderImportData;
-        private static MethodInfo _getEpisodeInfoAsync;
-        private static FieldInfo _cacheTime;
-
         private static readonly object _lock = new object();
 
         public ChineseMovieDb()
@@ -60,64 +36,14 @@ namespace StrmAssistant.Mod
 
         protected override void OnInitialize()
         {
-            _movieDbAssembly = AppDomain.CurrentDomain
-                .GetAssemblies()
-                .FirstOrDefault(a => a.GetName().Name == "MovieDb");
-
             if (_movieDbAssembly != null)
             {
-                var genericMovieDbInfo = _movieDbAssembly.GetType("MovieDb.GenericMovieDbInfo`1");
-                var genericMovieDbInfoMovie = genericMovieDbInfo.MakeGenericType(typeof(Movie));
-                _genericIsCompleteMovie = genericMovieDbInfoMovie.GetMethod("IsComplete",
-                    BindingFlags.NonPublic | BindingFlags.Instance);
-                _genericProcessMainInfoMovie = genericMovieDbInfoMovie.GetMethod("ProcessMainInfo",
-                    BindingFlags.NonPublic | BindingFlags.Instance);
-                var movieDbProvider = _movieDbAssembly.GetType("MovieDb.MovieDbProvider");
-                _movieGetMetadata = movieDbProvider.GetMethod("GetMetadata");
-                var completeMovieData = movieDbProvider.GetNestedType("CompleteMovieData", BindingFlags.NonPublic);
-
-                _getTitleMovieData = completeMovieData.GetMethod("GetTitle");
                 ReversePatch(PatchTracker, _getTitleMovieData, nameof(MovieGetTitleStub));
-                var movieDbProviderBase = _movieDbAssembly.GetType("MovieDb.MovieDbProviderBase");
-                _getMovieDbMetadataLanguages = movieDbProviderBase.GetMethod("GetMovieDbMetadataLanguages",
-                    BindingFlags.Public | BindingFlags.Instance);
-                _mapLanguageToProviderLanguage = movieDbProviderBase.GetMethod("MapLanguageToProviderLanguage",
-                    BindingFlags.NonPublic | BindingFlags.Instance);
                 ReversePatch(PatchTracker, _mapLanguageToProviderLanguage, nameof(MapLanguageToProviderLanguageStub));
-                _getImageLanguagesParam = movieDbProviderBase.GetMethod("GetImageLanguagesParam",
-                    BindingFlags.NonPublic | BindingFlags.Instance, null, new[] { typeof(string[]) }, null);
-                _cacheTime = movieDbProviderBase.GetField("CacheTime", BindingFlags.Public | BindingFlags.Static);
-
-                var movieDbSeriesProvider = _movieDbAssembly.GetType("MovieDb.MovieDbSeriesProvider");
-                _movieDbSeriesProviderIsComplete =
-                    movieDbSeriesProvider.GetMethod("IsComplete", BindingFlags.NonPublic | BindingFlags.Instance);
-                _movieDbSeriesProviderImportData =
-                    movieDbSeriesProvider.GetMethod("ImportData", BindingFlags.NonPublic | BindingFlags.Instance);
-                _ensureSeriesInfo = movieDbSeriesProvider.GetMethod("EnsureSeriesInfo",
-                    BindingFlags.Instance | BindingFlags.NonPublic);
-                var seriesRootObject = movieDbSeriesProvider.GetNestedType("SeriesRootObject", BindingFlags.Public);
-                _getTitleSeriesInfo = seriesRootObject.GetMethod("GetTitle");
                 ReversePatch(PatchTracker, _getTitleSeriesInfo, nameof(SeriesGetTitleStub));
-
-                var movieDbSeasonProvider = _movieDbAssembly.GetType("MovieDb.MovieDbSeasonProvider");
-                _movieDbSeasonProviderIsComplete =
-                    movieDbSeasonProvider.GetMethod("IsComplete", BindingFlags.NonPublic | BindingFlags.Instance);
-                _movieDbSeasonProviderImportData =
-                    movieDbSeasonProvider.GetMethod("ImportData", BindingFlags.NonPublic | BindingFlags.Instance);
-
-                var movieDbEpisodeProvider = _movieDbAssembly.GetType("MovieDb.MovieDbEpisodeProvider");
-                _movieDbEpisodeProviderIsComplete =
-                    movieDbEpisodeProvider.GetMethod("IsComplete", BindingFlags.NonPublic | BindingFlags.Instance);
-                _movieDbEpisodeProviderImportData =
-                    movieDbEpisodeProvider.GetMethod("ImportData", BindingFlags.NonPublic | BindingFlags.Instance);
-                
-                var getEpisodeInfo =
-                    movieDbProviderBase.GetMethod("GetEpisodeInfo", BindingFlags.NonPublic | BindingFlags.Instance);
-                _getEpisodeInfoAsync = AccessTools.AsyncMoveNext(getEpisodeInfo);
             }
             else
             {
-                Plugin.Instance.Logger.Warn("ChineseMovieDb - MovieDb plugin is not installed");
                 PatchTracker.FallbackPatchApproach = PatchApproach.None;
                 PatchTracker.IsSupported = false;
             }
@@ -136,18 +62,17 @@ namespace StrmAssistant.Mod
                 PatchUnpatch(Instance.PatchTracker, false, _genericIsCompleteMovie,
                     prefix: nameof(IsCompletePrefix), postfix: nameof(IsCompletePostfix));
             }
-            
-            PatchUnpatch(PatchTracker, apply, _movieDbSeriesProviderIsComplete, prefix: nameof(IsCompletePrefix),
+
+            PatchUnpatch(PatchTracker, apply, _seriesProviderIsComplete, prefix: nameof(IsCompletePrefix),
                 postfix: nameof(IsCompletePostfix));
-            PatchUnpatch(PatchTracker, apply, _movieDbSeriesProviderImportData, prefix: nameof(SeriesImportDataPrefix));
+            PatchUnpatch(PatchTracker, apply, _seriesProviderImportData, prefix: nameof(SeriesImportDataPrefix));
             PatchUnpatch(PatchTracker, apply, _ensureSeriesInfo, postfix: nameof(EnsureSeriesInfoPostfix));
-            PatchUnpatch(PatchTracker, apply, _movieDbSeasonProviderIsComplete, prefix: nameof(IsCompletePrefix),
+            PatchUnpatch(PatchTracker, apply, _seasonProviderIsComplete, prefix: nameof(IsCompletePrefix),
                 postfix: nameof(IsCompletePostfix));
-            PatchUnpatch(PatchTracker, apply, _movieDbSeasonProviderImportData, prefix: nameof(SeasonImportDataPrefix));
-            PatchUnpatch(PatchTracker, apply, _movieDbEpisodeProviderIsComplete, prefix: nameof(IsCompletePrefix),
+            PatchUnpatch(PatchTracker, apply, _seasonProviderImportData, prefix: nameof(SeasonImportDataPrefix));
+            PatchUnpatch(PatchTracker, apply, _episodeProviderIsComplete, prefix: nameof(IsCompletePrefix),
                 postfix: nameof(IsCompletePostfix));
-            PatchUnpatch(PatchTracker, apply, _movieDbEpisodeProviderImportData,
-                prefix: nameof(EpisodeImportDataPrefix));
+            PatchUnpatch(PatchTracker, apply, _episodeProviderImportData, prefix: nameof(EpisodeImportDataPrefix));
         }
 
         private void PatchCacheTime()

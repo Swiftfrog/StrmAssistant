@@ -4,34 +4,20 @@ using MediaBrowser.Controller.Library;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Threading.Tasks;
 using static StrmAssistant.Mod.PatchManager;
+using static StrmAssistant.Reflection.EmbyServerImplementations;
 
 namespace StrmAssistant.Mod
 {
     public class EnableDeepDelete : PatchBase<EnableDeepDelete>
     {
-        private static MethodInfo _deleteItem;
-
         public EnableDeepDelete()
         {
-            Initialize();
-
             if (Plugin.Instance.ExperienceEnhanceStore.GetOptions().EnableDeepDelete)
             {
                 Patch();
             }
-        }
-
-        protected override void OnInitialize()
-        {
-            var embyServerImplementationsAssembly = Assembly.Load("Emby.Server.Implementations");
-            var libraryManager =
-                embyServerImplementationsAssembly.GetType("Emby.Server.Implementations.Library.LibraryManager");
-            _deleteItem = libraryManager.GetMethod("DeleteItem",
-                BindingFlags.Instance | BindingFlags.Public, null,
-                new[] { typeof(BaseItem), typeof(DeleteOptions), typeof(BaseItem), typeof(bool) }, null);
         }
 
         protected override void Prepare(bool apply)

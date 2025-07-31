@@ -5,47 +5,22 @@ using MediaBrowser.Model.Configuration;
 using MediaBrowser.Model.Entities;
 using StrmAssistant.Common;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using static StrmAssistant.Mod.PatchManager;
+using static StrmAssistant.Reflection.EmbyProviders;
 
 namespace StrmAssistant.Mod
 {
     public class UnlockIntroSkip : PatchBase<UnlockIntroSkip>
     {
-        private static MethodInfo _isIntroDetectionSupported;
-        private static MethodInfo _createQueryForEpisodeIntroDetection;
-        private static MethodInfo _onFailedToFindIntro;
-        private static MethodInfo _detectSequences;
-
         private static readonly AsyncLocal<bool> LogZeroConfidence = new AsyncLocal<bool>();
 
         public UnlockIntroSkip()
         {
-            Initialize();
-
             if (Plugin.Instance.IntroSkipStore.GetOptions().UnlockIntroSkip)
             {
                 Patch();
             }
-        }
-
-        protected override void OnInitialize()
-        {
-            var embyProviders = Assembly.Load("Emby.Providers");
-            var audioFingerprintManager = embyProviders.GetType("Emby.Providers.Markers.AudioFingerprintManager");
-            _isIntroDetectionSupported = audioFingerprintManager.GetMethod("IsIntroDetectionSupported",
-                BindingFlags.Public | BindingFlags.Instance);
-            var markerScheduledTask = embyProviders.GetType("Emby.Providers.Markers.MarkerScheduledTask");
-            _createQueryForEpisodeIntroDetection = markerScheduledTask.GetMethod(
-                "CreateQueryForEpisodeIntroDetection",
-                BindingFlags.Public | BindingFlags.Static);
-
-            var sequenceDetection = embyProviders.GetType("Emby.Providers.Markers.SequenceDetection");
-            _detectSequences = sequenceDetection.GetMethods(BindingFlags.Static | BindingFlags.Public)
-                .FirstOrDefault(m => m.Name == "DetectSequences" && m.GetParameters().Length == 8);
-            _onFailedToFindIntro = audioFingerprintManager.GetMethod("OnFailedToFindIntro",
-                BindingFlags.NonPublic | BindingFlags.Static);
         }
 
         protected override void Prepare(bool apply)

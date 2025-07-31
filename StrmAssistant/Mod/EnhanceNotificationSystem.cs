@@ -9,22 +9,18 @@ using MediaBrowser.Model.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using static StrmAssistant.Mod.PatchManager;
+using static StrmAssistant.Reflection.EmbyApi;
+using static StrmAssistant.Reflection.EmbyNotifications;
+using static StrmAssistant.Reflection.EmbyServerImplementations;
+using static StrmAssistant.Reflection.MediaBrowserController;
 
 namespace StrmAssistant.Mod
 {
     public class EnhanceNotificationSystem: PatchBase<EnhanceNotificationSystem>
     {
-        private static MethodInfo _convertToGroups;
-        private static MethodInfo _sendNotification;
-        private static MethodInfo _queueNotification;
-        private static MethodInfo _deleteItemsRequest;
-        private static MethodInfo _getUserForRequest;
-        private static MethodInfo _deleteItem;
-
         private static readonly AsyncLocal<Dictionary<long, List<(int? IndexNumber, int? ParentIndexNumber)>>>
             GroupDetails = new AsyncLocal<Dictionary<long, List<(int? IndexNumber, int? ParentIndexNumber)>>>();
         private static readonly AsyncLocal<string> Description = new AsyncLocal<string>();
@@ -42,33 +38,7 @@ namespace StrmAssistant.Mod
 
         protected override void OnInitialize()
         {
-            var notificationsAssembly = Assembly.Load("Emby.Notifications");
-            var notificationManager = notificationsAssembly.GetType("Emby.Notifications.NotificationManager");
-            _convertToGroups = notificationManager.GetMethod("ConvertToGroups",
-                BindingFlags.Instance | BindingFlags.NonPublic);
-            _sendNotification = notificationManager.GetMethod("SendNotification",
-                BindingFlags.NonPublic | BindingFlags.Instance, null,
-                new[] { typeof(INotifier), typeof(NotificationInfo[]), typeof(NotificationRequest), typeof(bool) },
-                null);
-            var notificationQueueManager = notificationsAssembly.GetType("Emby.Notifications.NotificationQueueManager");
-            _queueNotification = notificationQueueManager.GetMethod("QueueNotification",
-                BindingFlags.Instance | BindingFlags.Public, null,
-                new[] { typeof(INotifier), typeof(InternalNotificationRequest), typeof(int) }, null);
-
-            var embyApi = Assembly.Load("Emby.Api");
-            var libraryService = embyApi.GetType("Emby.Api.Library.LibraryService");
-            _deleteItemsRequest =
-                libraryService.GetMethod("Any", new[] { embyApi.GetType("Emby.Api.Library.DeleteItems") });
-            _getUserForRequest = typeof(BaseApiService).GetMethod("GetUserForRequest",
-                BindingFlags.NonPublic | BindingFlags.Instance, null, new[] { typeof(string), typeof(bool) }, null);
             ReversePatch(PatchTracker, _getUserForRequest, nameof(GetUserForRequestStub));
-
-            var embyServerImplementationsAssembly = Assembly.Load("Emby.Server.Implementations");
-            var libraryManager =
-                embyServerImplementationsAssembly.GetType("Emby.Server.Implementations.Library.LibraryManager");
-            _deleteItem = libraryManager.GetMethod("DeleteItem",
-                BindingFlags.Instance | BindingFlags.Public, null,
-                new[] { typeof(BaseItem), typeof(DeleteOptions), typeof(BaseItem), typeof(bool) }, null);
         }
 
         protected override void Prepare(bool apply)

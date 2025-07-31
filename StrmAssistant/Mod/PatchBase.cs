@@ -38,7 +38,9 @@ namespace StrmAssistant.Mod
             if (HarmonyMod is null) PatchTracker.FallbackPatchApproach = PatchApproach.Reflection;
         }
 
-        protected abstract void OnInitialize();
+        protected virtual void OnInitialize()
+        {
+        }
 
         protected abstract void Prepare(bool apply);
 

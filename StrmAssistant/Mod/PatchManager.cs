@@ -42,7 +42,7 @@ namespace StrmAssistant.Mod
         private static readonly ConcurrentDictionary<Tuple<Type, string>, MethodInfo> MethodInfoCache 
             = new ConcurrentDictionary<Tuple<Type, string>, MethodInfo>();
 
-        public static void Initialize()
+        static PatchManager()
         {
             try
             {
@@ -57,7 +57,10 @@ namespace StrmAssistant.Mod
                     Plugin.Instance.Logger.Debug(e.StackTrace);
                 }
             }
+        }
 
+        public static void Initialize()
+        {
             EnableImageCapture = new EnableImageCapture();
             EnhanceChineseSearch = new EnhanceChineseSearch();
             MovieDbEpisodeGroup = new MovieDbEpisodeGroup();
@@ -83,16 +86,10 @@ namespace StrmAssistant.Mod
             SuppressPluginUpdate = new SuppressPluginUpdate();
         }
 
-        public static bool IsPatched(MethodBase methodInfo, Type type)
+        public static Assembly GetAssemblyByName(string name)
         {
-            var patchedMethods = Harmony.GetAllPatchedMethods();
-            if (!patchedMethods.Contains(methodInfo)) return false;
-            var patchInfo = Harmony.GetPatchInfo(methodInfo);
-
-            return patchInfo.Prefixes.Any(p => p.owner == HarmonyMod.Id && p.PatchMethod.DeclaringType == type) ||
-                   patchInfo.Postfixes.Any(p => p.owner == HarmonyMod.Id && p.PatchMethod.DeclaringType == type) ||
-                   patchInfo.Transpilers.Any(p => p.owner == HarmonyMod.Id && p.PatchMethod.DeclaringType == type) ||
-                   patchInfo.Finalizers.Any(p => p.owner == HarmonyMod.Id && p.PatchMethod.DeclaringType == type);
+            return AppDomain.CurrentDomain.GetAssemblies()
+                .FirstOrDefault(a => string.Equals(a.GetName().Name, name, StringComparison.OrdinalIgnoreCase));
         }
 
         public static bool WasCalledByMethod(Assembly assembly, string callingMethodName)
@@ -261,6 +258,18 @@ namespace StrmAssistant.Mod
             }
 
             return true;
+        }
+        
+        public static bool IsPatched(MethodBase methodInfo, Type type)
+        {
+            var patchedMethods = Harmony.GetAllPatchedMethods();
+            if (!patchedMethods.Contains(methodInfo)) return false;
+            var patchInfo = Harmony.GetPatchInfo(methodInfo);
+
+            return patchInfo.Prefixes.Any(p => p.owner == HarmonyMod.Id && p.PatchMethod.DeclaringType == type) ||
+                   patchInfo.Postfixes.Any(p => p.owner == HarmonyMod.Id && p.PatchMethod.DeclaringType == type) ||
+                   patchInfo.Transpilers.Any(p => p.owner == HarmonyMod.Id && p.PatchMethod.DeclaringType == type) ||
+                   patchInfo.Finalizers.Any(p => p.owner == HarmonyMod.Id && p.PatchMethod.DeclaringType == type);
         }
 
         private static HarmonyMethod GetHarmonyMethod(Type patchType, string patchMethod)

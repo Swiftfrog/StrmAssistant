@@ -10,26 +10,18 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Reflection;
 using System.Reflection.Emit;
 using System.Threading;
 using System.Threading.Tasks;
 using static StrmAssistant.Common.LanguageUtility;
 using static StrmAssistant.Mod.PatchManager;
+using static StrmAssistant.Reflection.MediaBrowserController;
+using static StrmAssistant.Reflection.MovieDb;
 
 namespace StrmAssistant.Mod
 {
     public class EnhanceMovieDbPerson : PatchBase<EnhanceMovieDbPerson>
     {
-        private static Assembly _movieDbAssembly;
-
-        private static MethodInfo _movieDbPersonProviderImportData;
-        private static MethodInfo _movieDbSeasonProviderImportData;
-        private static MethodInfo _seasonGetMetadata;
-        private static MethodInfo _addPerson;
-        private static MethodInfo _ensurePersonInfoAsync;
-        private static FieldInfo _cacheTime;
-
         private static readonly ConcurrentDictionary<Season, List<PersonInfo>> SeasonPersonInfoDictionary =
             new ConcurrentDictionary<Season, List<PersonInfo>>();
 
@@ -45,33 +37,8 @@ namespace StrmAssistant.Mod
 
         protected override void OnInitialize()
         {
-            _movieDbAssembly = AppDomain.CurrentDomain
-                .GetAssemblies()
-                .FirstOrDefault(a => a.GetName().Name == "MovieDb");
-
-            if (_movieDbAssembly != null)
+            if (_movieDbAssembly is null)
             {
-                var movieDbPersonProvider = _movieDbAssembly.GetType("MovieDb.MovieDbPersonProvider");
-                _movieDbPersonProviderImportData = movieDbPersonProvider.GetMethod("ImportData",
-                    BindingFlags.NonPublic | BindingFlags.Instance);
-                var ensurePersonInfo =
-                    movieDbPersonProvider.GetMethod("EnsurePersonInfo", BindingFlags.NonPublic | BindingFlags.Instance);
-                _ensurePersonInfoAsync = AccessTools.AsyncMoveNext(ensurePersonInfo);
-
-                var movieDbProviderBase = _movieDbAssembly.GetType("MovieDb.MovieDbProviderBase");
-                _cacheTime = movieDbProviderBase.GetField("CacheTime", BindingFlags.Public | BindingFlags.Static);
-
-                var movieDbSeasonProvider = _movieDbAssembly.GetType("MovieDb.MovieDbSeasonProvider");
-                _movieDbSeasonProviderImportData =
-                    movieDbSeasonProvider.GetMethod("ImportData", BindingFlags.NonPublic | BindingFlags.Instance);
-                _seasonGetMetadata = movieDbSeasonProvider.GetMethod("GetMetadata",
-                    BindingFlags.Public | BindingFlags.Instance, null,
-                    new[] { typeof(RemoteMetadataFetchOptions<SeasonInfo>), typeof(CancellationToken) }, null);
-                _addPerson = typeof(PeopleHelper).GetMethod("AddPerson", BindingFlags.Static | BindingFlags.Public);
-            }
-            else
-            {
-                Plugin.Instance.Logger.Info("EnhanceMovieDbPerson - MovieDb plugin is not installed");
                 PatchTracker.FallbackPatchApproach = PatchApproach.None;
                 PatchTracker.IsSupported = false;
             }
@@ -79,10 +46,10 @@ namespace StrmAssistant.Mod
 
         protected override void Prepare(bool apply)
         {
-            PatchUnpatch(PatchTracker, apply, _movieDbPersonProviderImportData,
+            PatchUnpatch(PatchTracker, apply, _personProviderImportData,
                 prefix: nameof(PersonImportDataPrefix));
             PatchUnpatch(PatchTracker, apply, _ensurePersonInfoAsync, transpiler: nameof(EnsurePersonInfoAsyncTranspiler));
-            PatchUnpatch(PatchTracker, apply, _movieDbSeasonProviderImportData,
+            PatchUnpatch(PatchTracker, apply, _seasonProviderImportData,
                 prefix: nameof(SeasonImportDataPrefix));
             PatchUnpatch(PatchTracker, apply, _seasonGetMetadata, postfix: nameof(SeasonGetMetadataPostfix));
             PatchUnpatch(PatchTracker, apply, _addPerson, prefix: nameof(AddPersonPrefix));

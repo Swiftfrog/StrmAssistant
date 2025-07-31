@@ -7,7 +7,7 @@ using StrmAssistant.Properties;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Runtime.InteropServices;
+using static StrmAssistant.Options.Utility;
 
 namespace StrmAssistant.Options
 {
@@ -68,11 +68,8 @@ namespace StrmAssistant.Options
 
         [Browsable(false)]
         public bool IsChineseSearchSupported =>
-            EnhanceChineseSearch || RuntimeInformation.ProcessArchitecture == Architecture.X64 &&
-            (Plugin.Instance.ApplicationHost.ApplicationVersion >= new Version("4.8.3.0") &&
-             Plugin.Instance.ApplicationHost.ApplicationVersion < new Version("4.9.0.0") ||
-             Plugin.Instance.ApplicationHost.ApplicationVersion >= new Version("4.9.0.15") &&
-             Plugin.Instance.ApplicationHost.ApplicationVersion <= new Version("4.9.0.48"));
+            EnhanceChineseSearch || Plugin.Instance.IsModSupported &&
+            (AppVer >= Ver4830 && AppVer < Ver4900 || AppVer >= Ver49015 && AppVer <= VerMax);
 
         public void Initialize()
         {
