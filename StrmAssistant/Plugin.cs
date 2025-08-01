@@ -27,6 +27,7 @@ using MediaBrowser.Model.Tasks;
 using StrmAssistant.Common;
 using StrmAssistant.IntroSkip;
 using StrmAssistant.Mod;
+using StrmAssistant.Mod.UIFunction;
 using StrmAssistant.Options;
 using StrmAssistant.Options.Store;
 using StrmAssistant.Options.View;
@@ -354,7 +355,7 @@ namespace StrmAssistant
                 if (library.CollectionType == CollectionType.BoxSets.ToString() &&
                     !ExperienceEnhanceStore.GetOptions().UIFunctionOptions.NoBoxsetsAutoCreation)
                 {
-                    PatchManager.NoBoxsetsAutoCreation.Patch();
+                    PatchManager.GetMod<NoBoxsetsAutoCreation>().Patch();
                     ExperienceEnhanceStore.GetOptions().UIFunctionOptions.NoBoxsetsAutoCreation = true;
                     ExperienceEnhanceStore.SavePluginOptionsSuppress();
                 }

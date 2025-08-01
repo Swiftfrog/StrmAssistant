@@ -141,11 +141,11 @@ namespace StrmAssistant.Options.Store
                 {
                     if (options.UnlockIntroSkip)
                     {
-                        if (options.IsModSupported) PatchManager.UnlockIntroSkip.Patch();
+                        if (options.IsModSupported) PatchManager.GetMod<UnlockIntroSkip>().Patch();
                     }
                     else
                     {
-                        if (options.IsModSupported) PatchManager.UnlockIntroSkip.Unpatch();
+                        if (options.IsModSupported) PatchManager.GetMod<UnlockIntroSkip>().Unpatch();
                         Plugin.FingerprintApi.UpdateLibraryIntroDetectionFingerprintLength(10);
                     }
                 }

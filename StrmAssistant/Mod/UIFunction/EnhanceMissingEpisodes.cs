@@ -10,7 +10,7 @@ using System.Threading;
 using static StrmAssistant.Mod.PatchManager;
 using static StrmAssistant.Reflection.EmbyProviders;
 
-namespace StrmAssistant.Mod
+namespace StrmAssistant.Mod.UIFunction
 {
     public class EnhanceMissingEpisodes : PatchBase<EnhanceMissingEpisodes>
     {

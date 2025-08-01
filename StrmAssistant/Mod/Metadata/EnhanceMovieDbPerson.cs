@@ -15,10 +15,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using static StrmAssistant.Common.LanguageUtility;
 using static StrmAssistant.Mod.PatchManager;
-using static StrmAssistant.Reflection.MediaBrowserController;
+using static StrmAssistant.Reflection.MediaBrowser;
 using static StrmAssistant.Reflection.MovieDb;
 
-namespace StrmAssistant.Mod
+namespace StrmAssistant.Mod.Metadata
 {
     public class EnhanceMovieDbPerson : PatchBase<EnhanceMovieDbPerson>
     {

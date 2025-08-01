@@ -17,7 +17,7 @@ using static StrmAssistant.Mod.PatchManager;
 using static StrmAssistant.Reflection.EmbyProviders;
 using static StrmAssistant.Reflection.MovieDb;
 
-namespace StrmAssistant.Mod
+namespace StrmAssistant.Mod.Metadata
 {
     public class MovieDbEpisodeGroup : PatchBase<MovieDbEpisodeGroup>
     {

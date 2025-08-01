@@ -7,7 +7,7 @@ using static StrmAssistant.Mod.PatchManager;
 using static StrmAssistant.Options.Utility;
 using static StrmAssistant.Reflection.EmbyServerImplementations;
 
-namespace StrmAssistant.Mod
+namespace StrmAssistant.Mod.UIFunction
 {
     public class NoBoxsetsAutoCreation: PatchBase<NoBoxsetsAutoCreation>
     {

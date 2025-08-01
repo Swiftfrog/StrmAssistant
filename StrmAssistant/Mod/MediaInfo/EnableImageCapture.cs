@@ -12,9 +12,9 @@ using static StrmAssistant.Mod.PatchManager;
 using static StrmAssistant.Reflection.EmbyProviders;
 using static StrmAssistant.Reflection.EmbyServerImplementations;
 using static StrmAssistant.Reflection.EmbyServerMediaEncoding;
-using static StrmAssistant.Reflection.MediaBrowserController;
+using static StrmAssistant.Reflection.MediaBrowser;
 
-namespace StrmAssistant.Mod
+namespace StrmAssistant.Mod.MediaInfo
 {
     public class EnableImageCapture : PatchBase<EnableImageCapture>
     {

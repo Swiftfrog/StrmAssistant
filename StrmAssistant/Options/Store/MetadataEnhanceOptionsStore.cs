@@ -4,6 +4,7 @@ using MediaBrowser.Common;
 using MediaBrowser.Model.Logging;
 using StrmAssistant.Common;
 using StrmAssistant.Mod;
+using StrmAssistant.Mod.Metadata;
 using StrmAssistant.Options.UIBaseClasses.Store;
 using System;
 using System.Collections.Generic;
@@ -78,11 +79,11 @@ namespace StrmAssistant.Options.Store
                 {
                     if (options.ChineseMovieDb)
                     {
-                        PatchManager.ChineseMovieDb.Patch();
+                        PatchManager.GetMod<ChineseMovieDb>().Patch();
                     }
                     else
                     {
-                        PatchManager.ChineseMovieDb.Unpatch();
+                        PatchManager.GetMod<ChineseMovieDb>().Unpatch();
                     }
                 }
 
@@ -90,11 +91,11 @@ namespace StrmAssistant.Options.Store
                 {
                     if (options.ChineseTvdb)
                     {
-                        PatchManager.ChineseTvdb.Patch();
+                        PatchManager.GetMod<ChineseTvdb>().Patch();
                     }
                     else
                     {
-                        PatchManager.ChineseTvdb.Unpatch();
+                        PatchManager.GetMod<ChineseTvdb>().Unpatch();
                     }
                 }
 
@@ -102,11 +103,11 @@ namespace StrmAssistant.Options.Store
                 {
                     if (options.MovieDbEpisodeGroup)
                     {
-                        PatchManager.MovieDbEpisodeGroup.Patch();
+                        PatchManager.GetMod<MovieDbEpisodeGroup>().Patch();
                     }
                     else
                     {
-                        PatchManager.MovieDbEpisodeGroup.Unpatch();
+                        PatchManager.GetMod<MovieDbEpisodeGroup>().Unpatch();
                     }
                 }
 
@@ -114,11 +115,11 @@ namespace StrmAssistant.Options.Store
                 {
                     if (options.EnhanceMovieDbPerson)
                     {
-                        PatchManager.EnhanceMovieDbPerson.Patch();
+                        PatchManager.GetMod<EnhanceMovieDbPerson>().Patch();
                     }
                     else
                     {
-                        PatchManager.EnhanceMovieDbPerson.Unpatch();
+                        PatchManager.GetMod<EnhanceMovieDbPerson>().Unpatch();
                     }
                 }
 
@@ -132,26 +133,26 @@ namespace StrmAssistant.Options.Store
                         if (!string.IsNullOrEmpty(options.AltMovieDbApiUrl) ||
                             !string.IsNullOrEmpty(options.AltMovieDbApiKey))
                         {
-                            PatchManager.AltMovieDbConfig.PatchApiUrl();
+                            PatchManager.GetMod<AltMovieDbConfig>().PatchApiUrl();
                         }
                         else
                         {
-                            PatchManager.AltMovieDbConfig.UnpatchApiUrl();
+                            PatchManager.GetMod<AltMovieDbConfig>().UnpatchApiUrl();
                         }
 
                         if (!string.IsNullOrEmpty(options.AltMovieDbImageUrl))
                         {
-                            PatchManager.AltMovieDbConfig.PatchImageUrl();
+                            PatchManager.GetMod<AltMovieDbConfig>().PatchImageUrl();
                         }
                         else
                         {
-                            PatchManager.AltMovieDbConfig.UnpatchImageUrl();
+                            PatchManager.GetMod<AltMovieDbConfig>().UnpatchImageUrl();
                         }
                     }
                     else
                     {
-                        PatchManager.AltMovieDbConfig.UnpatchApiUrl();
-                        PatchManager.AltMovieDbConfig.UnpatchImageUrl();
+                        PatchManager.GetMod<AltMovieDbConfig>().UnpatchApiUrl();
+                        PatchManager.GetMod<AltMovieDbConfig>().UnpatchImageUrl();
                     }
 
                     AltMovieDbConfig.UpdateMovieDbConfig(options);
@@ -161,11 +162,11 @@ namespace StrmAssistant.Options.Store
                 {
                     if (options.PreferOriginalPoster)
                     {
-                        PatchManager.PreferOriginalPoster.Patch();
+                        PatchManager.GetMod<PreferOriginalPoster>().Patch();
                     }
                     else
                     {
-                        PatchManager.PreferOriginalPoster.Unpatch();
+                        PatchManager.GetMod<PreferOriginalPoster>().Unpatch();
                     }
                 }
 
@@ -173,11 +174,11 @@ namespace StrmAssistant.Options.Store
                 {
                     if (options.PinyinSortName)
                     {
-                        PatchManager.PinyinSortName.Patch();
+                        PatchManager.GetMod<PinyinSortName>().Patch();
                     }
                     else
                     {
-                        PatchManager.PinyinSortName.Unpatch();
+                        PatchManager.GetMod<PinyinSortName>().Unpatch();
                     }
                 }
 
@@ -185,11 +186,11 @@ namespace StrmAssistant.Options.Store
                 {
                     if (options.EnhanceNfoMetadata)
                     {
-                        PatchManager.EnhanceNfoMetadata.Patch();
+                        PatchManager.GetMod<EnhanceNfoMetadata>().Patch();
                     }
                     else
                     {
-                        PatchManager.EnhanceNfoMetadata.Unpatch();
+                        PatchManager.GetMod<EnhanceNfoMetadata>().Unpatch();
                     }
                 }
             }

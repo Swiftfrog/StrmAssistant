@@ -17,9 +17,9 @@ using static StrmAssistant.Options.ExperienceEnhanceOptions;
 using static StrmAssistant.Reflection.EmbyApi;
 using static StrmAssistant.Reflection.EmbyNaming;
 using static StrmAssistant.Reflection.EmbyProviders;
-using static StrmAssistant.Reflection.MediaBrowserController;
+using static StrmAssistant.Reflection.MediaBrowser;
 
-namespace StrmAssistant.Mod
+namespace StrmAssistant.Mod.Experience
 {
     public class MergeMultiVersion : PatchBase<MergeMultiVersion>
     {

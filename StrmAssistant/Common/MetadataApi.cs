@@ -10,7 +10,7 @@ using MediaBrowser.Model.IO;
 using MediaBrowser.Model.Logging;
 using MediaBrowser.Model.Querying;
 using MediaBrowser.Model.Serialization;
-using StrmAssistant.Mod;
+using StrmAssistant.Mod.Metadata;
 using StrmAssistant.Provider;
 using System;
 using System.Collections.Generic;

@@ -3,7 +3,13 @@ using static StrmAssistant.Mod.PatchManager;
 
 namespace StrmAssistant.Mod
 {
-    public abstract class PatchBase<T> where T : PatchBase<T>
+    public interface IMod
+    {
+        void Patch();
+        void Unpatch();
+    }
+
+    public abstract class PatchBase<T> : IMod where T : PatchBase<T>
     {
         public PatchTracker PatchTracker;
 

@@ -14,6 +14,7 @@ using MediaBrowser.Model.Logging;
 using MediaBrowser.Model.MediaInfo;
 using MediaBrowser.Model.Serialization;
 using StrmAssistant.Mod;
+using StrmAssistant.Mod.MediaInfo;
 using System;
 using System.Collections.Generic;
 using System.IO;

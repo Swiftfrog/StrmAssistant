@@ -11,7 +11,7 @@ using static StrmAssistant.Common.LanguageUtility;
 using static StrmAssistant.Mod.PatchManager;
 using static StrmAssistant.Reflection.Tvdb;
 
-namespace StrmAssistant.Mod
+namespace StrmAssistant.Mod.Metadata
 {
     public class ChineseTvdb : PatchBase<ChineseTvdb>
     {

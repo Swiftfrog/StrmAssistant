@@ -3,6 +3,8 @@ using Emby.Web.GenericEdit.PropertyDiff;
 using MediaBrowser.Common;
 using MediaBrowser.Model.Logging;
 using StrmAssistant.Mod;
+using StrmAssistant.Mod.Experience;
+using StrmAssistant.Mod.UIFunction;
 using StrmAssistant.Options.UIBaseClasses.Store;
 using System;
 using System.Collections.Generic;
@@ -52,11 +54,11 @@ namespace StrmAssistant.Options.Store
                     {
                         if (options.MergeMultiVersion)
                         {
-                            PatchManager.MergeMultiVersion.Patch();
+                            PatchManager.GetMod<MergeMultiVersion>().Patch();
                         }
                         else
                         {
-                            PatchManager.MergeMultiVersion.Unpatch();
+                            PatchManager.GetMod<MergeMultiVersion>().Unpatch();
                         }
                     }
                 }
@@ -67,11 +69,11 @@ namespace StrmAssistant.Options.Store
                 {
                     if (options.EnhanceNotificationSystem)
                     {
-                        PatchManager.EnhanceNotificationSystem.Patch();
+                        PatchManager.GetMod<EnhanceNotificationSystem>().Patch();
                     }
                     else
                     {
-                        PatchManager.EnhanceNotificationSystem.Unpatch();
+                        PatchManager.GetMod<EnhanceNotificationSystem>().Unpatch();
                     }
                 }
                 
@@ -79,11 +81,11 @@ namespace StrmAssistant.Options.Store
                 {
                     if (options.EnableDeepDelete)
                     {
-                        PatchManager.EnableDeepDelete.Patch();
+                        PatchManager.GetMod<EnableDeepDelete>().Patch();
                     }
                     else
                     {
-                        PatchManager.EnableDeepDelete.Unpatch();
+                        PatchManager.GetMod<EnableDeepDelete>().Unpatch();
                     }
                 }
 
@@ -91,11 +93,11 @@ namespace StrmAssistant.Options.Store
                 {
                     if (!string.IsNullOrWhiteSpace(options.SuppressPluginUpdates))
                     {
-                        PatchManager.SuppressPluginUpdate.Patch();
+                        PatchManager.GetMod<SuppressPluginUpdate>().Patch();
                     }
                     else
                     {
-                        PatchManager.SuppressPluginUpdate.Unpatch();
+                        PatchManager.GetMod<SuppressPluginUpdate>().Unpatch();
                     }
                 }
 
@@ -103,11 +105,11 @@ namespace StrmAssistant.Options.Store
                 {
                     if (options.UIFunctionOptions.HidePersonNoImage)
                     {
-                        PatchManager.HidePersonNoImage.Patch();
+                        PatchManager.GetMod<HidePersonNoImage>().Patch();
                     }
                     else
                     {
-                        PatchManager.HidePersonNoImage.Unpatch();
+                        PatchManager.GetMod<HidePersonNoImage>().Unpatch();
                     }
                 }
 
@@ -115,11 +117,11 @@ namespace StrmAssistant.Options.Store
                 {
                     if (options.UIFunctionOptions.EnforceLibraryOrder)
                     {
-                        PatchManager.EnforceLibraryOrder.Patch();
+                        PatchManager.GetMod<EnforceLibraryOrder>().Patch();
                     }
                     else
                     {
-                        PatchManager.EnforceLibraryOrder.Unpatch();
+                        PatchManager.GetMod<EnforceLibraryOrder>().Unpatch();
                     }
                 }
 
@@ -127,11 +129,11 @@ namespace StrmAssistant.Options.Store
                 {
                     if (options.UIFunctionOptions.BeautifyMissingMetadata)
                     {
-                        PatchManager.BeautifyMissingMetadata.Patch();
+                        PatchManager.GetMod<BeautifyMissingMetadata>().Patch();
                     }
                     else
                     {
-                        PatchManager.BeautifyMissingMetadata.Unpatch();
+                        PatchManager.GetMod<BeautifyMissingMetadata>().Unpatch();
                     }
                 }
 
@@ -139,11 +141,11 @@ namespace StrmAssistant.Options.Store
                 {
                     if (options.UIFunctionOptions.EnhanceMissingEpisodes)
                     {
-                        PatchManager.EnhanceMissingEpisodes.Patch();
+                        PatchManager.GetMod<EnhanceMissingEpisodes>().Patch();
                     }
                     else
                     {
-                        PatchManager.EnhanceMissingEpisodes.Unpatch();
+                        PatchManager.GetMod<EnhanceMissingEpisodes>().Unpatch();
                     }
                 }
 
@@ -151,11 +153,11 @@ namespace StrmAssistant.Options.Store
                 {
                     if (options.UIFunctionOptions.NoBoxsetsAutoCreation)
                     {
-                        PatchManager.NoBoxsetsAutoCreation.Patch();
+                        PatchManager.GetMod<NoBoxsetsAutoCreation>().Patch();
                     }
                     else
                     {
-                        PatchManager.NoBoxsetsAutoCreation.Unpatch();
+                        PatchManager.GetMod<NoBoxsetsAutoCreation>().Unpatch();
                     }
                 }
             }

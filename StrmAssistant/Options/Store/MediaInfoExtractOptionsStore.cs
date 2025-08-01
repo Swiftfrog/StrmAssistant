@@ -2,6 +2,7 @@ using Emby.Web.GenericEdit.PropertyDiff;
 using MediaBrowser.Common;
 using MediaBrowser.Model.Logging;
 using StrmAssistant.Mod;
+using StrmAssistant.Mod.MediaInfo;
 using StrmAssistant.Options.UIBaseClasses.Store;
 using System;
 using System.Collections.Generic;
@@ -56,11 +57,11 @@ namespace StrmAssistant.Options.Store
                     {
                         if (options.PersistMediaInfoMode != PersistMediaInfoOption.None.ToString())
                         {
-                            PatchManager.PersistMediaInfoHelper.Patch();
+                            PatchManager.GetMod<PersistMediaInfoHelper>().Patch();
                         }
                         else
                         {
-                            PatchManager.PersistMediaInfoHelper.Unpatch();
+                            PatchManager.GetMod<PersistMediaInfoHelper>().Unpatch();
                         }
                     }
                 }
@@ -69,7 +70,7 @@ namespace StrmAssistant.Options.Store
                 {
                     if (options.EnableImageCapture)
                     {
-                        PatchManager.EnableImageCapture.Patch();
+                        PatchManager.GetMod<EnableImageCapture>().Patch();
                         if (Plugin.Instance.MainOptionsStore.GetOptions().GeneralOptions.MaxConcurrentCount !=
                             EnableImageCapture.SemaphoreFFmpegMaxCount)
                         {
@@ -78,7 +79,7 @@ namespace StrmAssistant.Options.Store
                     }
                     else
                     {
-                        PatchManager.EnableImageCapture.Unpatch();
+                        PatchManager.GetMod<EnableImageCapture>().Unpatch();
                     }
                 }
 
@@ -86,11 +87,11 @@ namespace StrmAssistant.Options.Store
                 {
                     if (options.ExclusiveExtract)
                     {
-                        PatchManager.ExclusiveExtract.Patch();
+                        PatchManager.GetMod<ExclusiveExtract>().Patch();
                     }
                     else
                     {
-                        PatchManager.ExclusiveExtract.Unpatch();
+                        PatchManager.GetMod<ExclusiveExtract>().Unpatch();
                     }
                 }
 

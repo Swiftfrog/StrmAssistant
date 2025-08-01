@@ -5,7 +5,7 @@ using MediaBrowser.Model.IO;
 using MediaBrowser.Model.Logging;
 using MediaBrowser.Model.Tasks;
 using StrmAssistant.Common;
-using StrmAssistant.Mod;
+using StrmAssistant.Mod.MediaInfo;
 using StrmAssistant.Properties;
 using System;
 using System.Collections.Generic;

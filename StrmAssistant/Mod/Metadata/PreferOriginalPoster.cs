@@ -22,7 +22,7 @@ using static StrmAssistant.Reflection.EmbyProviders;
 using static StrmAssistant.Reflection.MovieDb;
 using static StrmAssistant.Reflection.Tvdb;
 
-namespace StrmAssistant.Mod
+namespace StrmAssistant.Mod.Metadata
 {
     public class PreferOriginalPoster : PatchBase<PreferOriginalPoster>
     {

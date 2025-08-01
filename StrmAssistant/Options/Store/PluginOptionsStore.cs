@@ -5,6 +5,7 @@ using MediaBrowser.Common;
 using MediaBrowser.Model.Logging;
 using StrmAssistant.Common;
 using StrmAssistant.Mod;
+using StrmAssistant.Mod.MediaInfo;
 using StrmAssistant.Options.UIBaseClasses.Store;
 using StrmAssistant.Properties;
 using System;
@@ -130,7 +131,7 @@ namespace StrmAssistant.Options.Store
                     QueueManager.UpdateTier2Semaphore(options.GeneralOptions.Tier2MaxConcurrentCount);
                 }
 
-                if (PatchManager.EnhanceChineseSearch != null)
+                if (PatchManager.GetMod<EnhanceChineseSearch>() != null)
                 {
                     var isSimpleTokenizer = string.Equals(EnhanceChineseSearch.CurrentTokenizerName, "simple",
                         StringComparison.Ordinal);
@@ -154,11 +155,11 @@ namespace StrmAssistant.Options.Store
                 {
                     if (options.NetworkOptions.EnableProxyServer)
                     {
-                        PatchManager.EnableProxyServer.Patch();
+                        PatchManager.GetMod<EnableProxyServer>().Patch();
                     }
                     else
                     {
-                        PatchManager.EnableProxyServer.Unpatch();
+                        PatchManager.GetMod<EnableProxyServer>().Unpatch();
                     }
                 }
 

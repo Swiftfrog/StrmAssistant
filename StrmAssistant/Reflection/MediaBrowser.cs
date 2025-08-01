@@ -6,7 +6,7 @@ using System.Reflection;
 
 namespace StrmAssistant.Reflection
 {
-    internal class MediaBrowserController : ReflectionBase<MediaBrowserController>
+    internal class MediaBrowser : ReflectionBase<MediaBrowser>
     {
         internal static PropertyInfo _isShortcutProperty;
         internal static MethodInfo _isShortcutGetter;
@@ -17,9 +17,9 @@ namespace StrmAssistant.Reflection
         internal static MethodInfo _addLibrariesToPresentationUniqueKey;
         internal static MethodInfo _createSortName;
 
-        static MediaBrowserController()
+        static MediaBrowser()
         {
-            new MediaBrowserController().Initialize();
+            new MediaBrowser().Initialize();
         }
 
         protected override void OnInitialize()

@@ -11,6 +11,7 @@ using MediaBrowser.Model.IO;
 using MediaBrowser.Model.Logging;
 using MediaBrowser.Model.Querying;
 using StrmAssistant.Mod;
+using StrmAssistant.Mod.MediaInfo;
 using StrmAssistant.Options;
 using StrmAssistant.Properties;
 using System;

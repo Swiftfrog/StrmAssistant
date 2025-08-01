@@ -9,9 +9,9 @@ using System.Linq;
 using static StrmAssistant.Common.LanguageUtility;
 using static StrmAssistant.Mod.PatchManager;
 using static StrmAssistant.Reflection.EmbyApi;
-using static StrmAssistant.Reflection.MediaBrowserController;
+using static StrmAssistant.Reflection.MediaBrowser;
 
-namespace StrmAssistant.Mod
+namespace StrmAssistant.Mod.Metadata
 {
     public class PinyinSortName : PatchBase<PinyinSortName>
     {

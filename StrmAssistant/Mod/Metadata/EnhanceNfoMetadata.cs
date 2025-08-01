@@ -10,7 +10,7 @@ using static StrmAssistant.Common.CommonUtility;
 using static StrmAssistant.Mod.PatchManager;
 using static StrmAssistant.Reflection.NfoMetadata;
 
-namespace StrmAssistant.Mod
+namespace StrmAssistant.Mod.Metadata
 {
     public class EnhanceNfoMetadata : PatchBase<EnhanceNfoMetadata>
     {

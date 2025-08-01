@@ -4,7 +4,7 @@ using StrmAssistant.Common;
 using static StrmAssistant.Mod.PatchManager;
 using static StrmAssistant.Reflection.EmbyServerImplementations;
 
-namespace StrmAssistant.Mod
+namespace StrmAssistant.Mod.UIFunction
 {
     public class EnforceLibraryOrder : PatchBase<EnforceLibraryOrder>
     {

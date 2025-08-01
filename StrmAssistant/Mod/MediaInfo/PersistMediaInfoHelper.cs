@@ -13,7 +13,7 @@ using static StrmAssistant.Options.MediaInfoExtractOptions;
 using static StrmAssistant.Reflection.EmbyProviders;
 using static StrmAssistant.Reflection.EmbyServerImplementations;
 
-namespace StrmAssistant.Mod
+namespace StrmAssistant.Mod.MediaInfo
 {
     public class PersistMediaInfoHelper : PatchBase<PersistMediaInfoHelper>
     {

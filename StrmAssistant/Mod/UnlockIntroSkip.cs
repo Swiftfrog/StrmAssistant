@@ -4,6 +4,7 @@ using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Model.Configuration;
 using MediaBrowser.Model.Entities;
 using StrmAssistant.Common;
+using StrmAssistant.Mod.MediaInfo;
 using System.Linq;
 using System.Threading;
 using static StrmAssistant.Mod.PatchManager;

@@ -11,7 +11,7 @@ using static StrmAssistant.Mod.PatchManager;
 using static StrmAssistant.Options.UIFunctionOptions;
 using static StrmAssistant.Reflection.EmbyServerImplementations;
 
-namespace StrmAssistant.Mod
+namespace StrmAssistant.Mod.UIFunction
 {
     public class HidePersonNoImage : PatchBase<HidePersonNoImage>
     {

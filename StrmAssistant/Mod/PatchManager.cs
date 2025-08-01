@@ -1,4 +1,8 @@
 using HarmonyLib;
+using StrmAssistant.Mod.Experience;
+using StrmAssistant.Mod.MediaInfo;
+using StrmAssistant.Mod.Metadata;
+using StrmAssistant.Mod.UIFunction;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -10,32 +14,9 @@ namespace StrmAssistant.Mod
 {
     public static class PatchManager
     {
-        public static Harmony HarmonyMod;
+        public static readonly Harmony HarmonyMod;
         public static readonly List<PatchTracker> PatchTrackerList = new List<PatchTracker>();
-
-        public static EnableImageCapture EnableImageCapture;
-        public static EnhanceChineseSearch EnhanceChineseSearch;
-        public static MergeMultiVersion MergeMultiVersion;
-        public static ExclusiveExtract ExclusiveExtract;
-        public static ChineseMovieDb ChineseMovieDb;
-        public static ChineseTvdb ChineseTvdb;
-        public static EnhanceMovieDbPerson EnhanceMovieDbPerson;
-        public static AltMovieDbConfig AltMovieDbConfig;
-        public static EnableProxyServer EnableProxyServer;
-        public static PreferOriginalPoster PreferOriginalPoster;
-        public static UnlockIntroSkip UnlockIntroSkip;
-        public static PinyinSortName PinyinSortName;
-        public static EnhanceNfoMetadata EnhanceNfoMetadata;
-        public static HidePersonNoImage HidePersonNoImage;
-        public static EnforceLibraryOrder EnforceLibraryOrder;
-        public static BeautifyMissingMetadata BeautifyMissingMetadata;
-        public static EnhanceMissingEpisodes EnhanceMissingEpisodes;
-        public static PersistMediaInfoHelper PersistMediaInfoHelper;
-        public static MovieDbEpisodeGroup MovieDbEpisodeGroup;
-        public static NoBoxsetsAutoCreation NoBoxsetsAutoCreation;
-        public static EnhanceNotificationSystem EnhanceNotificationSystem;
-        public static EnableDeepDelete EnableDeepDelete;
-        public static SuppressPluginUpdate SuppressPluginUpdate;
+        public static readonly Dictionary<Type, IMod> ModMap = new Dictionary<Type, IMod>();
 
         private static readonly ConcurrentDictionary<Tuple<Type, string>, HarmonyMethod> HarmonyMethodCache 
             = new ConcurrentDictionary<Tuple<Type, string>, HarmonyMethod>();
@@ -61,29 +42,35 @@ namespace StrmAssistant.Mod
 
         public static void Initialize()
         {
-            EnableImageCapture = new EnableImageCapture();
-            EnhanceChineseSearch = new EnhanceChineseSearch();
-            MovieDbEpisodeGroup = new MovieDbEpisodeGroup();
-            MergeMultiVersion = new MergeMultiVersion();
-            ExclusiveExtract = new ExclusiveExtract();
-            ChineseMovieDb = new ChineseMovieDb();
-            ChineseTvdb = new ChineseTvdb();
-            EnhanceMovieDbPerson = new EnhanceMovieDbPerson();
-            AltMovieDbConfig = new AltMovieDbConfig();
-            EnableProxyServer = new EnableProxyServer();
-            PreferOriginalPoster = new PreferOriginalPoster();
-            UnlockIntroSkip = new UnlockIntroSkip();
-            PinyinSortName = new PinyinSortName();
-            EnhanceNfoMetadata = new EnhanceNfoMetadata();
-            HidePersonNoImage = new HidePersonNoImage();
-            EnforceLibraryOrder = new EnforceLibraryOrder();
-            BeautifyMissingMetadata = new BeautifyMissingMetadata();
-            EnhanceMissingEpisodes = new EnhanceMissingEpisodes();
-            PersistMediaInfoHelper = new PersistMediaInfoHelper();
-            NoBoxsetsAutoCreation = new NoBoxsetsAutoCreation();
-            EnhanceNotificationSystem = new EnhanceNotificationSystem();
-            EnableDeepDelete = new EnableDeepDelete();
-            SuppressPluginUpdate = new SuppressPluginUpdate();
+            ModMap[typeof(EnableImageCapture)] = new EnableImageCapture();
+            ModMap[typeof(EnhanceChineseSearch)] = new EnhanceChineseSearch();
+            ModMap[typeof(MergeMultiVersion)] = new MergeMultiVersion();
+            ModMap[typeof(ChineseMovieDb)] = new ChineseMovieDb();
+            ModMap[typeof(ChineseTvdb)] = new ChineseTvdb();
+            ModMap[typeof(MovieDbEpisodeGroup)] = new MovieDbEpisodeGroup();
+            ModMap[typeof(ExtractMediaInfoHelper)] = new ExtractMediaInfoHelper();
+            ModMap[typeof(ExclusiveExtract)] = new ExclusiveExtract();
+            ModMap[typeof(EnhanceMovieDbPerson)] = new EnhanceMovieDbPerson();
+            ModMap[typeof(AltMovieDbConfig)] = new AltMovieDbConfig();
+            ModMap[typeof(EnableProxyServer)] = new EnableProxyServer();
+            ModMap[typeof(PreferOriginalPoster)] = new PreferOriginalPoster();
+            ModMap[typeof(UnlockIntroSkip)] = new UnlockIntroSkip();
+            ModMap[typeof(PinyinSortName)] = new PinyinSortName();
+            ModMap[typeof(EnhanceNfoMetadata)] = new EnhanceNfoMetadata();
+            ModMap[typeof(HidePersonNoImage)] = new HidePersonNoImage();
+            ModMap[typeof(EnforceLibraryOrder)] = new EnforceLibraryOrder();
+            ModMap[typeof(BeautifyMissingMetadata)] = new BeautifyMissingMetadata();
+            ModMap[typeof(EnhanceMissingEpisodes)] = new EnhanceMissingEpisodes();
+            ModMap[typeof(PersistMediaInfoHelper)] = new PersistMediaInfoHelper();
+            ModMap[typeof(NoBoxsetsAutoCreation)] = new NoBoxsetsAutoCreation();
+            ModMap[typeof(EnhanceNotificationSystem)] = new EnhanceNotificationSystem();
+            ModMap[typeof(EnableDeepDelete)] = new EnableDeepDelete();
+            ModMap[typeof(SuppressPluginUpdate)] = new SuppressPluginUpdate();
+        }
+
+        public static T GetMod<T>() where T : class, IMod
+        {
+            return ModMap.TryGetValue(typeof(T), out var mod) ? mod as T : null;
         }
 
         public static Assembly GetAssemblyByName(string name)

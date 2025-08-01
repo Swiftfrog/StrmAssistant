@@ -15,7 +15,7 @@ using static StrmAssistant.Reflection.EmbyServerImplementations;
 using static StrmAssistant.Reflection.MovieDb;
 using HttpRequestOptions = MediaBrowser.Common.Net.HttpRequestOptions;
 
-namespace StrmAssistant.Mod
+namespace StrmAssistant.Mod.Metadata
 {
     public class AltMovieDbConfig : PatchBase<AltMovieDbConfig>
     {

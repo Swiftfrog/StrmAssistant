@@ -1,33 +1,25 @@
-using Emby.Media.Model.ProbeModel;
 using HarmonyLib;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Audio;
-using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Configuration;
 using MediaBrowser.Model.Entities;
-using MediaBrowser.Model.MediaInfo;
 using MediaBrowser.Model.Services;
-using StrmAssistant.Common;
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
-using System.Text.RegularExpressions;
 using System.Threading;
-using System.Threading.Tasks;
 using static StrmAssistant.Mod.PatchManager;
 using static StrmAssistant.Options.MediaInfoExtractOptions;
 using static StrmAssistant.Options.Utility;
 using static StrmAssistant.Reflection.EmbyApi;
 using static StrmAssistant.Reflection.EmbyProviders;
 using static StrmAssistant.Reflection.EmbyServerImplementations;
-using static StrmAssistant.Reflection.EmbyServerMediaEncoding;
-using static StrmAssistant.Reflection.MediaBrowserController;
+using static StrmAssistant.Reflection.MediaBrowser;
 
-namespace StrmAssistant.Mod
+namespace StrmAssistant.Mod.MediaInfo
 {
     public class ExclusiveExtract : PatchBase<ExclusiveExtract>
     {
@@ -46,15 +38,14 @@ namespace StrmAssistant.Mod
         }
 
         private static readonly AsyncLocal<bool> WasCalledByGetEnabledMetadataProviders = new AsyncLocal<bool>();
-        private static readonly AsyncLocal<bool> ShouldCleanEmbeddedMetadata = new AsyncLocal<bool>();
         private static readonly AsyncLocal<long> ExclusiveItem = new AsyncLocal<long>();
         private static readonly AsyncLocal<long> ProtectIntroItem = new AsyncLocal<long>();
         private static readonly AsyncLocal<RefreshContext> CurrentRefreshContext = new AsyncLocal<RefreshContext>();
 
+        internal static long ExclusiveItemValue => ExclusiveItem.Value;
+
         public ExclusiveExtract()
         {
-            PatchFfProbeProcess();
-
             if (Plugin.Instance.MediaInfoExtractStore.GetOptions().ExclusiveExtract)
             {
                 Patch();
@@ -80,15 +71,6 @@ namespace StrmAssistant.Mod
             PatchUnpatch(PatchTracker, apply, _getRefreshOptions, postfix: nameof(GetRefreshOptionsPostfix));
         }
 
-        private void PatchFfProbeProcess()
-        {
-            PatchUnpatch(PatchTracker, true, _runFfProcess, prefix: nameof(RunFfProcessPrefix),
-                finalizer: nameof(RunFfProcessFinalizer));
-            PatchUnpatch(PatchTracker, true, _getInputArgument, prefix: nameof(GetInputArgumentPrefix));
-            PatchUnpatch(PatchTracker, true, _isProbingAllowed, prefix: nameof(IsProbingAllowedPrefix));
-            PatchUnpatch(PatchTracker, true, _getMediaInfo, postfix: nameof(GetMediaInfoPostfix));
-        }
-
         public static void AllowExtractInstance(BaseItem item)
         {
             if (!IsExclusiveFeatureSelected(ExclusiveControl.NoIntroProtect) &&
@@ -102,105 +84,6 @@ namespace StrmAssistant.Mod
         }
 
         [HarmonyPrefix]
-        private static void RunFfProcessPrefix(ref int timeoutMs)
-        {
-            if (ExclusiveItem.Value != 0)
-            {
-                timeoutMs = 60000 * Plugin.Instance.MainOptionsStore.GetOptions().GeneralOptions.MaxConcurrentCount;
-            }
-        }
-
-        [HarmonyPrefix]
-        private static bool GetInputArgumentPrefix(ref string input, MediaProtocol protocol, ref string __result)
-        {
-            if (protocol == MediaProtocol.Http)
-            {
-                __result = string.Format(CultureInfo.InvariantCulture, "\"{0}\"", input);
-                return false;
-            }
-
-            if (LibraryApi.IsFileShortcut(input))
-            {
-                var inputPath = input;
-                var mountPath = Task.Run(async () => await Plugin.LibraryApi.GetStrmMountPath(inputPath)).Result;
-                if (!string.IsNullOrEmpty(mountPath))
-                {
-                    input = mountPath;
-                }
-            }
-
-            return true;
-        }
-
-        [HarmonyPrefix]
-        private static void IsProbingAllowedPrefix(BaseItem item, MetadataRefreshOptions options)
-        {
-            if (item is Movie || item is Episode)
-            {
-                ShouldCleanEmbeddedMetadata.Value = true;
-            }
-        }
-
-        [HarmonyPostfix]
-        private static void GetMediaInfoPostfix(ProbeResult data, bool isAudio, string path, MediaProtocol protocol,
-            MediaInfo __result)
-        {
-            if (isAudio) return;
-
-            if (!ShouldCleanEmbeddedMetadata.Value) return;
-
-            __result.Name = null;
-            __result.Overview = null;
-            __result.PremiereDate = null;
-            __result.ProductionYear = null;
-            __result.Studios = Array.Empty<string>();
-            __result.Tags = Array.Empty<string>();
-            __result.Album = null;
-            __result.AlbumArtists = Array.Empty<string>();
-            __result.AlbumTags = Array.Empty<string>();
-            __result.Artists = Array.Empty<string>();
-            __result.Genres = Array.Empty<string>();
-            __result.MediaStreams = __result.MediaStreams.Where(ms => ms.Type != MediaStreamType.EmbeddedImage).ToList();
-        }
-
-        [HarmonyFinalizer]
-        private static void RunFfProcessFinalizer(Task __result, Exception __exception)
-        {
-            if (__result.IsCanceled || __result.IsFaulted) return;
-
-            if (ExclusiveItem.Value == 0) return;
-
-            var result = Traverse.Create(__result).Property("Result").GetValue();
-
-            if (result != null)
-            {
-                var traverseResult = Traverse.Create(result);
-                var standardOutput = traverseResult.Property("StandardOutput").GetValue().ToString();
-                var standardError = traverseResult.Property("StandardError").GetValue().ToString();
-
-                if (standardOutput != null && standardError != null)
-                {
-                    var partialOutput = standardOutput.Length > 20
-                        ? standardOutput.Substring(0, 20)
-                        : standardOutput;
-
-                    if (Regex.Replace(partialOutput, @"\s+", "") == "{}")
-                    {
-                        var lines = standardError.Split(new[] { '\r', '\n' },
-                            StringSplitOptions.RemoveEmptyEntries);
-
-                        if (lines.Length > 0)
-                        {
-                            var errorMessage = lines[lines.Length - 1].Trim();
-
-                            Plugin.Instance.Logger.Error("MediaInfoExtract - FfProbe Error: " + errorMessage);
-                        }
-                    }
-                }
-            }
-        }
-
-        [HarmonyPrefix]
         private static bool CanRefreshImagePrefix(IImageProvider provider, BaseItem item, LibraryOptions libraryOptions,
             ImageRefreshOptions refreshOptions, bool ignoreMetadataLock, bool ignoreLibraryOptions, ref bool __result)
         {
@@ -209,7 +92,7 @@ namespace StrmAssistant.Mod
                 return true;
             }
 
-            if ((item.Parent is null && item.ExtraType is null) || !(item is Video || item is Audio))
+            if (item.Parent is null && item.ExtraType is null || !(item is Video || item is Audio))
             {
                 return true;
             }

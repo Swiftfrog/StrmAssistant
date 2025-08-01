@@ -15,9 +15,9 @@ using static StrmAssistant.Mod.PatchManager;
 using static StrmAssistant.Reflection.EmbyApi;
 using static StrmAssistant.Reflection.EmbyNotifications;
 using static StrmAssistant.Reflection.EmbyServerImplementations;
-using static StrmAssistant.Reflection.MediaBrowserController;
+using static StrmAssistant.Reflection.MediaBrowser;
 
-namespace StrmAssistant.Mod
+namespace StrmAssistant.Mod.Experience
 {
     public class EnhanceNotificationSystem: PatchBase<EnhanceNotificationSystem>
     {

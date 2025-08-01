@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using static StrmAssistant.Mod.PatchManager;
 using static StrmAssistant.Reflection.EmbyServerImplementations;
 
-namespace StrmAssistant.Mod
+namespace StrmAssistant.Mod.Experience
 {
     public class SuppressPluginUpdate : PatchBase<SuppressPluginUpdate>
     {
