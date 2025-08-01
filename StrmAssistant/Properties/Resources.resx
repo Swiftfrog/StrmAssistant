@@ -161,9 +161,6 @@
   <data name="PluginOptions_EditorTitle_Strm_Assistant" xml:space="preserve">
     <value>Strm Assistant</value>
   </data>
-  <data name="PluginOptions_IncompatibleMessage_Please_uninstall_the_conflict_plugin_Strm_Extract" xml:space="preserve">
-    <value>Please uninstall the StrmExtract.dll plugin that duplicates functionality and/or the InfuseSync.dll plugin that has thread-safe issues, and then restart Emby.</value>
-  </data>
   <data name="Notification_CatchupUpdate_EventName" xml:space="preserve">
     <value>Favorites Updated</value>
   </data>

@@ -66,6 +66,7 @@ namespace StrmAssistant.Mod
             ModMap[typeof(EnhanceNotificationSystem)] = new EnhanceNotificationSystem();
             ModMap[typeof(EnableDeepDelete)] = new EnableDeepDelete();
             ModMap[typeof(SuppressPluginUpdate)] = new SuppressPluginUpdate();
+            ModMap[typeof(InfuseSyncThreadSafety)] = new InfuseSyncThreadSafety();
         }
 
         public static T GetMod<T>() where T : class, IMod

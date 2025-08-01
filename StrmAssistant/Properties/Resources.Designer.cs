@@ -371,7 +371,7 @@ namespace StrmAssistant.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Plugin names separated by comma or semicolon like MovieDb,Tvdb. Default is BLANK..
+        ///   Looks up a localized string similar to Plugin name or filename separated by comma or semicolon like MovieDb,Tvdb. Default is BLANK..
         /// </summary>
         public static string ExperienceEnhanceOptions_SuppressPluginUpdates_Plugin_names_separated_by_comma_or_semicolon_like_MovieDb_Tvdb__Default_is_BLANK_ {
             get {
@@ -381,7 +381,7 @@ namespace StrmAssistant.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Suppress Plugin Auto Updates.
+        ///   Looks up a localized string similar to Suppress Plugin Auto Online Updates.
         /// </summary>
         public static string ExperienceEnhanceOptions_SuppressPluginUpdates_Suppress_Auto_Plugin_Updates {
             get {
@@ -1699,7 +1699,7 @@ namespace StrmAssistant.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Image Capture and Thumbnail Preview Enhanced.
+        ///   Looks up a localized string similar to Image Capture / Thumbnail Preview Enhanced.
         /// </summary>
         public static string PluginOptions_EnableImageCapture_Enable_Image_Capture {
             get {
@@ -1751,16 +1751,6 @@ namespace StrmAssistant.Properties {
         public static string PluginOptions_IncludeExtra_Include_media_extras_to_extract__Default_is_False_ {
             get {
                 return ResourceManager.GetString("PluginOptions_IncludeExtra_Include_media_extras_to_extract__Default_is_False_", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Please uninstall the StrmExtract.dll plugin that duplicates functionality and/or the InfuseSync.dll plugin that has thread-safe issues, and then restart Emby..
-        /// </summary>
-        public static string PluginOptions_IncompatibleMessage_Please_uninstall_the_conflict_plugin_Strm_Extract {
-            get {
-                return ResourceManager.GetString("PluginOptions_IncompatibleMessage_Please_uninstall_the_conflict_plugin_Strm_Extra" +
-                        "ct", resourceCulture);
             }
         }
         
