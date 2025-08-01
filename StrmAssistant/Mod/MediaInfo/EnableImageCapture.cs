@@ -298,11 +298,11 @@ namespace StrmAssistant.Mod.MediaInfo
         [HarmonyPrefix]
         private static bool GetImagePrefix(ref BaseMetadataResult itemResult)
         {
-            if (itemResult != null && itemResult.MediaStreams != null)
+            var mediaStreams = itemResult?.MediaStreams;
+            if (mediaStreams != null && mediaStreams.Any(m => m.Type == MediaStreamType.Video) &&
+                mediaStreams.Any(m => m.Type == MediaStreamType.EmbeddedImage))
             {
-                itemResult.MediaStreams = itemResult.MediaStreams
-                    .Where(ms => ms.Type != MediaStreamType.EmbeddedImage)
-                    .ToArray();
+                itemResult.MediaStreams = mediaStreams.Where(m => m.Type != MediaStreamType.EmbeddedImage).ToArray();
             }
 
             return true;
