@@ -2,6 +2,7 @@ using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Session;
+using MediaBrowser.Controller.Tasks;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Logging;
 using MediaBrowser.Model.Querying;
@@ -113,6 +114,7 @@ namespace StrmAssistant.IntroSkip
             {
                 QueueManager.IntroSkipItemQueue.Clear();
                 _introSkipProcessTask = QueueManager.IntroSkip_ProcessItemQueueAsync();
+                _introSkipProcessTask.FireAndForget(_logger);
             }
         }
 

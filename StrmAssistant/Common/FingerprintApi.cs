@@ -64,7 +64,6 @@ namespace StrmAssistant.Common
                     fileSystem, _logger, applicationPaths, ffmpegManager, mediaEncoder, mediaMountManager,
                     jsonSerializer, serverApplicationHost
                 });
-                PatchTimeout(Plugin.Instance.MainOptionsStore.GetOptions().GeneralOptions.MaxConcurrentCount);
             }
             catch (Exception e)
             {
@@ -77,7 +76,7 @@ namespace StrmAssistant.Common
 
             if (_audioFingerprintManager is null || _createTitleFingerprint is null ||
                 _getTitleFingerprintFileName is null || _getAllFingerprintFilesForSeason is null ||
-                _updateSequencesForSeason is null || _timeoutMs is null || _clearItemExtradata is null)
+                _updateSequencesForSeason is null || _clearItemExtradata is null)
             {
                 _logger.Warn($"{PatchTracker.PatchType.Name} Init Failed");
                 PatchTracker.FallbackPatchApproach = PatchApproach.None;
@@ -178,12 +177,6 @@ namespace StrmAssistant.Common
                 default:
                     throw new NotImplementedException();
             }
-        }
-
-        public void PatchTimeout(int maxConcurrentCount)
-        {
-            var newTimeout = maxConcurrentCount * Convert.ToInt32(TimeSpan.FromMinutes(10.0).TotalMilliseconds);
-            _timeoutMs.SetValue(_audioFingerprintManager, newTimeout);
         }
 
         public bool IsLibraryInScope(BaseItem item)

@@ -38,10 +38,11 @@ namespace StrmAssistant.Mod.MediaInfo
         [HarmonyPrefix]
         private static void RunFfProcessPrefix(ref int timeoutMs)
         {
-            if (ExclusiveExtract.ExclusiveItemValue != 0L)
-            {
-                timeoutMs = 60000 * Plugin.Instance.MainOptionsStore.GetOptions().GeneralOptions.MaxConcurrentCount;
-            }
+            if (ExclusiveExtract.ExclusiveItemValue == 0L) return;
+
+            var baseTimeoutMs = 60000;
+            var concurrency = Plugin.Instance.MainOptionsStore.GetOptions().GeneralOptions.MaxConcurrentCount;
+            timeoutMs = Math.Min(baseTimeoutMs + (concurrency - 1) * 5000, 150000);
         }
         
         [HarmonyFinalizer]

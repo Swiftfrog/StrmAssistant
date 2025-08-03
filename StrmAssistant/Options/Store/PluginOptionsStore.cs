@@ -122,8 +122,6 @@ namespace StrmAssistant.Options.Store
 
                     if (Plugin.Instance.MediaInfoExtractStore.GetOptions().EnableImageCapture)
                         EnableImageCapture.UpdateResourcePool(maxConcurrentCount);
-
-                    Plugin.FingerprintApi.PatchTimeout(maxConcurrentCount);
                 }
 
                 if (changedProperties.Contains(nameof(PluginOptions.GeneralOptions.Tier2MaxConcurrentCount)))

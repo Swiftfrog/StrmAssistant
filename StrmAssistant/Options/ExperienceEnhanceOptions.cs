@@ -32,7 +32,7 @@ namespace StrmAssistant.Options
         
         [DisplayNameL("ExperienceEnhanceOptions_MergeMoviePreferences_Movie_Merge_Preference", typeof(Resources))]
         [VisibleCondition(nameof(MergeMultiVersion), SimpleCondition.IsTrue)]
-        public MergeMoviesScopeOption MergeMoviesPreference { get; set; } = MergeMoviesScopeOption.FolderScope;
+        public MergeMoviesScopeOption MergeMoviesPreference { get; set; } = MergeMoviesScopeOption.LibraryScope;
         
         public enum MergeSeriesScopeOption
         {

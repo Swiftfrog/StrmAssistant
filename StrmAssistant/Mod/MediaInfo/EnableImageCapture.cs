@@ -333,19 +333,19 @@ namespace StrmAssistant.Mod.MediaInfo
         {
             if (ImageCaptureItem.Value != null && __instance.GetType() == _quickSingleImageExtractor)
             {
-                var timeoutProperty = Traverse.Create(__instance).Property("TotalTimeoutMs");
-                var origTimeout = timeoutProperty.GetValue<int>();
-                var newTimeout = origTimeout *
-                                 Plugin.Instance.MainOptionsStore.GetOptions().GeneralOptions.MaxConcurrentCount;
-                timeoutProperty.SetValue(newTimeout);
+                var config = Plugin.Instance.ConfigurationManager.Configuration;
+                var baseTimeoutMs = config.ImageExtractionTimeoutMs > 0 ? config.ImageExtractionTimeoutMs : 60000;
+                var concurrency = Plugin.Instance.MainOptionsStore.GetOptions().GeneralOptions.MaxConcurrentCount;
+                var timeoutMs = Math.Min(baseTimeoutMs + (concurrency - 1) * 5000, 150000);
+                Traverse.Create(__instance).Property("TotalTimeoutMs").SetValue(timeoutMs);
 
                 if (startOffset.HasValue && startOffset.Value == TimeSpan.FromSeconds(10.0))
                 {
-                    startOffset =
-                        ImageCaptureItem.Value.MediaContainer.GetValueOrDefault() == MediaContainers.Dvd ||
-                        !ImageCaptureItem.Value.RunTimeTicks.HasValue || ImageCaptureItem.Value.RunTimeTicks.Value <= 0L
-                            ? TimeSpan.FromSeconds(10.0)
-                            : TimeSpan.FromTicks(GetThumbnailPositionTicks(ImageCaptureItem.Value.RunTimeTicks.Value));
+                    var item = ImageCaptureItem.Value;
+                    if (item.MediaContainer != MediaContainers.Dvd && item.RunTimeTicks > 0L)
+                    {
+                        startOffset = TimeSpan.FromTicks(GetThumbnailPositionTicks(item.RunTimeTicks.Value));
+                    }
                 }
 
                 ImageCaptureItem.Value = null;

@@ -42,7 +42,6 @@ namespace StrmAssistant.Reflection
         internal static MethodInfo _getTitleFingerprintFileName;
         internal static MethodInfo _getAllFingerprintFilesForSeason;
         internal static MethodInfo _updateSequencesForSeason;
-        internal static FieldInfo _timeoutMs;
         internal static MethodInfo _getExternalSubtitleStreams;
         internal static MethodInfo _updateExternalSubtitleStream;
         internal static ConstructorInfo _thumbnailGeneratorConstructor;
@@ -132,7 +131,6 @@ namespace StrmAssistant.Reflection
                 BindingFlags.Public | BindingFlags.Instance);
             _updateSequencesForSeason = audioFingerprintManager.GetMethod("UpdateSequencesForSeason",
                 BindingFlags.Public | BindingFlags.Instance);
-            _timeoutMs = audioFingerprintManager.GetField("TimeoutMs", BindingFlags.NonPublic | BindingFlags.Instance);
 
             var markerScheduledTask = embyProviders.GetType("Emby.Providers.Markers.MarkerScheduledTask");
             _createQueryForEpisodeIntroDetection = markerScheduledTask.GetMethod("CreateQueryForEpisodeIntroDetection",
