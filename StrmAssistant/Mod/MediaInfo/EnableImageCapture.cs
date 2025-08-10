@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection.Emit;
 using System.Threading;
+using static StrmAssistant.Common.CommonUtility;
 using static StrmAssistant.Mod.PatchManager;
 using static StrmAssistant.Reflection.EmbyProviders;
 using static StrmAssistant.Reflection.EmbyServerImplementations;
@@ -133,7 +134,7 @@ namespace StrmAssistant.Mod.MediaInfo
                 switch (Instance.PatchTracker.FallbackPatchApproach)
                 {
                     case PatchApproach.Harmony:
-                        Plugin.Instance.ApplicationHost.NotifyPendingRestart();
+                        NotifyPendingRestart();
 
                         /* un-patch and re-patch don't work for readonly static field
                         UnpatchResourcePool();

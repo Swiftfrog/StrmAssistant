@@ -1,4 +1,4 @@
-﻿using Emby.Media.Common.Extensions;
+using Emby.Media.Common.Extensions;
 using Emby.Web.GenericEdit.Elements;
 using Emby.Web.GenericEdit.PropertyDiff;
 using MediaBrowser.Common;
@@ -140,7 +140,7 @@ namespace StrmAssistant.Options.Store
                         ((!options.ModOptions.EnhanceChineseSearch && isSimpleTokenizer) ||
                          (options.ModOptions.EnhanceChineseSearch && !isSimpleTokenizer)))
                     {
-                        Plugin.Instance.ApplicationHost.NotifyPendingRestart();
+                        NotifyPendingRestart();
                     }
                 }
 
@@ -167,11 +167,11 @@ namespace StrmAssistant.Options.Store
                     if (options.NetworkOptions.EnableProxyServer &&
                         options.NetworkOptions.ProxyServerStatus.Status == ItemStatus.Succeeded)
                     {
-                        Plugin.Instance.ApplicationHost.NotifyPendingRestart();
+                        NotifyPendingRestart();
                     }
                     else if (!options.NetworkOptions.EnableProxyServer)
                     {
-                        Plugin.Instance.ApplicationHost.NotifyPendingRestart();
+                        NotifyPendingRestart();
                     }
                 }
             }

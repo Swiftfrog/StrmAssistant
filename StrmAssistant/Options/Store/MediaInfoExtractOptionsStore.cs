@@ -7,6 +7,7 @@ using StrmAssistant.Options.UIBaseClasses.Store;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using static StrmAssistant.Common.CommonUtility;
 using static StrmAssistant.Options.MediaInfoExtractOptions;
 using static StrmAssistant.Options.Utility;
 
@@ -74,7 +75,7 @@ namespace StrmAssistant.Options.Store
                         if (Plugin.Instance.MainOptionsStore.GetOptions().GeneralOptions.MaxConcurrentCount !=
                             EnableImageCapture.SemaphoreFFmpegMaxCount)
                         {
-                            Plugin.Instance.ApplicationHost.NotifyPendingRestart();
+                            NotifyPendingRestart();
                         }
                     }
                     else
