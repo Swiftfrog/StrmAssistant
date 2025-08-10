@@ -1,4 +1,3 @@
-using MediaBrowser.Common;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Net;
 using MediaBrowser.Controller;
@@ -15,13 +14,13 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using static StrmAssistant.Common.CommonUtility;
 
 namespace StrmAssistant.ScheduledTask
 {
     public class UpdatePluginTask : IScheduledTask
     {
         private readonly ILogger _logger;
-        private readonly IApplicationHost _applicationHost;
         private readonly IApplicationPaths _applicationPaths;
         private readonly IHttpClient _httpClient;
         private readonly IJsonSerializer _jsonSerializer;
@@ -29,12 +28,11 @@ namespace StrmAssistant.ScheduledTask
         private readonly ILocalizationManager _localizationManager;
         private readonly IServerApplicationHost _serverApplicationHost;
 
-        public UpdatePluginTask(IApplicationHost applicationHost, IApplicationPaths applicationPaths,
-            IHttpClient httpClient, IJsonSerializer jsonSerializer, IActivityManager activityManager,
-            ILocalizationManager localizationManager, IServerApplicationHost serverApplicationHost)
+        public UpdatePluginTask(IApplicationPaths applicationPaths, IHttpClient httpClient,
+            IJsonSerializer jsonSerializer, IActivityManager activityManager, ILocalizationManager localizationManager,
+            IServerApplicationHost serverApplicationHost)
         {
             _logger = Plugin.Instance.Logger;
-            _applicationHost = applicationHost;
             _applicationPaths = applicationPaths;
             _httpClient = httpClient;
             _jsonSerializer = jsonSerializer;
@@ -156,7 +154,8 @@ namespace StrmAssistant.ScheduledTask
                         Severity = LogSeverity.Info
                     });
 
-                    _applicationHost.NotifyPendingRestart();
+                    _ = Plugin.NotificationApi.SendMessageToAdmins($"{Resources.PluginUpdatedMessage}", null);
+                    NotifyPendingRestart();
                 }
                 else
                 {
@@ -176,8 +175,7 @@ namespace StrmAssistant.ScheduledTask
                     Severity = LogSeverity.Error
                 });
 
-                _ = Plugin.NotificationApi.SendMessageToAdmins(
-                    $"[{Resources.PluginOptions_EditorTitle_Strm_Assistant}] {Resources.Update_Failed_Message}", 1000);
+                _ = Plugin.NotificationApi.SendMessageToAdmins($"{Resources.Update_Failed_Message}", null);
                 _logger.Error("Update failed: {0}", e.Message);
                 _logger.Debug(e.StackTrace);
             }

@@ -659,4 +659,7 @@
   <data name="ExclusiveControl_NoNfoSaverOptimization_No_Nfo_Saver_Optimization" xml:space="preserve">
     <value>无NFO保存优化</value>
   </data>
+  <data name="PluginUpdatedMessage" xml:space="preserve">
+    <value>此插件已更新成功。Emby Server 将需要重启才能使更改生效。</value>
+  </data>
 </root>

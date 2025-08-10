@@ -395,8 +395,7 @@ namespace StrmAssistant
         {
             if (MainOptionsStore.GetOptions().ModOptions.EnhanceChineseSearch)
             {
-                _ = NotificationApi.SendMessageToAdmins(
-                    $"[{Resources.PluginOptions_EditorTitle_Strm_Assistant}] {Resources.Uninstall_Warning}", 10000);
+                _ = NotificationApi.SendMessageToAdmins($"{Resources.Uninstall_Warning}", null);
             }
 
             base.OnUninstalling();

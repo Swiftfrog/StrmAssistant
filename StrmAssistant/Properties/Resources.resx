@@ -746,4 +746,7 @@
   <data name="ExclusiveControl_NoNfoSaverOptimization_No_Nfo_Saver_Optimization" xml:space="preserve">
     <value>No Nfo Saver Optimization</value>
   </data>
+  <data name="PluginUpdatedMessage" xml:space="preserve">
+    <value>The plugin has been successfully updated. Emby Server will need to be restarted for changes to take effect.</value>
+  </data>
 </root>
