@@ -35,6 +35,7 @@ namespace StrmAssistant.Mod.MediaInfo
             public bool IsPersistInScope { get; set; }
             public bool MediaInfoUpdated { get; set; }
             public bool HasMetadataFetchers { get; set; }
+            public bool PreRefreshHasMediaInfo { get; set; }
         }
 
         private static readonly AsyncLocal<bool> WasCalledByGetEnabledMetadataProviders = new AsyncLocal<bool>();
@@ -75,7 +76,7 @@ namespace StrmAssistant.Mod.MediaInfo
         {
             if (!IsExclusiveFeatureSelected(ExclusiveControl.NoIntroProtect) &&
                 item.DateLastRefreshed != DateTimeOffset.MinValue && item is Episode &&
-                Plugin.ChapterApi.HasIntro(item))
+                Plugin.MediaInfoApi.HasIntro(item))
             {
                 ProtectIntroItem.Value = item.InternalId;
             }
@@ -87,7 +88,7 @@ namespace StrmAssistant.Mod.MediaInfo
         private static bool CanRefreshImagePrefix(IImageProvider provider, BaseItem item, LibraryOptions libraryOptions,
             ImageRefreshOptions refreshOptions, bool ignoreMetadataLock, bool ignoreLibraryOptions, ref bool __result)
         {
-            if (ExclusiveItem.Value != 0 && ExclusiveItem.Value == item.InternalId)
+            if (ExclusiveItem.Value != 0L && ExclusiveItem.Value == item.InternalId)
             {
                 return true;
             }
@@ -109,7 +110,8 @@ namespace StrmAssistant.Mod.MediaInfo
                         IsScanning = options.MetadataRefreshMode <= MetadataRefreshMode.Default &&
                                      options.ImageRefreshMode <= MetadataRefreshMode.Default,
                         HasMetadataFetchers = libraryOptions.TypeOptions.Any(t =>
-                            t.Type == item.GetType().Name && t.MetadataFetchers.Any())
+                            t.Type == item.GetType().Name && t.MetadataFetchers.Any()),
+                        PreRefreshHasMediaInfo = Plugin.MediaInfoApi.HasMediaInfo(item)
                     };
 
                     if (!CurrentRefreshContext.Value.IsNewItem)
@@ -136,7 +138,8 @@ namespace StrmAssistant.Mod.MediaInfo
 
                         if (!IsExclusiveFeatureSelected(ExclusiveControl.IgnoreFileChange) &&
                             IsExclusiveFeatureSelected(ExclusiveControl.ExtractOnFileChange) &&
-                            CurrentRefreshContext.Value.IsFileChanged && Plugin.LibraryApi.HasMediaInfo(item) ||
+                            CurrentRefreshContext.Value.IsFileChanged &&
+                            CurrentRefreshContext.Value.PreRefreshHasMediaInfo ||
                             IsExclusiveFeatureSelected(ExclusiveControl.CatchAllAllow))
                         {
                             options.EnableRemoteContentProbe = true;
@@ -214,7 +217,8 @@ namespace StrmAssistant.Mod.MediaInfo
                     return true;
                 }
 
-                if (!IsExclusiveFeatureSelected(ExclusiveControl.CatchAllAllow) && Plugin.LibraryApi.HasMediaInfo(item))
+                if (!IsExclusiveFeatureSelected(ExclusiveControl.CatchAllAllow) &&
+                    CurrentRefreshContext.Value.PreRefreshHasMediaInfo)
                 {
                     __result = false;
                     return false;
@@ -253,7 +257,7 @@ namespace StrmAssistant.Mod.MediaInfo
                 if (!IsExclusiveFeatureSelected(ExclusiveControl.NoIntroProtect) &&
                     (IsExclusiveFeatureSelected(ExclusiveControl.IgnoreFileChange) ||
                      !CurrentRefreshContext.Value.IsFileChanged) && item is Episode &&
-                    Plugin.ChapterApi.HasIntro(item))
+                    Plugin.MediaInfoApi.HasIntro(item))
                 {
                     ProtectIntroItem.Value = item.InternalId;
                 }
@@ -287,7 +291,7 @@ namespace StrmAssistant.Mod.MediaInfo
         {
             if ((updateType & ItemUpdateType.MetadataDownload) == 0) return;
 
-            if (ExclusiveItem.Value != 0 && ExclusiveItem.Value == item.InternalId)
+            if (ExclusiveItem.Value != 0L && ExclusiveItem.Value == item.InternalId)
             {
                 updateType &= ~ItemUpdateType.MetadataDownload;
             }
@@ -346,7 +350,7 @@ namespace StrmAssistant.Mod.MediaInfo
                     }
                     else if (!CurrentRefreshContext.Value.IsNewItem && CurrentRefreshContext.Value.IsScanning)
                     {
-                        if (!Plugin.LibraryApi.HasMediaInfo(__instance))
+                        if (!CurrentRefreshContext.Value.PreRefreshHasMediaInfo)
                         {
                             _ = Plugin.MediaInfoApi
                                 .DeserializeMediaInfo(__instance, directoryService, "Exclusive Restore",
@@ -374,7 +378,7 @@ namespace StrmAssistant.Mod.MediaInfo
         private static bool SaveChaptersPrefix(long itemId, bool clearExtractionFailureResult,
             List<ChapterInfo> chapters)
         {
-            if (ProtectIntroItem.Value != 0 && ProtectIntroItem.Value == itemId) return false;
+            if (ProtectIntroItem.Value != 0L && ProtectIntroItem.Value == itemId) return false;
 
             return true;
         }
@@ -382,7 +386,7 @@ namespace StrmAssistant.Mod.MediaInfo
         [HarmonyPrefix]
         private static bool DeleteChaptersPrefix(long itemId, MarkerType[] markerTypes)
         {
-            if (ProtectIntroItem.Value != 0 && ProtectIntroItem.Value == itemId) return false;
+            if (ProtectIntroItem.Value != 0L && ProtectIntroItem.Value == itemId) return false;
 
             return true;
         }

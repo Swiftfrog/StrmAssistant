@@ -105,15 +105,6 @@ namespace StrmAssistant.Common
             AdminOrderedViews = firstAdmin?.Configuration.OrderedViews ?? AdminOrderedViews;
         }
 
-        public bool HasMediaInfo(BaseItem item)
-        {
-            if (!item.RunTimeTicks.HasValue) return false;
-
-            if (item.Size == 0) return false;
-
-            return item.GetMediaStreams().Any(i => i.Type == MediaStreamType.Video || i.Type == MediaStreamType.Audio);
-        }
-
         public bool ImageCaptureEnabled(BaseItem item, LibraryOptions libraryOptions)
         {
             var typeName = item.ExtraType == null ? item.GetType().Name : item.DisplayParent.GetType().Name;
@@ -334,7 +325,7 @@ namespace StrmAssistant.Common
                 favoritesWithExtra = expanded.Concat(includeExtra
                         ? expanded.SelectMany(f => f.GetExtras(IncludeExtraTypes))
                         : Enumerable.Empty<BaseItem>())
-                    .Where(HasMediaInfo)
+                    .Where(Plugin.MediaInfoApi.HasMediaInfo)
                     .ToList();
             }
 
@@ -454,7 +445,7 @@ namespace StrmAssistant.Common
 
         public bool IsExtractNeeded(BaseItem item, bool enableImageCapture)
         {
-            if (!HasMediaInfo(item)) return true;
+            if (!Plugin.MediaInfoApi.HasMediaInfo(item)) return true;
 
             if (!enableImageCapture) return false;
 

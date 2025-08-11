@@ -30,11 +30,6 @@ namespace StrmAssistant.Common
             _itemRepository = itemRepository;
         }
 
-        public bool HasIntro(BaseItem item)
-        {
-            return _itemRepository.GetChapters(item.InternalId, new[] { MarkerType.IntroStart }).Any();
-        }
-
         public long? GetIntroStart(BaseItem item)
         {
             var introStart = _itemRepository.GetChapters(item.InternalId, new[] { MarkerType.IntroStart })
@@ -48,11 +43,6 @@ namespace StrmAssistant.Common
             var introEnd = _itemRepository.GetChapters(item.InternalId, new[] { MarkerType.IntroEnd }).FirstOrDefault();
 
             return introEnd?.StartPositionTicks;
-        }
-
-        public bool HasCredits(BaseItem item)
-        {
-            return _itemRepository.GetChapters(item.InternalId, new[] { MarkerType.CreditsStart }).Any();
         }
 
         public long? GetCreditsStart(BaseItem item)
@@ -176,7 +166,7 @@ namespace StrmAssistant.Common
             var priorEpisodesWithoutMarkers = episodesInSeason.Where(e => e.IndexNumber < item.IndexNumber)
                 .Where(e =>
                 {
-                    if (!Plugin.LibraryApi.HasMediaInfo(e))
+                    if (!Plugin.MediaInfoApi.HasMediaInfo(e))
                     {
                         QueueManager.MediaInfoExtractItemQueue.Enqueue(e);
                         return false;
@@ -204,7 +194,7 @@ namespace StrmAssistant.Common
             var followingEpisodes = episodesInSeason.Where(e => e.IndexNumber > item.IndexNumber)
                 .Where(e =>
                 {
-                    if (!Plugin.LibraryApi.HasMediaInfo(e))
+                    if (!Plugin.MediaInfoApi.HasMediaInfo(e))
                     {
                         QueueManager.MediaInfoExtractItemQueue.Enqueue(e);
                         return false;

@@ -244,7 +244,7 @@ namespace StrmAssistant
                 if (e.Item is Video && MediaInfoExtractStore.GetOptions().PersistMediaInfoMode !=
                     PersistMediaInfoOption.None.ToString())
                 {
-                    deserializeResult = LibraryApi.HasMediaInfo(e.Item);
+                    deserializeResult = MediaInfoApi.HasMediaInfo(e.Item);
 
                     var directoryService = new DirectoryService(Logger, _fileSystem);
 

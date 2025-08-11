@@ -339,7 +339,7 @@ namespace StrmAssistant.Common
 
         public bool IsExtractNeeded(BaseItem item)
         {
-            return !Plugin.ChapterApi.HasIntro(item) &&
+            return !Plugin.MediaInfoApi.HasIntro(item) &&
                    string.IsNullOrEmpty(_itemRepository.GetIntroDetectionFailureResult(item.InternalId));
         }
 

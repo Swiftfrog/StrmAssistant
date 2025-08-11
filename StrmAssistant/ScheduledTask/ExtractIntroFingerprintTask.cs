@@ -128,7 +128,7 @@ namespace StrmAssistant.ScheduledTask
 
                             var deserializeResult = false;
 
-                            if (!Plugin.LibraryApi.HasMediaInfo(taskEpisode))
+                            if (!Plugin.MediaInfoApi.HasMediaInfo(taskEpisode))
                             {
                                 result1 = await Plugin.LibraryApi
                                     .OrchestrateMediaInfoProcessAsync(taskEpisode, "IntroFingerprintExtract Task",
@@ -153,7 +153,7 @@ namespace StrmAssistant.ScheduledTask
                                     directoryService, "IntroFingerprintExtract Task").ConfigureAwait(false);
                             }
 
-                            if (!deserializeResult && !Plugin.ChapterApi.HasIntro(taskEpisode))
+                            if (!deserializeResult && !Plugin.MediaInfoApi.HasIntro(taskEpisode))
                             {
                                 if (!mediaInfoRestoreMode)
                                 {

@@ -171,6 +171,29 @@ namespace StrmAssistant.Common
             };
         }
 
+        public bool HasMediaInfo(BaseItem item)
+        {
+            if (!item.RunTimeTicks.HasValue) return false;
+
+            if (item.Size == 0L) return false;
+
+            return ConditionalLock.Run(() =>
+            {
+                return item.GetMediaStreams()
+                    .Any(i => (i.Type == MediaStreamType.Video || i.Type == MediaStreamType.Audio) &&
+                              !i.IsExternal);
+            });
+        }
+
+        public bool HasIntro(BaseItem item)
+        {
+            return ConditionalLock.Run(() =>
+            {
+                return _itemRepository.GetChapters(item)
+                    .Any(c => c.MarkerType == MarkerType.IntroStart);
+            });
+        }
+
         public static string GetMediaInfoJsonPath(BaseItem item)
         {
             var jsonRootFolder = Plugin.Instance.MediaInfoExtractStore.GetOptions().MediaInfoJsonRootFolder;
@@ -279,7 +302,7 @@ namespace StrmAssistant.Common
 
             if (!Plugin.LibraryApi.IsLibraryInScope(workItem)) return false;
 
-            if (!Plugin.LibraryApi.HasMediaInfo(workItem))
+            if (!HasMediaInfo(workItem))
             {
                 _logger.Info("MediaInfoPersist - Serialization Skipped - No MediaInfo (" + source + ")");
                 return false;
@@ -295,7 +318,7 @@ namespace StrmAssistant.Common
         {
             var workItem = _libraryManager.GetItemById(item.InternalId);
 
-            if (Plugin.LibraryApi.HasMediaInfo(workItem)) return true;
+            if (HasMediaInfo(workItem)) return true;
 
             var mediaInfoJsonPath = GetMediaInfoJsonPath(item);
             var file = directoryService.GetFile(mediaInfoJsonPath);

@@ -169,7 +169,7 @@ namespace StrmAssistant.Common
                     .Concat(includeExtra
                         ? expanded.SelectMany(f => f.GetExtras(IncludeExtraTypes))
                         : Enumerable.Empty<BaseItem>())
-                    .Where(i => Plugin.LibraryApi.HasMediaInfo(i) && !i.HasImage(ImageType.Chapter))
+                    .Where(i => Plugin.MediaInfoApi.HasMediaInfo(i) && !i.HasImage(ImageType.Chapter))
                     .ToArray();
             }
 
