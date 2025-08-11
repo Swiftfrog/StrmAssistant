@@ -34,6 +34,11 @@
     <PackageReference Include="ToolGood.Words" Version="3.1.0.2" />
   </ItemGroup>
   <ItemGroup>
+    <Reference Include="..\libs\publicized\*.dll">
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
     <Compile Update="Properties\Resources.Designer.cs">
       <DesignTime>True</DesignTime>
       <AutoGen>True</AutoGen>
