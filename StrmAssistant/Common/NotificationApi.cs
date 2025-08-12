@@ -1,4 +1,4 @@
-﻿using Emby.Notifications;
+using Emby.Notifications;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
@@ -50,10 +50,12 @@ namespace StrmAssistant.Common
             }
         }
 
-        public void DeepDeleteSendNotification(BaseItem item, User user, HashSet<string> mountPaths)
+        public void DeepDeleteSendNotification(BaseItem item, User user, HashSet<string> mountPaths,
+            List<string> itemPaths)
         {
             Resources.Culture = Thread.CurrentThread.CurrentUICulture;
 
+            var itemPathList = string.Join(Environment.NewLine, itemPaths);
             var mountPathList = string.Join(Environment.NewLine, mountPaths);
 
             var request = new NotificationRequest
@@ -66,7 +68,7 @@ namespace StrmAssistant.Common
                 Description =
                     string.Format(
                         Resources.Notification_DeepDelete_EventDescription.Replace("\\n", Environment.NewLine),
-                        item.Name, item.Path, mountPathList)
+                        item.Name, itemPathList, mountPathList)
             };
 
             _notificationManager.SendNotification(request);

@@ -177,9 +177,8 @@ namespace StrmAssistant.Mod.Experience
             {
                 var user = DeleteByUser.Value;
 
-                Task.Run(() =>
-                        Plugin.NotificationApi.DeepDeleteSendNotification(item, user,
-                            new HashSet<string>(__state.Keys)))
+                Task.Run(() => Plugin.NotificationApi.DeepDeleteSendNotification(item, user,
+                        new HashSet<string>(__state.Keys), new List<string> { item.Path }))
                     .ConfigureAwait(false);
             }
         }

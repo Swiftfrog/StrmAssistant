@@ -128,8 +128,9 @@ namespace StrmAssistant.Web.Service
 
             if (enableNotification && allMountPaths.Count > 0 && user != null)
             {
+                var itemPaths = deleteItems.Select(i => i.Path).ToList();
                 Task.Run(() => Plugin.NotificationApi.DeepDeleteSendNotification(item, user,
-                        new HashSet<string>(allMountPaths.Keys)))
+                        new HashSet<string>(allMountPaths.Keys), itemPaths))
                     .ConfigureAwait(false);
             }
         }
