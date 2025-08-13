@@ -5,7 +5,6 @@ using MediaBrowser.Model.Attributes;
 using MediaBrowser.Model.LocalizationAttributes;
 using StrmAssistant.Properties;
 using System.ComponentModel;
-using System.Runtime.InteropServices;
 using static StrmAssistant.Common.CommonUtility;
 
 namespace StrmAssistant
@@ -35,7 +34,7 @@ namespace StrmAssistant
         public bool IgnoreCertificateValidation { get; set; } = false;
 
         [Browsable(false)]
-        public bool IsModSupported => RuntimeInformation.ProcessArchitecture == Architecture.X64;
+        public bool IsModSupported => Plugin.Instance.IsModSupported;
 
         protected override void Validate(ValidationContext context)
         {

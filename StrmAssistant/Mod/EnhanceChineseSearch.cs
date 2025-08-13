@@ -1,3 +1,4 @@
+using Emby.Sqlite;
 using HarmonyLib;
 using MediaBrowser.Controller.Entities;
 using SQLitePCL.pretty;
@@ -16,11 +17,7 @@ namespace StrmAssistant.Mod
 {
     public class EnhanceChineseSearch : PatchBase<EnhanceChineseSearch>
     {
-        private static Type raw;
-        private static MethodInfo sqlite3_enable_load_extension;
-        private static FieldInfo sqlite3_db;
         private static MethodInfo _createConnection;
-        private static PropertyInfo _dbFilePath;
 
         public static string CurrentTokenizerName { get; private set; } = "unknown";
 
@@ -56,20 +53,10 @@ namespace StrmAssistant.Mod
 
         protected override void OnInitialize()
         {
-            var sqlitePCLEx = Assembly.Load("SQLitePCLRawEx.core");
-            raw = sqlitePCLEx.GetType("SQLitePCLEx.raw");
-            sqlite3_enable_load_extension = raw.GetMethod("sqlite3_enable_load_extension",
-                BindingFlags.Static | BindingFlags.Public);
-
-            sqlite3_db =
-                typeof(SQLiteDatabaseConnection).GetField("db", BindingFlags.NonPublic | BindingFlags.Instance);
-
-            var embySqlite = Assembly.Load("Emby.Sqlite");
-            var baseSqliteRepository = embySqlite.GetType("Emby.Sqlite.BaseSqliteRepository");
-            _createConnection = baseSqliteRepository.GetMethod("CreateConnection",
-                BindingFlags.NonPublic | BindingFlags.Instance);
-            _dbFilePath =
-                baseSqliteRepository.GetProperty("DbFilePath", BindingFlags.NonPublic | BindingFlags.Instance);
+            var raw = AccessTools.TypeByName("SQLitePCLEx.raw");
+            var enableLoadExtension = AccessTools.Method(raw, "sqlite3_enable_load_extension");
+            ReversePatch(PatchTracker, enableLoadExtension, nameof(EnableLoadExtensionStub));
+            _createConnection = AccessTools.Method(typeof(BaseSqliteRepository), "CreateConnection");
         }
 
         protected override void Prepare(bool apply)
@@ -394,13 +381,15 @@ namespace StrmAssistant.Mod
                        _cacheIdsFromTextParams, prefix: nameof(CacheIdsFromTextParamsPrefix));
         }
 
+        [HarmonyReversePatch]
+        private static int EnableLoadExtensionStub(object db, int onoff) => throw new NotImplementedException();
+
         private static bool LoadTokenizerExtension(IDatabaseConnection connection)
         {
             try
             {
-
-                var db = sqlite3_db.GetValue(connection);
-                sqlite3_enable_load_extension.Invoke(raw, new[] { db, 1 });
+                var db = Traverse.Create(connection).Field("db").GetValue();
+                EnableLoadExtensionStub(db, 1);
                 connection.Execute("SELECT load_extension('" + _tokenizerPath + "')");
 
                 return true;
@@ -419,8 +408,8 @@ namespace StrmAssistant.Mod
         }
 
         [HarmonyPostfix]
-        private static void CreateConnectionPostfix(object __instance, bool isReadOnly,
-            ref IDatabaseConnection __result)
+        private static void CreateConnectionPostfix(BaseSqliteRepository __instance, bool isReadOnly,
+            IDatabaseConnection __result)
         {
             if (!isReadOnly && !_patchPhase2Initialized)
             {
@@ -428,7 +417,7 @@ namespace StrmAssistant.Mod
                 {
                     if (!_patchPhase2Initialized)
                     {
-                        var db = _dbFilePath.GetValue(__instance) as string;
+                        var db = Traverse.Create(__instance).Property("DbFilePath").GetValue<string>();
                         if (db?.EndsWith("library.db", StringComparison.OrdinalIgnoreCase) != true)
                         {
                             return;

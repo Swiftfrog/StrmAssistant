@@ -77,7 +77,6 @@ namespace StrmAssistant.Options
 
         public static readonly Version AppVer = Plugin.Instance.ApplicationHost.ApplicationVersion;
         public static readonly Version Ver4830 = new Version("4.8.3.0");
-        public static readonly Version Ver4840 = new Version("4.8.4.0");
         public static readonly Version Ver4900 = new Version("4.9.0.0");
         public static readonly Version Ver49015 = new Version("4.9.0.15");
         public static readonly Version Ver49025 = new Version("4.9.0.25");

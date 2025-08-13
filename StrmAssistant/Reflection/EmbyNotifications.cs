@@ -1,6 +1,6 @@
 ﻿using Emby.Notifications;
+using HarmonyLib;
 using System.Reflection;
-using static StrmAssistant.Mod.PatchManager;
 
 namespace StrmAssistant.Reflection
 {
@@ -17,19 +17,11 @@ namespace StrmAssistant.Reflection
 
         protected override void OnInitialize()
         {
-            var notificationsAssembly = GetAssemblyByName("Emby.Notifications");
-
-            var notificationManager = notificationsAssembly.GetType("Emby.Notifications.NotificationManager");
-            _convertToGroups = notificationManager.GetMethod("ConvertToGroups",
-                BindingFlags.Instance | BindingFlags.NonPublic);
-            _sendNotification = notificationManager.GetMethod("SendNotification",
-                BindingFlags.NonPublic | BindingFlags.Instance, null,
-                new[] { typeof(INotifier), typeof(NotificationInfo[]), typeof(NotificationRequest), typeof(bool) },
-                null);
-            var notificationQueueManager = notificationsAssembly.GetType("Emby.Notifications.NotificationQueueManager");
-            _queueNotification = notificationQueueManager.GetMethod("QueueNotification",
-                BindingFlags.Instance | BindingFlags.Public, null,
-                new[] { typeof(INotifier), typeof(InternalNotificationRequest), typeof(int) }, null);
+            _convertToGroups = AccessTools.Method(typeof(NotificationManager), "ConvertToGroups");
+            _sendNotification = AccessTools.Method(typeof(NotificationManager), "SendNotification",
+                new[] { typeof(INotifier), typeof(NotificationInfo[]), typeof(NotificationRequest), typeof(bool) });
+            _queueNotification = AccessTools.Method(typeof(NotificationQueueManager), "QueueNotification",
+                new[] { typeof(INotifier), typeof(InternalNotificationRequest), typeof(int) });
         }
     }
 }

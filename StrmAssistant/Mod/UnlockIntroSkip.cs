@@ -1,4 +1,5 @@
-﻿using HarmonyLib;
+﻿using Emby.Providers.Markers;
+using HarmonyLib;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Model.Configuration;
@@ -89,10 +90,9 @@ namespace StrmAssistant.Mod
         }
 
         [HarmonyPostfix]
-        private static void DetectSequencesPostfix(object __result)
+        private static void DetectSequencesPostfix(SequenceDetectionResult __result)
         {
-            if (__result != null && Traverse.Create(__result).Property("Confidence").GetValue() is double confidence &&
-                confidence == 0)
+            if (__result?.Confidence == 0.0)
             {
                 LogZeroConfidence.Value = true;
             }

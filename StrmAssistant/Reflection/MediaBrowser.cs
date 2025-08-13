@@ -1,4 +1,5 @@
-﻿using MediaBrowser.Controller.Api;
+﻿using HarmonyLib;
+using MediaBrowser.Controller.Api;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.TV;
 using System;
@@ -24,24 +25,17 @@ namespace StrmAssistant.Reflection
 
         protected override void OnInitialize()
         {
-            _isShortcutGetter = typeof(BaseItem).GetProperty("IsShortcut", BindingFlags.Instance | BindingFlags.Public)
-                ?.GetGetMethod();
-            _isShortcutProperty =
-                typeof(BaseItem).GetProperty("IsShortcut", BindingFlags.Instance | BindingFlags.Public);
-            var supportsThumbnailsProperty =
-                typeof(Video).GetProperty("SupportsThumbnails", BindingFlags.Public | BindingFlags.Instance);
-            _supportsThumbnailsGetter = supportsThumbnailsProperty?.GetGetMethod();
-            _createSortName = typeof(BaseItem).GetMethod("CreateSortName",
-                BindingFlags.Instance | BindingFlags.NonPublic, null, new[] { typeof(ReadOnlySpan<char>) }, null);
-            _afterMetadataRefresh =
-                typeof(BaseItem).GetMethod("AfterMetadataRefresh", BindingFlags.Instance | BindingFlags.Public);
-
-            _addPerson = typeof(PeopleHelper).GetMethod("AddPerson", BindingFlags.Static | BindingFlags.Public);
-
-            _getUserForRequest = typeof(BaseApiService).GetMethod("GetUserForRequest",
-                BindingFlags.NonPublic | BindingFlags.Instance, null, new[] { typeof(string), typeof(bool) }, null);
-            _addLibrariesToPresentationUniqueKey = typeof(Series).GetMethod("AddLibrariesToPresentationUniqueKey",
-                BindingFlags.NonPublic | BindingFlags.Instance);
+            _isShortcutGetter = AccessTools.PropertyGetter(typeof(BaseItem), "IsShortcut");
+            _isShortcutProperty = AccessTools.Property(typeof(BaseItem), "IsShortcut");
+            _supportsThumbnailsGetter = AccessTools.PropertyGetter(typeof(Video), "SupportsThumbnails");
+            _createSortName =
+                AccessTools.Method(typeof(BaseItem), "CreateSortName", new[] { typeof(ReadOnlySpan<char>) });
+            _afterMetadataRefresh = AccessTools.Method(typeof(BaseItem), "AfterMetadataRefresh");
+            _addPerson = AccessTools.Method(typeof(PeopleHelper), "AddPerson");
+            _getUserForRequest = AccessTools.Method(typeof(BaseApiService), "GetUserForRequest",
+                new[] { typeof(string), typeof(bool) });
+            _addLibrariesToPresentationUniqueKey =
+                AccessTools.Method(typeof(Series), "AddLibrariesToPresentationUniqueKey");
         }
     }
 }

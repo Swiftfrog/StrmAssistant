@@ -1,3 +1,4 @@
+using Emby.Providers.MediaInfo;
 using HarmonyLib;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Entities;
@@ -27,11 +28,10 @@ namespace StrmAssistant.Common
     {
         private readonly ILogger _logger;
         private readonly ILibraryManager _libraryManager;
+        private readonly ThumbnailGenerator _thumbnailGenerator;
 
         private static readonly PatchTracker PatchTracker = new PatchTracker(typeof(VideoThumbnailApi),
             Plugin.Instance.IsModSupported ? PatchApproach.Harmony : PatchApproach.Reflection);
-
-        private readonly object _thumbnailGenerator;
 
         internal VideoThumbnailApi(ILibraryManager libraryManager, IFileSystem fileSystem,
             IImageExtractionManager imageExtractionManager, IItemRepository itemRepository,
@@ -43,11 +43,8 @@ namespace StrmAssistant.Common
 
             try
             {
-                _thumbnailGenerator = _thumbnailGeneratorConstructor?.Invoke(new object[]
-                {
-                    fileSystem, _logger, imageExtractionManager, itemRepository, mediaMountManager,
-                    applicationPaths, libraryMonitor, ffmpegManager
-                });
+                _thumbnailGenerator = new ThumbnailGenerator(fileSystem, _logger, imageExtractionManager,
+                    itemRepository, mediaMountManager, applicationPaths, libraryMonitor, ffmpegManager);
             }
             catch (Exception e)
             {
@@ -72,14 +69,14 @@ namespace StrmAssistant.Common
 
 #pragma warning disable CS1998
         [HarmonyReversePatch]
-        private static async Task<bool> RefreshThumbnailImagesStub49(object instance, Video item,
+        private static async Task<bool> RefreshThumbnailImagesStub49(ThumbnailGenerator instance, Video item,
             MediaSourceInfo mediaSource, MediaStream videoStream, LibraryOptions libraryOptions,
             IDirectoryService directoryService, List<ChapterInfo> chapters, bool extractImages, bool saveChapters,
             CancellationToken cancellationToken) =>
             throw new NotImplementedException();
 
         [HarmonyReversePatch]
-        private static async Task<bool> RefreshThumbnailImagesStub48(object instance, Video item, MediaStream videoStream,
+        private static async Task<bool> RefreshThumbnailImagesStub48(ThumbnailGenerator instance, Video item, MediaStream videoStream,
             LibraryOptions libraryOptions, IDirectoryService directoryService, List<ChapterInfo> chapters,
             bool extractImages, bool saveChapters, CancellationToken cancellationToken) =>
             throw new NotImplementedException();

@@ -8,6 +8,7 @@ using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.IO;
 using MediaBrowser.Model.Providers;
 using MediaBrowser.Model.Serialization;
+using MovieDb;
 using StrmAssistant.Common;
 using System;
 using System.Collections.Concurrent;
@@ -16,11 +17,14 @@ using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Tvdb;
+using static MovieDb.MovieDbSeriesProvider;
 using static StrmAssistant.Mod.PatchManager;
 using static StrmAssistant.Reflection.EmbyLocalMetadata;
 using static StrmAssistant.Reflection.EmbyProviders;
 using static StrmAssistant.Reflection.MovieDb;
 using static StrmAssistant.Reflection.Tvdb;
+using Season = MediaBrowser.Controller.Entities.TV.Season;
 
 namespace StrmAssistant.Mod.Metadata
 {
@@ -57,7 +61,7 @@ namespace StrmAssistant.Mod.Metadata
 
         protected override void OnInitialize()
         {
-            if (_movieDbAssembly != null || _tvdbAssembly != null)
+            if (Reflection.MovieDb.IsSupported || Reflection.Tvdb.IsSupported)
             {
                 ReversePatch(PatchTracker, _addLocalImage, nameof(AddLocalImageStub));
                 ReversePatch(PatchTracker, _getLocalFiles, nameof(GetLocalFilesStub));
@@ -71,14 +75,14 @@ namespace StrmAssistant.Mod.Metadata
 
         protected override void Prepare(bool apply)
         {
-            if (_movieDbAssembly != null)
+            if (Reflection.MovieDb.IsSupported)
             {
                 PatchUnpatch(PatchTracker, apply, _getMovieInfo, postfix: nameof(GetMovieInfoTmdbPostfix));
                 PatchUnpatch(PatchTracker, apply, _ensureSeriesInfo, postfix: nameof(EnsureSeriesInfoTmdbPostfix));
                 PatchUnpatch(PatchTracker, apply, _getBackdrops, postfix: nameof(GetBackdropsPostfix));
             }
 
-            if (_tvdbAssembly != null)
+            if (Reflection.Tvdb.IsSupported)
             {
                 PatchUnpatch(PatchTracker, apply, _ensureMovieInfoTvdb, postfix: nameof(EnsureMovieInfoTvdbPostfix));
                 PatchUnpatch(PatchTracker, apply, _ensureSeriesInfoTvdb, postfix: nameof(EnsureSeriesInfoTvdbPostfix));
@@ -199,15 +203,15 @@ namespace StrmAssistant.Mod.Metadata
         }
 
         [HarmonyPostfix]
-        private static void EnsureSeriesInfoTmdbPostfix(string tmdbId, string language, Task __result)
+        private static void EnsureSeriesInfoTmdbPostfix(string tmdbId, string language, Task<SeriesRootObject> __result)
         {
             if (!WasCalledByMethod(_movieDbAssembly, "FetchImages")) return;
 
-            object seriesInfo = null;
+            SeriesRootObject seriesInfo = null;
 
             try
             {
-                seriesInfo = Traverse.Create(__result).Property("Result").GetValue();
+                seriesInfo = __result?.Result;
             }
             catch
             {
@@ -216,11 +220,8 @@ namespace StrmAssistant.Mod.Metadata
 
             if (seriesInfo != null)
             {
-                var id = Traverse.Create(seriesInfo).Property("id").GetValue<int>().ToString();
-                var originalLanguage = Traverse.Create(seriesInfo)
-                    .Property("languages")
-                    .GetValue<List<string>>()
-                    ?.FirstOrDefault();
+                var id = seriesInfo.id.ToString();
+                var originalLanguage = seriesInfo.languages?.FirstOrDefault();
 
                 if (!string.IsNullOrEmpty(id) && !string.IsNullOrEmpty(originalLanguage))
                 {
@@ -230,15 +231,15 @@ namespace StrmAssistant.Mod.Metadata
         }
 
         [HarmonyPostfix]
-        private static void EnsureMovieInfoTvdbPostfix(string tvdbId, Task __result)
+        private static void EnsureMovieInfoTvdbPostfix(string tvdbId, Task<MovieData> __result)
         {
             if (!WasCalledByMethod(_tvdbAssembly, "GetImages")) return;
 
-            object movieData = null;
+            MovieData movieData = null;
 
             try
             {
-                movieData = Traverse.Create(__result).Property("Result").GetValue();
+                movieData = __result?.Result;
             }
             catch
             {
@@ -247,8 +248,8 @@ namespace StrmAssistant.Mod.Metadata
 
             if (movieData != null)
             {
-                var id = Traverse.Create(movieData).Property("id").GetValue<int>().ToString();
-                var originalLanguage = Traverse.Create(movieData).Property("originalLanguage").GetValue<string>();
+                var id = movieData.id.ToString();
+                var originalLanguage = movieData.originalLanguage;
 
                 if (!string.IsNullOrEmpty(id) && !string.IsNullOrEmpty(originalLanguage))
                 {
@@ -259,15 +260,15 @@ namespace StrmAssistant.Mod.Metadata
         }
 
         [HarmonyPostfix]
-        private static void EnsureSeriesInfoTvdbPostfix(string tvdbId, Task __result)
+        private static void EnsureSeriesInfoTvdbPostfix(string tvdbId, Task<SeriesData> __result)
         {
             if (!WasCalledByMethod(_tvdbAssembly, "GetImages")) return;
 
-            object seriesData = null;
+            SeriesData seriesData = null;
 
             try
             {
-                seriesData = Traverse.Create(__result).Property("Result").GetValue();
+                seriesData = __result?.Result;
             }
             catch
             {
@@ -276,8 +277,8 @@ namespace StrmAssistant.Mod.Metadata
 
             if (seriesData != null)
             {
-                var id = Traverse.Create(seriesData).Property("id").GetValue<int>().ToString();
-                var originalLanguage = Traverse.Create(seriesData).Property("originalLanguage").GetValue<string>();
+                var id = seriesData.id.ToString();
+                var originalLanguage = seriesData.originalLanguage;
 
                 if (!string.IsNullOrEmpty(id) && !string.IsNullOrEmpty(originalLanguage))
                 {
@@ -288,20 +289,19 @@ namespace StrmAssistant.Mod.Metadata
         }
 
         [HarmonyPostfix]
-        private static void GetBackdropsPostfix(IEnumerable<object> __result)
+        private static void GetBackdropsPostfix(IEnumerable<TmdbImage> __result)
         {
             if (__result != null)
             {
                 foreach (var image in __result)
                 {
-                    var filePath = Traverse.Create(image).Property("file_path").GetValue<string>();
-                    var languageProperty = Traverse.Create(image).Property("iso_639_1");
-                    var language = languageProperty.GetValue<string>();
+                    var filePath = image.file_path;
+                    var language = image.iso_639_1;
 
                     if (!string.IsNullOrEmpty(filePath) && !string.IsNullOrEmpty(language))
                     {
                         BackdropByLanguage[filePath] = language;
-                        languageProperty.SetValue(null);
+                        image.iso_639_1 = null;
                     }
                 }
             }
@@ -331,7 +331,7 @@ namespace StrmAssistant.Mod.Metadata
 
             try
             {
-                result = __result.Result;
+                result = __result?.Result;
             }
             catch
             {

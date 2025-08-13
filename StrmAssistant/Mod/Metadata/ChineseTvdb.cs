@@ -4,9 +4,9 @@ using MediaBrowser.Controller.Providers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Tvdb;
 using static StrmAssistant.Common.LanguageUtility;
 using static StrmAssistant.Mod.PatchManager;
 using static StrmAssistant.Reflection.Tvdb;
@@ -29,7 +29,7 @@ namespace StrmAssistant.Mod.Metadata
 
         protected override void OnInitialize()
         {
-            if (_tvdbAssembly is null)
+            if (!IsSupported)
             {
                 PatchTracker.FallbackPatchApproach = PatchApproach.None;
                 PatchTracker.IsSupported = false;
@@ -80,53 +80,48 @@ namespace StrmAssistant.Mod.Metadata
                 __result = list.ToArray();
             }
         }
-        
+
         [HarmonyPrefix]
-        [MethodImpl(MethodImplOptions.NoOptimization)]
-        private static bool GetTranslationPrefix(ref List<object> translations, ref string[] tvdbLanguages, int field,
-            ref bool defaultToFirst)
+        private static bool GetTranslationPrefix(ref List<NameTranslation> translations, ref string[] tvdbLanguages,
+            TranslationField field, ref bool defaultToFirst)
         {
             if (translations != null && translations.Count > 0)
             {
-                if (field == 0)
+                if (field == TranslationField.Name)
                 {
                     translations.RemoveAll(t =>
-                        t != null && bool.TryParse(Traverse.Create(t).Property("isAlias")?.GetValue()?.ToString(),
-                            out var isAlias) && isAlias);
+                        t != null && bool.TryParse(t.isAlias?.ToString(), out var isAlias) && isAlias);
                 }
+
+                var tvdbLanguageList = tvdbLanguages.ToList();
 
                 if (HasTvdbJapaneseFallback())
                 {
-                    var considerJapanese = translations.Where(t => t != null).Any(t =>
-                    {
-                        var tran = Traverse.Create(t);
-                        var language = tran.Property("language")?.GetValue()?.ToString();
-                        var isPrimary = tran.Property("IsPrimary")?.GetValue() as bool?;
-
-                        return language == "jpn" && isPrimary is true;
-                    });
-
-                    tvdbLanguages = tvdbLanguages.Where(l =>
-                        considerJapanese || !string.Equals(l, "jpn", StringComparison.OrdinalIgnoreCase)).ToArray();
+                    var considerJapanese = translations.Any(t => t != null && t.language == "jpn" && t.IsPrimary);
+                    tvdbLanguages = tvdbLanguageList.Where(l =>
+                            considerJapanese || !string.Equals(l, "jpn", StringComparison.OrdinalIgnoreCase))
+                        .ToArray();
                 }
 
-                if (field == 0)
+                if (field == TranslationField.Name)
                 {
                     var cnLanguages = new HashSet<string> { "zho", "zhtw", "yue" };
-                    var trans = translations;
-                    Array.Sort(tvdbLanguages, (lang1, lang2) =>
+
+                    var transByLang = translations.Where(t => t != null && !string.IsNullOrEmpty(t.language))
+                        .GroupBy(t => t.language)
+                        .ToDictionary(g => g.Key, g => g.First());
+
+                    tvdbLanguageList.Sort((lang1, lang2) =>
                     {
                         if (lang1 is null && lang2 is null) return 0;
                         if (lang1 is null) return 1;
                         if (lang2 is null) return -1;
 
-                        var tran1 = trans.FirstOrDefault(t =>
-                            Traverse.Create(t).Property("language")?.GetValue()?.ToString() == lang1);
-                        var tran2 = trans.FirstOrDefault(t =>
-                            Traverse.Create(t).Property("language")?.GetValue()?.ToString() == lang2);
+                        transByLang.TryGetValue(lang1, out var tran1);
+                        transByLang.TryGetValue(lang2, out var tran2);
 
-                        var name1 = Traverse.Create(tran1)?.Property("name")?.GetValue()?.ToString();
-                        var name2 = Traverse.Create(tran2)?.Property("name")?.GetValue()?.ToString();
+                        var name1 = tran1?.name;
+                        var name2 = tran2?.name;
 
                         var cn1 = cnLanguages.Contains(lang1);
                         var cn2 = cnLanguages.Contains(lang2);
@@ -143,9 +138,10 @@ namespace StrmAssistant.Mod.Metadata
 
                         return 0;
                     });
+                    tvdbLanguages = tvdbLanguageList.ToArray();
                 }
 
-                var languageOrder = tvdbLanguages.Select((l, index) => (l, index))
+                var languageOrder = tvdbLanguageList.Select((l, index) => (l, index))
                     .ToDictionary(x => x.l, x => x.index);
 
                 translations.Sort((t1, t2) =>
@@ -153,8 +149,8 @@ namespace StrmAssistant.Mod.Metadata
                     if (t1 is null) return 1;
                     if (t2 is null) return -1;
 
-                    var language1 = Traverse.Create(t1).Property("language")?.GetValue()?.ToString();
-                    var language2 = Traverse.Create(t2).Property("language")?.GetValue()?.ToString();
+                    var language1 = t1.language;
+                    var language2 = t2.language;
 
                     var index1 = languageOrder.GetValueOrDefault(language1, int.MaxValue);
                     var index2 = languageOrder.GetValueOrDefault(language2, int.MaxValue);
@@ -189,56 +185,49 @@ namespace StrmAssistant.Mod.Metadata
         }
 
         [HarmonyPostfix]
-        private static void GetTranslationPostfix(List<object> translations, string[] tvdbLanguages, int field,
-            bool defaultToFirst, ref object __result)
+        private static void GetTranslationPostfix(List<NameTranslation> translations, string[] tvdbLanguages, int field,
+            bool defaultToFirst, ref NameTranslation __result)
         {
             if (__result != null && !defaultToFirst)
             {
-                var traverseResult = Traverse.Create(__result);
-                var nameProperty = traverseResult.Property("name");
-                var overviewProperty = traverseResult.Property("overview");
+                var name = __result.name;
 
-                if (nameProperty != null && overviewProperty != null)
+                switch (field)
                 {
-                    var name = nameProperty.GetValue()?.ToString();
-
-                    switch (field)
+                    case 0:
                     {
-                        case 0:
+                        if (IsChinese(name))
                         {
-                            if (IsChinese(name))
-                            {
-                                nameProperty.SetValue(ConvertTraditionalToSimplified(name));
-                            }
-                            else if (BlockTvdbNonFallbackLanguage(name))
-                            {
-                                nameProperty.SetValue(null);
-                            }
-
-                            break;
+                            __result.name = ConvertTraditionalToSimplified(name);
                         }
-                        case 1:
+                        else if (BlockTvdbNonFallbackLanguage(name))
                         {
-                            var overview = overviewProperty.GetValue()?.ToString();
-
-                            if (IsChinese(overview))
-                            {
-                                overview = ConvertTraditionalToSimplified(overview);
-                                overviewProperty.SetValue(overview);
-                            }
-                            else if (BlockTvdbNonFallbackLanguage(overview))
-                            {
-                                overview = null;
-                                overviewProperty.SetValue(null);
-                            }
-
-                            if (string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(overview))
-                            {
-                                nameProperty.SetValue(overview);
-                            }
-
-                            break;
+                            __result.name = null;
                         }
+
+                        break;
+                    }
+                    case 1:
+                    {
+                        var overview = __result.overview;
+
+                        if (IsChinese(overview))
+                        {
+                            overview = ConvertTraditionalToSimplified(overview);
+                            __result.overview = overview;
+                        }
+                        else if (BlockTvdbNonFallbackLanguage(overview))
+                        {
+                            overview = null;
+                            __result.overview = null;
+                        }
+
+                        if (string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(overview))
+                        {
+                            __result.name = overview;
+                        }
+
+                        break;
                     }
                 }
             }
@@ -246,13 +235,13 @@ namespace StrmAssistant.Mod.Metadata
 
         [HarmonyPostfix]
         private static void GetTvdbSeasonPostfix(SeasonInfo id, IDirectoryService directoryService,
-            CancellationToken cancellationToken, Task __result)
+            Task<TvdbSeason> __result)
         {
-            object tvdbSeason = null;
+            TvdbSeason tvdbSeason = null;
 
             try
             {
-                tvdbSeason = Traverse.Create(__result).Property("Result")?.GetValue();
+                tvdbSeason = __result?.Result;
             }
             catch
             {
@@ -261,67 +250,53 @@ namespace StrmAssistant.Mod.Metadata
 
             if (tvdbSeason != null)
             {
-                var nameProperty = Traverse.Create(tvdbSeason).Property("name");
+                var name = tvdbSeason.name;
 
-                if (nameProperty != null)
+                if (IsChinese(name))
                 {
-                    var name = nameProperty.GetValue()?.ToString();
-
-                    if (IsChinese(name))
-                    {
-                        nameProperty.SetValue(ConvertTraditionalToSimplified(name));
-                    }
-                    else if (id.IndexNumber.HasValue &&
-                             (string.IsNullOrEmpty(name) || BlockTvdbNonFallbackLanguage(name)))
-                    {
-                        nameProperty.SetValue($"第 {id.IndexNumber} 季");
-                    }
+                    tvdbSeason.name = ConvertTraditionalToSimplified(name);
+                }
+                else if (id.IndexNumber.HasValue && (string.IsNullOrEmpty(name) || BlockTvdbNonFallbackLanguage(name)))
+                {
+                    tvdbSeason.name = $"第 {id.IndexNumber} 季";
                 }
             }
         }
 
         [HarmonyPostfix]
-        private static void FindEpisodePostfix(object data, EpisodeInfo searchInfo, int? seasonNumber,
-            ref object __result)
+        private static void FindEpisodePostfix(EpisodesData data, EpisodeInfo searchInfo, int? seasonNumber,
+            TvdbEpisode __result)
         {
             if (__result != null)
             {
-                var traverseResult = Traverse.Create(__result);
-                var nameProperty = traverseResult.Property("name");
-                var overviewProperty = traverseResult.Property("overview");
+                var name = __result.name;
+                var overview = __result.overview;
 
-                if (nameProperty != null && overviewProperty != null)
+                var considerJapanese = HasTvdbJapaneseFallback() && (IsJapanese(name) || IsJapanese(overview));
+                ConsiderJapanese.Value = considerJapanese;
+
+                if (!considerJapanese)
                 {
-                    var name = nameProperty.GetValue()?.ToString();
-                    var overview = overviewProperty.GetValue()?.ToString();
-
-                    var considerJapanese = HasTvdbJapaneseFallback() && (IsJapanese(name) || IsJapanese(overview));
-                    ConsiderJapanese.Value = considerJapanese;
-
-                    if (!considerJapanese)
-                    {
-                        if (!IsChinese(name)) nameProperty.SetValue(null);
-                        if (!IsChinese(overview)) overviewProperty.SetValue(null);
-                    }
-                    else
-                    {
-                        if (!IsChineseJapanese(name)) nameProperty.SetValue(null);
-                        if (!IsChineseJapanese(overview)) overviewProperty.SetValue(null);
-                    }
+                    if (!IsChinese(name)) __result.name = null;
+                    if (!IsChinese(overview)) __result.overview = null;
+                }
+                else
+                {
+                    if (!IsChineseJapanese(name)) __result.name = null;
+                    if (!IsChineseJapanese(overview)) __result.overview = null;
                 }
             }
         }
 
         [HarmonyPostfix]
         private static void GetEpisodeDataPostfix(EpisodeInfo searchInfo, bool fillExtendedInfo,
-            IDirectoryService directoryService, CancellationToken cancellationToken, Task __result)
+            IDirectoryService directoryService, Task<Tuple<TvdbEpisode, List<EpisodesData>>> __result)
         {
-            object tvdbEpisode = null;
+            TvdbEpisode tvdbEpisode = null;
 
             try
             {
-                var taskResult = Traverse.Create(__result).Property("Result")?.GetValue();
-                tvdbEpisode = Traverse.Create(taskResult)?.Property("Item1")?.GetValue();
+                tvdbEpisode = __result?.Result?.Item1;
             }
             catch
             {
@@ -330,33 +305,26 @@ namespace StrmAssistant.Mod.Metadata
 
             if (tvdbEpisode != null)
             {
-                var traverseTvdbEpisode = Traverse.Create(tvdbEpisode);
-                var nameProperty = traverseTvdbEpisode.Property("name");
-                var overviewProperty = traverseTvdbEpisode.Property("overview");
+                var name = tvdbEpisode.name;
+                var overview = tvdbEpisode.overview;
 
-                if (nameProperty != null && overviewProperty != null)
+                if (IsChinese(name))
                 {
-                    var name = nameProperty.GetValue()?.ToString();
-                    var overview = overviewProperty.GetValue()?.ToString();
+                    tvdbEpisode.name = ConvertTraditionalToSimplified(name);
+                }
+                else if (searchInfo.IndexNumber.HasValue &&
+                         (string.IsNullOrEmpty(name) || BlockTvdbNonFallbackLanguage(name)))
+                {
+                    tvdbEpisode.name = $"第 {searchInfo.IndexNumber} 集";
+                }
 
-                    if (IsChinese(name))
-                    {
-                        nameProperty.SetValue(ConvertTraditionalToSimplified(name));
-                    }
-                    else if (searchInfo.IndexNumber.HasValue &&
-                             (string.IsNullOrEmpty(name) || BlockTvdbNonFallbackLanguage(name)))
-                    {
-                        nameProperty.SetValue($"第 {searchInfo.IndexNumber} 集");
-                    }
-
-                    if (IsChinese(overview))
-                    {
-                        overviewProperty.SetValue(ConvertTraditionalToSimplified(overview));
-                    }
-                    else if (BlockTvdbNonFallbackLanguage(overview))
-                    {
-                        overviewProperty.SetValue(null);
-                    }
+                if (IsChinese(overview))
+                {
+                    tvdbEpisode.overview = ConvertTraditionalToSimplified(overview);
+                }
+                else if (BlockTvdbNonFallbackLanguage(overview))
+                {
+                    tvdbEpisode.overview = null;
                 }
             }
         }

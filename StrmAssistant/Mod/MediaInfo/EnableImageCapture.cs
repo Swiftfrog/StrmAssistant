@@ -1,3 +1,4 @@
+using Emby.Server.MediaEncoding.ImageExtraction;
 using HarmonyLib;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Providers;
@@ -297,7 +298,7 @@ namespace StrmAssistant.Mod.MediaInfo
         }
 
         [HarmonyPrefix]
-        private static bool GetImagePrefix(ref BaseMetadataResult itemResult)
+        private static void GetImagePrefix(BaseMetadataResult itemResult)
         {
             var mediaStreams = itemResult?.MediaStreams;
             if (mediaStreams != null && mediaStreams.Any(m => m.Type == MediaStreamType.Video) &&
@@ -305,8 +306,6 @@ namespace StrmAssistant.Mod.MediaInfo
             {
                 itemResult.MediaStreams = mediaStreams.Where(m => m.Type != MediaStreamType.EmbeddedImage).ToArray();
             }
-
-            return true;
         }
 
         private static long GetThumbnailPositionTicks(long runtimeTicks)
@@ -327,10 +326,10 @@ namespace StrmAssistant.Mod.MediaInfo
         }
 
         [HarmonyPrefix]
-        private static void RunExtractionPrefix(object __instance, ref string inputPath, MediaContainers? container,
-            MediaStream videoStream, MediaProtocol? protocol, int? streamIndex, Video3DFormat? threedFormat,
-            ref TimeSpan? startOffset, TimeSpan? interval, string targetDirectory, string targetFilename, int? maxWidth,
-            bool enableThumbnailFilter)
+        private static void RunExtractionPrefix(ImageExtractorBase __instance, ref string inputPath,
+            MediaContainers? container, MediaStream videoStream, MediaProtocol? protocol, int? streamIndex,
+            Video3DFormat? threedFormat, ref TimeSpan? startOffset, TimeSpan? interval, string targetDirectory,
+            string targetFilename, int? maxWidth, bool enableThumbnailFilter)
         {
             if (ImageCaptureItem.Value != null && __instance.GetType() == _quickSingleImageExtractor)
             {
@@ -338,7 +337,7 @@ namespace StrmAssistant.Mod.MediaInfo
                 var baseTimeoutMs = config.ImageExtractionTimeoutMs > 0 ? config.ImageExtractionTimeoutMs : 60000;
                 var concurrency = Plugin.Instance.MainOptionsStore.GetOptions().GeneralOptions.MaxConcurrentCount;
                 var timeoutMs = Math.Min(baseTimeoutMs + (concurrency - 1) * 5000, 150000);
-                Traverse.Create(__instance).Property("TotalTimeoutMs").SetValue(timeoutMs);
+                __instance.TotalTimeoutMs = timeoutMs;
 
                 if (startOffset.HasValue && startOffset.Value == TimeSpan.FromSeconds(10.0))
                 {
@@ -422,11 +421,13 @@ namespace StrmAssistant.Mod.MediaInfo
         }
 
         [HarmonyReversePatch]
-        private static void AddHdrAdjustFilterStub(object instance, List<string> filters, MediaStream mediaStream) =>
+        private static void AddHdrAdjustFilterStub(ImageExtractorBase instance, List<string> filters,
+            MediaStream mediaStream) =>
             throw new NotImplementedException();
 
         [HarmonyPrefix]
-        private static bool AddHdrAdjustFilterPrefix(object __instance, List<string> filters, MediaStream mediaStream)
+        private static bool AddHdrAdjustFilterPrefix(ImageExtractorBase __instance, List<string> filters,
+            MediaStream mediaStream)
         {
             lock (AddHdrAdjustFilterLock)
             {

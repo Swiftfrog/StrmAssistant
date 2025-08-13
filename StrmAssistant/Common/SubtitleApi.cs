@@ -1,4 +1,5 @@
 using Emby.Naming.Common;
+using Emby.Providers.MediaInfo;
 using HarmonyLib;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
@@ -28,13 +29,12 @@ namespace StrmAssistant.Common
         private readonly ILibraryManager _libraryManager;
         private readonly IItemRepository _itemRepository;
         private readonly IFileSystem _fileSystem;
+        private readonly SubtitleResolver _subtitleResolver;
+        private readonly FFProbeSubtitleInfo _ffProbeSubtitleInfo;
 
         private static readonly PatchTracker PatchTracker =
             new PatchTracker(typeof(SubtitleApi),
                 Plugin.Instance.IsModSupported ? PatchApproach.Harmony : PatchApproach.Reflection);
-
-        private readonly object _subtitleResolver;
-        private readonly object _ffProbeSubtitleInfo;
 
         private static readonly HashSet<string> ProbeExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             { ".sub", ".smi", ".sami", ".mpl" };
@@ -49,11 +49,8 @@ namespace StrmAssistant.Common
 
             try
             {
-                _subtitleResolver = _subtitleResolverConstructor?.Invoke(new object[]
-                {
-                    localizationManager, fileSystem, libraryManager
-                });
-                _ffProbeSubtitleInfo = _ffProbeSubtitleInfoConstructor?.Invoke(new object[] { mediaProbeManager });
+                _subtitleResolver = new SubtitleResolver(localizationManager, fileSystem, libraryManager);
+                _ffProbeSubtitleInfo = new FFProbeSubtitleInfo(mediaProbeManager);
             }
             catch (Exception e)
             {
@@ -80,8 +77,8 @@ namespace StrmAssistant.Common
         }
 
         [HarmonyReversePatch]
-        private static List<MediaStream> GetExternalSubtitleStreamsStub(object instance, BaseItem item, int startIndex,
-            IDirectoryService directoryService, NamingOptions namingOptions, bool clearCache) =>
+        private static List<MediaStream> GetExternalSubtitleStreamsStub(SubtitleResolver instance, BaseItem item,
+            int startIndex, IDirectoryService directoryService, NamingOptions namingOptions, bool clearCache) =>
             throw new NotImplementedException();
 
         private List<MediaStream> GetExternalSubtitleStreams(BaseItem item, int startIndex,
@@ -101,10 +98,10 @@ namespace StrmAssistant.Common
                     throw new NotImplementedException();
             }
         }
-
+        
 #pragma warning disable CS1998
         [HarmonyReversePatch]
-        private static async Task<bool> UpdateExternalSubtitleStreamStub(object instance, BaseItem item,
+        private static async Task<bool> UpdateExternalSubtitleStreamStub(FFProbeSubtitleInfo instance, BaseItem item,
             MediaStream subtitleStream, MetadataRefreshOptions options, LibraryOptions libraryOptions,
             CancellationToken cancellationToken) =>
             throw new NotImplementedException();

@@ -1,5 +1,9 @@
-﻿using System.Reflection;
-using static StrmAssistant.Mod.PatchManager;
+﻿using Emby.Api;
+using Emby.Api.Images;
+using Emby.Api.Library;
+using Emby.Api.UserLibrary;
+using HarmonyLib;
+using System.Reflection;
 
 namespace StrmAssistant.Reflection
 {
@@ -22,34 +26,18 @@ namespace StrmAssistant.Reflection
 
         protected override void OnInitialize()
         {
-            var embyApi = GetAssemblyByName("Emby.Api");
-
-            var remoteImageService = embyApi.GetType("Emby.Api.Images.RemoteImageService");
-            _downloadImage = remoteImageService.GetMethod("DownloadImage",
-                BindingFlags.NonPublic | BindingFlags.Instance);
-
-            var libraryService = embyApi.GetType("Emby.Api.Library.LibraryService");
-            _deleteItemsRequest =
-                libraryService.GetMethod("Any", new[] { embyApi.GetType("Emby.Api.Library.DeleteItems") });
-
-            var libraryStructureService = embyApi.GetType("Emby.Api.Library.LibraryStructureService");
-            _addVirtualFolder = libraryStructureService.GetMethod("Post",
-                new[] { embyApi.GetType("Emby.Api.Library.AddVirtualFolder") });
-            _removeVirtualFolder = libraryStructureService.GetMethod("Any",
-                new[] { embyApi.GetType("Emby.Api.Library.RemoveVirtualFolder") });
-            _addMediaPath = libraryStructureService.GetMethod("Post",
-                new[] { embyApi.GetType("Emby.Api.Library.AddMediaPath") });
-            _removeMediaPath = libraryStructureService.GetMethod("Any",
-                new[] { embyApi.GetType("Emby.Api.Library.RemoveMediaPath") });
-
-            var itemRefreshService = embyApi.GetType("Emby.Api.ItemRefreshService");
-            _getRefreshOptions =
-                itemRefreshService.GetMethod("GetRefreshOptions", BindingFlags.Instance | BindingFlags.NonPublic);
-
-            var tagService = embyApi.GetType("Emby.Api.UserLibrary.TagService");
-            _getPrefixes = tagService.GetMethod("Get", new[] { embyApi.GetType("Emby.Api.UserLibrary.GetPrefixes") });
-            _getArtistPrefixes =
-                tagService.GetMethod("Get", new[] { embyApi.GetType("Emby.Api.UserLibrary.GetArtistPrefixes") });
+            _downloadImage = AccessTools.Method(typeof(RemoteImageService), "DownloadImage");
+            _deleteItemsRequest = AccessTools.Method(typeof(LibraryService), "Any", new[] { typeof(DeleteItems) });
+            _addVirtualFolder = AccessTools.Method(typeof(LibraryStructureService), "Post",
+                new[] { typeof(AddVirtualFolder) });
+            _removeVirtualFolder = AccessTools.Method(typeof(LibraryStructureService), "Any",
+                new[] { typeof(RemoveVirtualFolder) });
+            _addMediaPath = AccessTools.Method(typeof(LibraryStructureService), "Post", new[] { typeof(AddMediaPath) });
+            _removeMediaPath =
+                AccessTools.Method(typeof(LibraryStructureService), "Any", new[] { typeof(RemoveMediaPath) });
+            _getRefreshOptions = AccessTools.Method(typeof(ItemRefreshService), "GetRefreshOptions");
+            _getPrefixes = AccessTools.Method(typeof(TagService), "Get", new[] { typeof(GetPrefixes) });
+            _getArtistPrefixes = AccessTools.Method(typeof(TagService), "Get", new[] { typeof(GetArtistPrefixes) });
         }
     }
 }

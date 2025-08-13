@@ -15,7 +15,6 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
-using System.Runtime.InteropServices;
 
 namespace StrmAssistant.Options
 {
@@ -141,7 +140,7 @@ namespace StrmAssistant.Options
         public SpacerItem ClearIntroResultSeparator { get; set; } = new SpacerItem(SpacerSize.Small);
 
         [Browsable(false)]
-        public bool IsModSupported => RuntimeInformation.ProcessArchitecture == Architecture.X64;
+        public bool IsModSupported => Plugin.Instance.IsModSupported;
 
         protected override void Validate(ValidationContext context)
         {

@@ -6,7 +6,6 @@ using MediaBrowser.Model.Attributes;
 using MediaBrowser.Model.LocalizationAttributes;
 using StrmAssistant.Properties;
 using System.ComponentModel;
-using System.Runtime.InteropServices;
 
 namespace StrmAssistant.Options
 {
@@ -82,6 +81,6 @@ namespace StrmAssistant.Options
         public UIFunctionOptions UIFunctionOptions { get; set; } = new UIFunctionOptions();
 
         [Browsable(false)]
-        public bool IsModSupported => RuntimeInformation.ProcessArchitecture == Architecture.X64;
+        public bool IsModSupported => Plugin.Instance.IsModSupported;
     }
 }

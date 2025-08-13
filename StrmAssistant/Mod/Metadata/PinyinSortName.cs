@@ -1,4 +1,5 @@
 using HarmonyLib;
+using MediaBrowser.Controller.Api;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Audio;
 using MediaBrowser.Model.Dto;
@@ -48,7 +49,7 @@ namespace StrmAssistant.Mod.Metadata
         }
 
         [HarmonyPostfix]
-        private static void GetPrefixesPostfix(object request, ref object __result)
+        private static void GetPrefixesPostfix(BaseItemsRequest request, ref object __result)
         {
             if (__result is NameValuePair[] pairs)
             {

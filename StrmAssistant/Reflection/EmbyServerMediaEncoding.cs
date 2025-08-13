@@ -1,6 +1,9 @@
-﻿using System;
+﻿using Emby.Server.MediaEncoding.Encoder;
+using Emby.Server.MediaEncoding.ImageExtraction;
+using Emby.Server.MediaEncoding.Probing;
+using HarmonyLib;
+using System;
 using System.Reflection;
-using static StrmAssistant.Mod.PatchManager;
 
 namespace StrmAssistant.Reflection
 {
@@ -26,43 +29,23 @@ namespace StrmAssistant.Reflection
 
         protected override void OnInitialize()
         {
-            var mediaEncodingAssembly = GetAssemblyByName("Emby.Server.MediaEncoding");
+            _staticConstructor = AccessTools.Constructor(typeof(ImageExtractorBase), Type.EmptyTypes, true);
+            _resourcePoolField = AccessTools.Field(typeof(ImageExtractorBase), "resourcePool");
+            _runExtraction = AccessTools.Method(typeof(ImageExtractorBase), "RunExtraction");
+            _addHdrAdjustFilter = AccessTools.Method(typeof(ImageExtractorBase), "AddHdrAdjustFilter");
 
-            var imageExtractorBaseType =
-                mediaEncodingAssembly.GetType("Emby.Server.MediaEncoding.ImageExtraction.ImageExtractorBase");
-            _staticConstructor = imageExtractorBaseType.GetConstructor(BindingFlags.Static | BindingFlags.NonPublic,
-                null, Type.EmptyTypes, null);
-            _resourcePoolField =
-                imageExtractorBaseType.GetField("resourcePool", BindingFlags.NonPublic | BindingFlags.Static);
-            _runExtraction =
-                imageExtractorBaseType.GetMethod("RunExtraction", BindingFlags.Instance | BindingFlags.Public);
-            _quickSingleImageExtractor =
-                mediaEncodingAssembly.GetType("Emby.Server.MediaEncoding.ImageExtraction.QuickSingleImageExtractor");
-            _addHdrAdjustFilter =
-                imageExtractorBaseType.GetMethod("AddHdrAdjustFilter", BindingFlags.Instance | BindingFlags.NonPublic);
+            _extractVideoImagesOnInterval =
+                AccessTools.Method(typeof(ImageExtractionManager), "ExtractVideoImagesOnInterval");
+            _enableQuickImageSeriesExtractor =
+                AccessTools.Method(typeof(ImageExtractionManager), "EnableQuickImageSeriesExtractor");
 
-            var imageExtractionManager =
-                mediaEncodingAssembly.GetType("Emby.Server.MediaEncoding.ImageExtraction.ImageExtractionManager");
-            _extractVideoImagesOnInterval = imageExtractionManager.GetMethod("ExtractVideoImagesOnInterval");
-            _enableQuickImageSeriesExtractor = imageExtractionManager.GetMethod("EnableQuickImageSeriesExtractor",
-                BindingFlags.Instance | BindingFlags.NonPublic);
+            _runFfProcess = AccessTools.Method(typeof(MediaProbeManager), "RunFfProcess");
 
-            var mediaProbeManager =
-                mediaEncodingAssembly.GetType("Emby.Server.MediaEncoding.Probing.MediaProbeManager");
-            _runFfProcess = mediaProbeManager.GetMethod("RunFfProcess", BindingFlags.Instance | BindingFlags.NonPublic);
+            _getInputArgument = AccessTools.Method(typeof(EncodingHelpers), "GetInputArgument");
+            _getAnalyzeDurationArgument = AccessTools.Method(typeof(EncodingHelpers), "GetAnalyzeDurationArgument");
+            _getProbeSizeArgument = AccessTools.Method(typeof(EncodingHelpers), "GetProbeSizeArgument");
 
-            var encodingHelpers = mediaEncodingAssembly.GetType("Emby.Server.MediaEncoding.Encoder.EncodingHelpers");
-            _getInputArgument =
-                encodingHelpers.GetMethod("GetInputArgument", BindingFlags.Static | BindingFlags.Public);
-            _getAnalyzeDurationArgument = encodingHelpers.GetMethod("GetAnalyzeDurationArgument",
-                BindingFlags.Static | BindingFlags.Public);
-            _getProbeSizeArgument = encodingHelpers.GetMethod("GetProbeSizeArgument",
-                BindingFlags.Static | BindingFlags.Public);
-
-            var probeResultNormalizer =
-                mediaEncodingAssembly.GetType("Emby.Server.MediaEncoding.Probing.ProbeResultNormalizer");
-            _getMediaInfo =
-                probeResultNormalizer.GetMethod("GetMediaInfo", BindingFlags.Instance | BindingFlags.Public);
+            _getMediaInfo = AccessTools.Method(typeof(ProbeResultNormalizer), "GetMediaInfo");
         }
     }
 }

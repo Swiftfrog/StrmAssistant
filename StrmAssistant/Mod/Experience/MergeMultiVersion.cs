@@ -1,11 +1,11 @@
-﻿using HarmonyLib;
+﻿using Emby.Api;
+using HarmonyLib;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Configuration;
 using MediaBrowser.Model.Entities;
-using MediaBrowser.Model.Services;
 using StrmAssistant.Provider;
 using System;
 using System.Collections.Generic;
@@ -131,10 +131,9 @@ namespace StrmAssistant.Mod.Experience
         }
 
         [HarmonyPostfix]
-        private static void GetRefreshOptionsPostfix(IReturnVoid request, MetadataRefreshOptions __result)
+        private static void GetRefreshOptionsPostfix(RefreshItem request, MetadataRefreshOptions __result)
         {
-            var id = Traverse.Create(request).Property("Id").GetValue<string>();
-            var item = BaseItem.LibraryManager.GetItemById(id);
+            var item = BaseItem.LibraryManager.GetItemById(request.Id);
 
             if (item is Series || item is Season)
             {

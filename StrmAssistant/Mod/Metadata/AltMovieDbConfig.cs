@@ -22,7 +22,7 @@ namespace StrmAssistant.Mod.Metadata
         private static readonly string DefaultMovieDbApiUrl = "https://api.themoviedb.org";
         private static readonly string DefaultAltMovieDbApiUrl = "https://api.tmdb.org";
         private static readonly string DefaultMovieDbImageUrl = "https://image.tmdb.org";
-        private static string SystemDefaultMovieDbApiKey;
+        private static string DefaultMovieDbApiKey;
 
         internal static string CurrentMovieDbApiUrl { get; private set; } = DefaultMovieDbApiUrl;
         internal static string CurrentMovieDbImageUrl { get; private set; } = DefaultMovieDbImageUrl;
@@ -51,9 +51,9 @@ namespace StrmAssistant.Mod.Metadata
 
         protected override void OnInitialize()
         {
-            if (_movieDbAssembly != null)
+            if (IsSupported)
             {
-                CurrentMovieDbApiKey = SystemDefaultMovieDbApiKey = _apiKey.GetValue(null) as string;
+                CurrentMovieDbApiKey = DefaultMovieDbApiKey = _apiKey.GetValue(null) as string;
             }
             else
             {
@@ -107,13 +107,13 @@ namespace StrmAssistant.Mod.Metadata
 
                 CurrentMovieDbApiKey = IsValidMovieDbApiKey(options.AltMovieDbApiKey)
                     ? options.AltMovieDbApiKey
-                    : SystemDefaultMovieDbApiKey;
+                    : DefaultMovieDbApiKey;
             }
             else
             {
                 CurrentMovieDbApiUrl = DefaultMovieDbApiUrl;
                 CurrentMovieDbImageUrl = DefaultMovieDbImageUrl;
-                CurrentMovieDbApiKey = SystemDefaultMovieDbApiKey;
+                CurrentMovieDbApiKey = DefaultMovieDbApiKey;
             }
         }
 
@@ -140,7 +140,7 @@ namespace StrmAssistant.Mod.Metadata
                     requestUrl.StartsWith(DefaultMovieDbApiUrl + "/3/configuration", StringComparison.Ordinal)
                         ? DefaultAltMovieDbApiUrl
                         : CurrentMovieDbApiUrl)
-                .Replace(SystemDefaultMovieDbApiKey, CurrentMovieDbApiKey);
+                .Replace(DefaultMovieDbApiKey, CurrentMovieDbApiKey);
 
             if (!string.Equals(requestUrl, options.Url, StringComparison.Ordinal))
             {

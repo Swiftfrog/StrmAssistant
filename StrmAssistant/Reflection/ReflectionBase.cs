@@ -1,5 +1,6 @@
 ﻿using StrmAssistant.Mod;
 using System;
+using System.Reflection;
 
 namespace StrmAssistant.Reflection
 {
@@ -21,11 +22,19 @@ namespace StrmAssistant.Reflection
                     Plugin.Instance.Logger.Debug(e.StackTrace);
                 }
 
-                Plugin.Instance.Logger.Warn($"{PatchTracker.PatchType.Name} Init Failed");
+                Plugin.Instance.Logger.Warn($"{PatchTracker.Name} Init Failed");
                 PatchTracker.FallbackPatchApproach = PatchApproach.None;
             }
         }
 
         protected abstract void OnInitialize();
+
+        protected static void RegisterAssemblyResolve(string assemblyName, Assembly resolvedAssembly)
+        {
+            AppDomain.CurrentDomain.AssemblyResolve += (sender, args) =>
+                string.Equals(new AssemblyName(args.Name).Name, assemblyName, StringComparison.OrdinalIgnoreCase)
+                    ? resolvedAssembly
+                    : null;
+        }
     }
 }

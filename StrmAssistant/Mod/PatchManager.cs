@@ -109,7 +109,7 @@ namespace StrmAssistant.Mod
 
             if (targetMethod is null)
             {
-                Plugin.Instance.Logger.Warn($"{tracker.PatchType.Name} Init Failed");
+                Plugin.Instance.Logger.Warn($"{tracker.Name} Init Failed");
                 tracker.FallbackPatchApproach = PatchApproach.None;
                 return false;
             }
@@ -125,7 +125,7 @@ namespace StrmAssistant.Mod
                     if (Plugin.Instance.DebugMode)
                     {
                         Plugin.Instance.Logger.Debug(
-                            $"{nameof(ReversePatch)} {(targetMethod.DeclaringType != null ? targetMethod.DeclaringType.Name + "." : string.Empty)}{targetMethod.Name} for {tracker.PatchType.Name} Success");
+                            $"{nameof(ReversePatch)} {(targetMethod.DeclaringType != null ? targetMethod.DeclaringType.Name + "." : string.Empty)}{targetMethod.Name} for {tracker.Name} Success");
                     }
 
                     return true;
@@ -135,14 +135,14 @@ namespace StrmAssistant.Mod
                     if (Plugin.Instance.DebugMode)
                     {
                         Plugin.Instance.Logger.Debug(
-                            $"{nameof(ReversePatch)} {targetMethod.Name} for {tracker.PatchType.Name} Failed");
+                            $"{nameof(ReversePatch)} {targetMethod.Name} for {tracker.Name} Failed");
                         Plugin.Instance.Logger.Debug(he.Message);
                         Plugin.Instance.Logger.Debug(he.StackTrace);
                     }
 
                     tracker.FallbackPatchApproach = PatchApproach.Reflection;
 
-                    Plugin.Instance.Logger.Warn($"{tracker.PatchType.Name} Init Failed");
+                    Plugin.Instance.Logger.Warn($"{tracker.Name} Init Failed");
                 }
             }
 
@@ -156,7 +156,7 @@ namespace StrmAssistant.Mod
 
             if (targetMethod is null)
             {
-                Plugin.Instance.Logger.Warn($"{tracker.PatchType.Name} Init Failed");
+                Plugin.Instance.Logger.Warn($"{tracker.Name} Init Failed");
                 tracker.FallbackPatchApproach = PatchApproach.None;
                 return false;
             }
@@ -192,7 +192,7 @@ namespace StrmAssistant.Mod
                     if (Plugin.Instance.DebugMode)
                     {
                         Plugin.Instance.Logger.Debug(
-                            $"{action} {(targetMethod.DeclaringType != null ? targetMethod.DeclaringType.Name + "." : string.Empty)}{targetMethod.Name} for {tracker.PatchType.Name} Success");
+                            $"{action} {(targetMethod.DeclaringType != null ? targetMethod.DeclaringType.Name + "." : string.Empty)}{targetMethod.Name} for {tracker.Name} Success");
                     }
                 }
 
@@ -202,7 +202,7 @@ namespace StrmAssistant.Mod
             {
                 if (Plugin.Instance.DebugMode)
                 {
-                    Plugin.Instance.Logger.Debug($"{action} {targetMethod.Name} for {tracker.PatchType.Name} Failed");
+                    Plugin.Instance.Logger.Debug($"{action} {targetMethod.Name} for {tracker.Name} Failed");
                     Plugin.Instance.Logger.Debug(he.Message);
                     Plugin.Instance.Logger.Debug(he.StackTrace);
                 }

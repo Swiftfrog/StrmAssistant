@@ -55,7 +55,7 @@ namespace StrmAssistant.Mod.Metadata
 
         protected override void OnInitialize()
         {
-            if (_movieDbAssembly is null)
+            if (!IsSupported)
             {
                 PatchTracker.FallbackPatchApproach = PatchApproach.None;
                 PatchTracker.IsSupported = false;

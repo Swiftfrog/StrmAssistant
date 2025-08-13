@@ -1,10 +1,11 @@
-﻿using MediaBrowser.Controller.Providers;
+﻿using Emby.LocalMetadata.Images;
+using HarmonyLib;
+using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.IO;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using static StrmAssistant.Mod.PatchManager;
 
 namespace StrmAssistant.Reflection
 {
@@ -21,20 +22,16 @@ namespace StrmAssistant.Reflection
 
         protected override void OnInitialize()
         {
-            var embyLocalMetadata = GetAssemblyByName("Emby.LocalMetadata");
-
-            var localImageProvider = embyLocalMetadata.GetType("Emby.LocalMetadata.Images.LocalImageProvider");
-            _addLocalImage = localImageProvider.GetMethod("AddImage", BindingFlags.Instance | BindingFlags.NonPublic,
+            _addLocalImage = AccessTools.Method(typeof(LocalImageProvider), "AddImage",
                 new[]
                 {
                     typeof(FileSystemMetadata[]), typeof(List<LocalImageInfo>), typeof(string), typeof(ImageType)
                 });
-            _getLocalFiles = localImageProvider.GetMethods(BindingFlags.Instance | BindingFlags.NonPublic)
+            _getLocalFiles = AccessTools.GetDeclaredMethods(typeof(LocalImageProvider))
                 .Where(m => m.Name == "GetFiles")
                 .OrderByDescending(m => m.GetParameters().Length)
                 .FirstOrDefault();
-            _populateSeasonImagesFromSeasonOrSeriesFolder = localImageProvider
-                ?.GetMethods(BindingFlags.Instance | BindingFlags.NonPublic)
+            _populateSeasonImagesFromSeasonOrSeriesFolder = AccessTools.GetDeclaredMethods(typeof(LocalImageProvider))
                 .FirstOrDefault(m => m.Name.StartsWith("PopulateSeasonImagesFrom"));
         }
     }

@@ -409,9 +409,9 @@ namespace StrmAssistant
 
         public sealed override string Name => "Strm Assistant";
 
-        public string CurrentVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString();
+        public Version CurrentVersion = Assembly.GetExecutingAssembly().GetName().Version;
 
-        public string UserAgent => $"{Name}/{CurrentVersion}";
+        public string UserAgent => $"{Name}/{CurrentVersion.ToString()}";
 
         public CultureInfo DefaultUICulture =>
             new CultureInfo(MainOptionsStore.GetOptions().AboutOptions.DefaultUICulture);

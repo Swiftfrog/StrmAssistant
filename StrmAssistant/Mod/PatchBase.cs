@@ -35,7 +35,7 @@ namespace StrmAssistant.Mod
                     Plugin.Instance.Logger.Debug(e.StackTrace);
                 }
 
-                Plugin.Instance.Logger.Warn($"{PatchTracker.PatchType.Name} Init Failed");
+                Plugin.Instance.Logger.Warn($"{PatchTracker.Name} Init Failed");
                 PatchTracker.FallbackPatchApproach = PatchApproach.None;
             }
 
@@ -44,9 +44,7 @@ namespace StrmAssistant.Mod
             if (HarmonyMod is null) PatchTracker.FallbackPatchApproach = PatchApproach.Reflection;
         }
 
-        protected virtual void OnInitialize()
-        {
-        }
+        protected virtual void OnInitialize() { }
 
         protected abstract void Prepare(bool apply);
 

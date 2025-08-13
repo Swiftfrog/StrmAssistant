@@ -9,8 +9,6 @@ using StrmAssistant.Properties;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Linq;
-using System.Runtime.InteropServices;
 using static StrmAssistant.Common.CommonUtility;
 
 namespace StrmAssistant.Options
@@ -30,7 +28,7 @@ namespace StrmAssistant.Options
 
         [DisplayNameL("ModOptions_ChineseMovieDb_Chinese_MovieDb", typeof(Resources))]
         [DescriptionL("ModOptions_ChineseMovieDb_Optimize_MovieDb_for_Chinese_metadata__Default_is_OFF_", typeof(Resources))]
-        [EnabledCondition(nameof(IsMovieDbPluginLoaded), SimpleCondition.IsTrue)]
+        [EnabledCondition(nameof(IsMovieDbPluginSupported), SimpleCondition.IsTrue)]
         [Required]
         public bool ChineseMovieDb { get; set; } = false;
 
@@ -42,12 +40,12 @@ namespace StrmAssistant.Options
         [EditMultilSelect]
         [SelectItemsSource(nameof(LanguageList))]
         [VisibleCondition(nameof(ChineseMovieDb), SimpleCondition.IsTrue)]
-        [EnabledCondition(nameof(IsMovieDbPluginLoaded), SimpleCondition.IsTrue)]
+        [EnabledCondition(nameof(IsMovieDbPluginSupported), SimpleCondition.IsTrue)]
         public string FallbackLanguages { get; set; } = "zh-sg";
 
         [DisplayNameL("MetadataEnhanceOptions_ChineseTvdb_Customize_Tvdb_Fallback_Language", typeof(Resources))]
         [DescriptionL("MetadataEnhanceOptions_ChineseTvdb_Try_to_get_Chinese_or_Japanese_metadata_from_Tvdb__Default_is_OFF_", typeof(Resources))]
-        [EnabledCondition(nameof(IsTvdbPluginLoaded), SimpleCondition.IsTrue)]
+        [EnabledCondition(nameof(IsTvdbPluginSupported), SimpleCondition.IsTrue)]
         [Required]
         public bool ChineseTvdb { get; set; } = false;
         
@@ -59,7 +57,7 @@ namespace StrmAssistant.Options
         [EditMultilSelect]
         [SelectItemsSource(nameof(TvdbLanguageList))]
         [VisibleCondition(nameof(ChineseTvdb), SimpleCondition.IsTrue)]
-        [EnabledCondition(nameof(IsTvdbPluginLoaded), SimpleCondition.IsTrue)]
+        [EnabledCondition(nameof(IsTvdbPluginSupported), SimpleCondition.IsTrue)]
         public string TvdbFallbackLanguages { get; set; } = "zhtw,yue";
 
         [DisplayNameL("MetadataEnhanceOptions_BlockNonFallbackLanguage_Block_Non_Fallback_Language", typeof(Resources))]
@@ -70,23 +68,23 @@ namespace StrmAssistant.Options
 
         [Browsable(false)]
         public bool ShowBlockNonFallbackLanguage =>
-            ChineseMovieDb && IsMovieDbPluginLoaded || ChineseTvdb && IsTvdbPluginLoaded;
+            ChineseMovieDb && IsMovieDbPluginSupported || ChineseTvdb && IsTvdbPluginSupported;
 
         [DisplayNameL("MetadataEnhanceOptions_MovieDbEpisodeGroup_Support_MovieDb_Episode_Group", typeof(Resources))]
         [DescriptionL("MetadataEnhanceOptions_MovieDbEpisodeGroup_Support_MovieDb_episode_group_scrapping_for_TV_shows__Default_is_OFF_", typeof(Resources))]
-        [EnabledCondition(nameof(IsMovieDbPluginLoaded), SimpleCondition.IsTrue)]
+        [EnabledCondition(nameof(IsMovieDbPluginSupported), SimpleCondition.IsTrue)]
         [Required]
         public bool MovieDbEpisodeGroup { get; set; } = false;
 
         [DisplayNameL("MetadataEnhanceOptions_LocalEpisodeGroup_Local_Episode_Group", typeof(Resources))]
         [DescriptionL("MetadataEnhanceOptions_LocalEpisodeGroup_Store_or_load_episode_group_info_to_from_JSON_file__Default_is_OFF_", typeof(Resources))]
         [VisibleCondition(nameof(MovieDbEpisodeGroup), SimpleCondition.IsTrue)]
-        [EnabledCondition(nameof(IsMovieDbPluginLoaded), SimpleCondition.IsTrue)]
+        [EnabledCondition(nameof(IsMovieDbPluginSupported), SimpleCondition.IsTrue)]
         public bool LocalEpisodeGroup { get; set; } = false;
 
         [DisplayNameL("MetadataEnhanceOptions_EnhanceMovieDbPerson_Enhance_MovieDb_Person", typeof(Resources))]
         [DescriptionL("MetadataEnhanceOptions_EnhanceMovieDbPerson_Import_season_cast_and_update_series_people__Default_is_OFF_", typeof(Resources))]
-        [EnabledCondition(nameof(IsMovieDbPluginLoaded), SimpleCondition.IsTrue)]
+        [EnabledCondition(nameof(IsMovieDbPluginSupported), SimpleCondition.IsTrue)]
         [Required]
         public bool EnhanceMovieDbPerson { get; set; } = false;
         
@@ -97,7 +95,7 @@ namespace StrmAssistant.Options
         [DisplayNameL("ModOptions_OriginalPoster_Original_Poster", typeof(Resources))]
         [DescriptionL("ModOptions_OriginalPoster_Show_original_poster_based_on_original_language__Default_is_OFF_", typeof(Resources))]
         [Required]
-        [EnabledCondition(nameof(IsModSupported), SimpleCondition.IsTrue)]
+        [EnabledCondition(nameof(IsOriginalPosterSupported), SimpleCondition.IsTrue)]
         public bool PreferOriginalPoster { get; set; } = false;
 
         [DisplayNameL("ModOptions_PinyinSortName_Pinyin_Sort_Title", typeof(Resources))]
@@ -107,7 +105,7 @@ namespace StrmAssistant.Options
 
         [DisplayNameL("MetadataEnhanceOptions_EnhanceNfoMetadata_Nfo_Metadata_Import_Enhanced", typeof(Resources))]
         [DescriptionL("MetadataEnhanceOptions_EnhanceNfoMetadata_Add_support_to_import_actor_image_url__Default_is_OFF_", typeof(Resources))]
-        [EnabledCondition(nameof(IsNfoMetadataPluginLoaded), SimpleCondition.IsTrue)]
+        [EnabledCondition(nameof(IsNfoMetadataPluginSupported), SimpleCondition.IsTrue)]
         [Required]
         public bool EnhanceNfoMetadata { get; set; } = false;
         
@@ -141,42 +139,43 @@ namespace StrmAssistant.Options
         public int EpisodeRefreshLookbackDays { get; set; } = 365;
 
         [DisplayNameL("MetadataEnhanceOptions_EnableAltMovieDbUrl", typeof(Resources))]
-        [EnabledCondition(nameof(IsMovieDbPluginLoaded), SimpleCondition.IsTrue)]
+        [EnabledCondition(nameof(IsMovieDbPluginSupported), SimpleCondition.IsTrue)]
         [Required]
         public bool AltMovieDbConfig { get; set; } = false;
 
         [DisplayNameL("MetadataEnhanceOptions_AltMovieDbApiUrl_Alternative_MovieDb_Api_Url", typeof(Resources))]
         [DescriptionL("MetadataEnhanceOptions_AltMovieDbApiUrl_Default_alternative_is_https___api_tmdb_org", typeof(Resources))]
         [VisibleCondition(nameof(AltMovieDbConfig), SimpleCondition.IsTrue)]
-        [EnabledCondition(nameof(IsMovieDbPluginLoaded), SimpleCondition.IsTrue)]
+        [EnabledCondition(nameof(IsMovieDbPluginSupported), SimpleCondition.IsTrue)]
         public string AltMovieDbApiUrl { get; set; } = "https://api.tmdb.org";
 
         [DisplayNameL("MetadataEnhanceOptions_AltMovieDbImageUrl_Alternative_MovieDb_Image_Url", typeof(Resources))]
         [DescriptionL("MetadataEnhanceOptions_AltMovieDbImageUrl_No_default_alternative__Provide_by_yourself_", typeof(Resources))]
         [VisibleCondition(nameof(AltMovieDbConfig), SimpleCondition.IsTrue)]
-        [EnabledCondition(nameof(IsMovieDbPluginLoaded), SimpleCondition.IsTrue)]
+        [EnabledCondition(nameof(IsMovieDbPluginSupported), SimpleCondition.IsTrue)]
         public string AltMovieDbImageUrl { get; set; } = string.Empty;
 
         [DisplayNameL("MetadataEnhanceOptions_AltMovieDbApiKey_Alternative_MovieDb_Api_Key", typeof(Resources))]
         [DescriptionL("MetadataEnhanceOptions_AltMovieDbApiKey_Provide_your_own_MovieDb_Api_Key__Blank_uses_system_default_", typeof(Resources))]
         [VisibleCondition(nameof(AltMovieDbConfig), SimpleCondition.IsTrue)]
-        [EnabledCondition(nameof(IsMovieDbPluginLoaded), SimpleCondition.IsTrue)]
+        [EnabledCondition(nameof(IsMovieDbPluginSupported), SimpleCondition.IsTrue)]
         public string AltMovieDbApiKey { get; set; } = string.Empty;
 
         [Browsable(false)]
-        public bool IsMovieDbPluginLoaded =>
-            AppDomain.CurrentDomain.GetAssemblies().Any(a => a.GetName().Name == "MovieDb") && IsModSupported;
+        public bool IsMovieDbPluginSupported => Reflection.MovieDb.IsSupported && IsModSupported;
 
         [Browsable(false)]
-        public bool IsTvdbPluginLoaded =>
-            AppDomain.CurrentDomain.GetAssemblies().Any(a => a.GetName().Name == "Tvdb") && IsModSupported;
+        public bool IsTvdbPluginSupported => Reflection.Tvdb.IsSupported && IsModSupported;
 
         [Browsable(false)]
-        public bool IsNfoMetadataPluginLoaded =>
-            AppDomain.CurrentDomain.GetAssemblies().Any(a => a.GetName().Name == "NfoMetadata") && IsModSupported;
+        public bool IsOriginalPosterSupported =>
+            (Reflection.MovieDb.IsSupported || Reflection.Tvdb.IsSupported) && IsModSupported;
 
         [Browsable(false)]
-        public bool IsModSupported => RuntimeInformation.ProcessArchitecture == Architecture.X64;
+        public bool IsNfoMetadataPluginSupported => Reflection.NfoMetadata.IsSupported && IsModSupported;
+
+        [Browsable(false)]
+        public bool IsModSupported => Plugin.Instance.IsModSupported;
 
         public void Initialize()
         {

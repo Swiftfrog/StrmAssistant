@@ -1,6 +1,7 @@
 ﻿using Emby.Naming.Common;
+using Emby.Naming.Video;
+using HarmonyLib;
 using System.Reflection;
-using static StrmAssistant.Mod.PatchManager;
 
 namespace StrmAssistant.Reflection
 {
@@ -16,13 +17,8 @@ namespace StrmAssistant.Reflection
 
         protected override void OnInitialize()
         {
-            var namingAssembly = GetAssemblyByName("Emby.Naming");
-
-            _getMainExpression =
-                typeof(NamingOptions).GetMethod("GetMainExpression", BindingFlags.NonPublic | BindingFlags.Static);
-            var videoListResolverType = namingAssembly.GetType("Emby.Naming.Video.VideoListResolver");
-            _isEligibleForMultiVersion = videoListResolverType.GetMethod("IsEligibleForMultiVersion",
-                BindingFlags.Static | BindingFlags.NonPublic);
+            _getMainExpression = AccessTools.Method(typeof(NamingOptions), "GetMainExpression");
+            _isEligibleForMultiVersion = AccessTools.Method(typeof(VideoListResolver), "IsEligibleForMultiVersion");
         }
     }
 }

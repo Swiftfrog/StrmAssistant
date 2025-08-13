@@ -1,12 +1,17 @@
-﻿using MediaBrowser.Controller.Dto;
+﻿using Emby.Server.Implementations;
+using Emby.Server.Implementations.Collections;
+using Emby.Server.Implementations.Data;
+using Emby.Server.Implementations.Dto;
+using Emby.Server.Implementations.Library;
+using Emby.Server.Implementations.Updates;
+using HarmonyLib;
+using MediaBrowser.Controller.Dto;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Entities;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using static StrmAssistant.Mod.PatchManager;
-using static StrmAssistant.Options.Utility;
 
 namespace StrmAssistant.Reflection
 {
@@ -25,7 +30,6 @@ namespace StrmAssistant.Reflection
         internal static MethodInfo _cacheIdsFromTextParams;
         internal static MethodInfo _saveChapters;
         internal static MethodInfo _deleteChapters;
-        internal static MethodInfo _clearItemExtradata;
         internal static MethodInfo _ensureLibraryFolder;
         internal static MethodInfo _getAvailablePluginUpdates;
 
@@ -36,63 +40,36 @@ namespace StrmAssistant.Reflection
 
         protected override void OnInitialize()
         {
-            var embyServerImplAssembly = GetAssemblyByName("Emby.Server.Implementations");
-            
-            var applicationHost = embyServerImplAssembly.GetType("Emby.Server.Implementations.ApplicationHost");
-            _createHttpClientHandler = applicationHost.GetMethod("CreateHttpClientHandler",
-                BindingFlags.NonPublic | BindingFlags.Instance);
-
-            var dtoService =
-                embyServerImplAssembly.GetType("Emby.Server.Implementations.Dto.DtoService");
-            _getBaseItemDtos = dtoService.GetMethods(BindingFlags.Public | BindingFlags.Instance)
-                .Where(m => m.Name == "GetBaseItemDtos").OrderByDescending(m => m.GetParameters().Length)
+            _createHttpClientHandler = AccessTools.Method(typeof(ApplicationHost), "CreateHttpClientHandler");
+            _getBaseItemDtos = AccessTools.GetDeclaredMethods(typeof(DtoService))
+                .Where(m => m.Name == "GetBaseItemDtos")
+                .OrderByDescending(m => m.GetParameters().Length)
                 .FirstOrDefault();
-            _getBaseItemDto = dtoService.GetMethod("GetBaseItemDto", BindingFlags.Public | BindingFlags.Instance,
-                null, new[] { typeof(BaseItem), typeof(DtoOptions), typeof(User) }, null);
-            _attachPeople =
-                dtoService.GetMethod("AttachPeople", BindingFlags.NonPublic | BindingFlags.Instance);
+            _getBaseItemDto = AccessTools.Method(typeof(DtoService), "GetBaseItemDto",
+                new[] { typeof(BaseItem), typeof(DtoOptions), typeof(User) });
+            _attachPeople = AccessTools.Method(typeof(DtoService), "AttachPeople");
 
-            var userViewManager =
-                embyServerImplAssembly.GetType("Emby.Server.Implementations.Library.UserViewManager");
-            _getUserViews = userViewManager.GetMethods(BindingFlags.Instance | BindingFlags.Public)
+            _getUserViews = AccessTools.GetDeclaredMethods(typeof(UserViewManager))
                 .Where(m => m.Name == "GetUserViews")
                 .OrderByDescending(m => m.GetParameters().Length)
                 .FirstOrDefault();
 
-            var libraryManager = embyServerImplAssembly.GetType("Emby.Server.Implementations.Library.LibraryManager");
-            _deleteItem = libraryManager.GetMethod("DeleteItem",
-                BindingFlags.Instance | BindingFlags.Public, null,
-                new[] { typeof(BaseItem), typeof(DeleteOptions), typeof(BaseItem), typeof(bool) }, null);
+            _deleteItem = AccessTools.Method(typeof(LibraryManager), "DeleteItem",
+                new[] { typeof(BaseItem), typeof(DeleteOptions), typeof(BaseItem), typeof(bool) });
 
-            var sqliteItemRepository =
-                embyServerImplAssembly.GetType("Emby.Server.Implementations.Data.SqliteItemRepository");
-            _enableJoinFtsSearch =
-                sqliteItemRepository.GetMethod("EnableJoinFtsSearch", BindingFlags.Static | BindingFlags.NonPublic);
-            _getJoinCommandText = sqliteItemRepository.GetMethod("GetJoinCommandText",
-                BindingFlags.NonPublic | BindingFlags.Instance);
-            _createSearchTerm =
-                sqliteItemRepository.GetMethod("CreateSearchTerm", BindingFlags.NonPublic | BindingFlags.Static);
-            _cacheIdsFromTextParams = sqliteItemRepository.GetMethod("CacheIdsFromTextParams",
-                BindingFlags.Instance | BindingFlags.NonPublic);
-            _saveChapters = sqliteItemRepository.GetMethod("SaveChapters",
-                BindingFlags.Instance | BindingFlags.Public, null,
-                new[] { typeof(long), typeof(bool), typeof(List<ChapterInfo>) }, null);
-            _deleteChapters =
-                sqliteItemRepository.GetMethod("DeleteChapters", BindingFlags.Instance | BindingFlags.Public);
-            _clearItemExtradata = sqliteItemRepository.GetMethod("ClearItemExtradata",
-                BindingFlags.Public | BindingFlags.Instance, null, new[] { typeof(long), typeof(long) }, null);
-            _logThumbnailImageExtractionFailure = sqliteItemRepository.GetMethod("LogThumbnailImageExtractionFailure",
-                BindingFlags.Public | BindingFlags.Instance);
+            _enableJoinFtsSearch = AccessTools.Method(typeof(SqliteItemRepository), "EnableJoinFtsSearch");
+            _getJoinCommandText = AccessTools.Method(typeof(SqliteItemRepository), "GetJoinCommandText");
+            _createSearchTerm = AccessTools.Method(typeof(SqliteItemRepository), "CreateSearchTerm");
+            _cacheIdsFromTextParams = AccessTools.Method(typeof(SqliteItemRepository), "CacheIdsFromTextParams");
+            _saveChapters = AccessTools.Method(typeof(SqliteItemRepository), "SaveChapters",
+                new[] { typeof(long), typeof(bool), typeof(List<ChapterInfo>) });
+            _deleteChapters = AccessTools.Method(typeof(SqliteItemRepository), "DeleteChapters");
+            _logThumbnailImageExtractionFailure =
+                AccessTools.Method(typeof(SqliteItemRepository), "LogThumbnailImageExtractionFailure");
 
-            var collectionManager =
-                embyServerImplAssembly.GetType(
-                    "Emby.Server.Implementations.Collections.CollectionManager");
-            _ensureLibraryFolder = collectionManager.GetMethod("EnsureLibraryFolder",
-                BindingFlags.Instance | BindingFlags.NonPublic);
+            _ensureLibraryFolder = AccessTools.Method(typeof(CollectionManager), "EnsureLibraryFolder");
 
-            var installationManager =
-                embyServerImplAssembly.GetType("Emby.Server.Implementations.Updates.InstallationManager");
-            _getAvailablePluginUpdates = installationManager.GetMethods(BindingFlags.Instance | BindingFlags.Public)
+            _getAvailablePluginUpdates = AccessTools.GetDeclaredMethods(typeof(InstallationManager))
                 .Where(m => m.Name == "GetAvailablePluginUpdates")
                 .OrderByDescending(m => m.GetParameters().Length)
                 .FirstOrDefault();

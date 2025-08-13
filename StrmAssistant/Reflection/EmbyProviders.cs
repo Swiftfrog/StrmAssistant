@@ -1,13 +1,14 @@
-﻿using MediaBrowser.Common.Configuration;
+﻿using Emby.Providers.Manager;
+using Emby.Providers.Markers;
+using Emby.Providers.MediaInfo;
+using HarmonyLib;
+using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.TV;
-using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.MediaEncoding;
-using MediaBrowser.Controller.Persistence;
 using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Configuration;
-using MediaBrowser.Model.Globalization;
 using MediaBrowser.Model.IO;
 using MediaBrowser.Model.Logging;
 using MediaBrowser.Model.Providers;
@@ -15,7 +16,6 @@ using MediaBrowser.Model.Serialization;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
-using static StrmAssistant.Mod.PatchManager;
 
 namespace StrmAssistant.Reflection
 {
@@ -44,10 +44,7 @@ namespace StrmAssistant.Reflection
         internal static MethodInfo _updateSequencesForSeason;
         internal static MethodInfo _getExternalSubtitleStreams;
         internal static MethodInfo _updateExternalSubtitleStream;
-        internal static ConstructorInfo _thumbnailGeneratorConstructor;
         internal static ConstructorInfo _audioFingerprintManagerConstructor;
-        internal static ConstructorInfo _subtitleResolverConstructor;
-        internal static ConstructorInfo _ffProbeSubtitleInfoConstructor;
 
         static EmbyProviders()
         {
@@ -56,102 +53,56 @@ namespace StrmAssistant.Reflection
 
         protected override void OnInitialize()
         {
-            var embyProviders = GetAssemblyByName("Emby.Providers");
-
-            var providerManager = embyProviders.GetType("Emby.Providers.Manager.ProviderManager");
-            _saveImageFromRemoteUrl = providerManager.GetMethod("SaveImageFromRemoteUrl",
-                BindingFlags.NonPublic | BindingFlags.Instance);
-            _canRefreshMetadata = providerManager.GetMethod("CanRefresh", BindingFlags.Static | BindingFlags.NonPublic);
-            _getEnabledMetadataProviders = providerManager.GetMethod("GetEnabledMetadataProviders",
-                BindingFlags.Instance | BindingFlags.Public);
-            _canRefreshImage = providerManager.GetMethod("CanRefresh", BindingFlags.Instance | BindingFlags.NonPublic);
-            _isSaverEnabledForItem =
-                providerManager.GetMethod("IsSaverEnabledForItem", BindingFlags.Instance | BindingFlags.NonPublic);
-            _getAvailableRemoteImages = providerManager.GetMethod("GetAvailableRemoteImages",
-                BindingFlags.Instance | BindingFlags.Public, null,
+            _saveImageFromRemoteUrl = AccessTools.Method(typeof(ProviderManager), "SaveImageFromRemoteUrl");
+            _canRefreshMetadata = AccessTools.GetDeclaredMethods(typeof(ProviderManager))
+                .FirstOrDefault(m => m.Name == "CanRefresh" && m.IsStatic);
+            _getEnabledMetadataProviders = AccessTools.Method(typeof(ProviderManager), "GetEnabledMetadataProviders");
+            _canRefreshImage = AccessTools.GetDeclaredMethods(typeof(ProviderManager))
+                .FirstOrDefault(m => m.Name == "CanRefresh" && !m.IsStatic);
+            _isSaverEnabledForItem = AccessTools.Method(typeof(ProviderManager), "IsSaverEnabledForItem");
+            _getAvailableRemoteImages = AccessTools.Method(typeof(ProviderManager), "GetAvailableRemoteImages",
                 new[]
                 {
                     typeof(BaseItem), typeof(LibraryOptions), typeof(RemoteImageQuery), typeof(IDirectoryService),
                     typeof(CancellationToken)
-                }, null);
-
-            var itemImageProvider = embyProviders.GetType("Emby.Providers.Manager.ItemImageProvider");
-            _clearImages = itemImageProvider.GetMethod("ClearImages", BindingFlags.Instance | BindingFlags.NonPublic);
-
-            var videoImageProvider = embyProviders.GetType("Emby.Providers.MediaInfo.VideoImageProvider");
-            _supportsVideoImageCapture =
-                videoImageProvider.GetMethod("Supports", BindingFlags.Instance | BindingFlags.Public);
-            _getThumbnailPositionTicks = videoImageProvider.GetMethod("GetThumbnailPositionTicks",
-                BindingFlags.Instance | BindingFlags.NonPublic);
-            _getImage = videoImageProvider.GetMethods(BindingFlags.Public | BindingFlags.Instance)
+                });
+            _clearImages = AccessTools.Method(typeof(ItemImageProvider), "ClearImages");
+            _supportsVideoImageCapture = AccessTools.Method(typeof(VideoImageProvider), "Supports");
+            _getThumbnailPositionTicks = AccessTools.Method(typeof(VideoImageProvider), "GetThumbnailPositionTicks");
+            _getImage = AccessTools.GetDeclaredMethods(typeof(VideoImageProvider))
                 .Where(m => m.Name == "GetImage")
                 .OrderByDescending(m => m.GetParameters().Length)
                 .FirstOrDefault();
-
-            var audioImageProvider = embyProviders.GetType("Emby.Providers.MediaInfo.AudioImageProvider");
-            _supportsAudioEmbeddedImages =
-                audioImageProvider.GetMethod("Supports", BindingFlags.Instance | BindingFlags.Public);
-
-            var fFProbeProvider = embyProviders.GetType("Emby.Providers.MediaInfo.FFProbeProvider");
-            _isProbingAllowed =
-                fFProbeProvider.GetMethod("IsProbingAllowed", BindingFlags.Static | BindingFlags.NonPublic);
-
-            var thumbnailGenerator = embyProviders.GetType("Emby.Providers.MediaInfo.ThumbnailGenerator");
-            _refreshThumbnailImages = thumbnailGenerator.GetMethod("RefreshThumbnailImages",
-                BindingFlags.Public | BindingFlags.Instance);
-            _thumbnailGeneratorConstructor = thumbnailGenerator.GetConstructor(
-                BindingFlags.Public | BindingFlags.Instance, null,
-                new[]
-                {
-                    typeof(IFileSystem), typeof(ILogger), typeof(IImageExtractionManager), typeof(IItemRepository),
-                    typeof(IMediaMountManager), typeof(IServerApplicationPaths), typeof(ILibraryMonitor),
-                    typeof(IFfmpegManager)
-                }, null);
-
-            var audioFingerprintManager = embyProviders.GetType("Emby.Providers.Markers.AudioFingerprintManager");
-            _onFailedToFindIntro = audioFingerprintManager.GetMethod("OnFailedToFindIntro",
-                BindingFlags.NonPublic | BindingFlags.Static);
-            _isIntroDetectionSupported = audioFingerprintManager.GetMethod("IsIntroDetectionSupported",
-                BindingFlags.Public | BindingFlags.Instance);
-            _audioFingerprintManagerConstructor = audioFingerprintManager.GetConstructor(
-                BindingFlags.Public | BindingFlags.Instance, null,
+            _supportsAudioEmbeddedImages = AccessTools.Method(typeof(AudioImageProvider), "Supports");
+            _isProbingAllowed = AccessTools.Method(typeof(FFProbeProvider), "IsProbingAllowed");
+            _refreshThumbnailImages = AccessTools.Method(typeof(ThumbnailGenerator), "RefreshThumbnailImages");
+            _onFailedToFindIntro = AccessTools.Method(typeof(AudioFingerprintManager), "OnFailedToFindIntro");
+            _isIntroDetectionSupported =
+                AccessTools.Method(typeof(AudioFingerprintManager), "IsIntroDetectionSupported");
+            _audioFingerprintManagerConstructor = AccessTools.Constructor(typeof(AudioFingerprintManager),
                 new[]
                 {
                     typeof(IFileSystem), typeof(ILogger), typeof(IApplicationPaths), typeof(IFfmpegManager),
                     typeof(IMediaEncoder), typeof(IMediaMountManager), typeof(IJsonSerializer),
                     typeof(IServerApplicationHost)
-                }, null);
-            _createTitleFingerprint = audioFingerprintManager.GetMethod("CreateTitleFingerprint",
-                BindingFlags.Public | BindingFlags.Instance, null,
-                new[] { typeof(Episode), typeof(LibraryOptions), typeof(IDirectoryService), typeof(CancellationToken) },
-                null);
-            _getTitleFingerprintFileName = audioFingerprintManager.GetMethod("GetTitleFingerprintFileName",
-                BindingFlags.NonPublic | BindingFlags.Static);
-            _getAllFingerprintFilesForSeason = audioFingerprintManager.GetMethod("GetAllFingerprintFilesForSeason",
-                BindingFlags.Public | BindingFlags.Instance);
-            _updateSequencesForSeason = audioFingerprintManager.GetMethod("UpdateSequencesForSeason",
-                BindingFlags.Public | BindingFlags.Instance);
-
-            var markerScheduledTask = embyProviders.GetType("Emby.Providers.Markers.MarkerScheduledTask");
-            _createQueryForEpisodeIntroDetection = markerScheduledTask.GetMethod("CreateQueryForEpisodeIntroDetection",
-                BindingFlags.Public | BindingFlags.Static);
-            var sequenceDetection = embyProviders.GetType("Emby.Providers.Markers.SequenceDetection");
-            _detectSequences = sequenceDetection.GetMethods(BindingFlags.Static | BindingFlags.Public)
+                });
+            _createTitleFingerprint = AccessTools.Method(typeof(AudioFingerprintManager), "CreateTitleFingerprint",
+                new[]
+                {
+                    typeof(Episode), typeof(LibraryOptions), typeof(IDirectoryService), typeof(CancellationToken)
+                });
+            _getTitleFingerprintFileName =
+                AccessTools.Method(typeof(AudioFingerprintManager), "GetTitleFingerprintFileName");
+            _getAllFingerprintFilesForSeason =
+                AccessTools.Method(typeof(AudioFingerprintManager), "GetAllFingerprintFilesForSeason");
+            _updateSequencesForSeason = AccessTools.Method(typeof(AudioFingerprintManager), "UpdateSequencesForSeason");
+            _createQueryForEpisodeIntroDetection =
+                AccessTools.Method(typeof(MarkerScheduledTask), "CreateQueryForEpisodeIntroDetection");
+            _detectSequences = AccessTools.GetDeclaredMethods(typeof(SequenceDetection))
                 .FirstOrDefault(m => m.Name == "DetectSequences" && m.GetParameters().Length == 8);
-
-            var subtitleResolverType = embyProviders.GetType("Emby.Providers.MediaInfo.SubtitleResolver");
-            _subtitleResolverConstructor = subtitleResolverType.GetConstructor(new[]
-            {
-                typeof(ILocalizationManager), typeof(IFileSystem), typeof(ILibraryManager)
-            });
-            _getExternalSubtitleStreams = subtitleResolverType.GetMethod("GetExternalSubtitleStreams");
-
-            var ffProbeSubtitleInfoType = embyProviders.GetType("Emby.Providers.MediaInfo.FFProbeSubtitleInfo");
-            _ffProbeSubtitleInfoConstructor = ffProbeSubtitleInfoType.GetConstructor(new[]
-            {
-                typeof(IMediaProbeManager)
-            });
-            _updateExternalSubtitleStream = ffProbeSubtitleInfoType.GetMethod("UpdateExternalSubtitleStream");
+            _getExternalSubtitleStreams = AccessTools.Method(typeof(SubtitleResolver), "GetExternalSubtitleStreams");
+            _updateExternalSubtitleStream =
+                AccessTools.Method(typeof(FFProbeSubtitleInfo), "UpdateExternalSubtitleStream");
         }
     }
 }

@@ -31,6 +31,8 @@ namespace StrmAssistant.Mod.Metadata
             CheckCharacters = false
         };
 
+        private static readonly object _lock = new object();
+
         public EnhanceNfoMetadata()
         {
             Initialize();
@@ -43,7 +45,7 @@ namespace StrmAssistant.Mod.Metadata
 
         protected override void OnInitialize()
         {
-            if (_nfoMetadataAssembly is null)
+            if (!IsSupported)
             {
                 PatchTracker.FallbackPatchApproach = PatchApproach.None;
                 PatchTracker.IsSupported = false;
@@ -63,15 +65,17 @@ namespace StrmAssistant.Mod.Metadata
         }
 
         [HarmonyPrefix]
-        private static bool GenericBaseNfoParserConstructorPrefix(object __instance)
+        private static void GenericBaseNfoParserConstructorPrefix()
         {
-            PatchUnpatch(Instance.PatchTracker, false, _getPersonFromXmlNode,
-                prefix: nameof(GetPersonFromXmlNodePrefix), postfix: nameof(GetPersonFromXmlNodePostfix),
-                suppress: true);
-            PatchUnpatch(Instance.PatchTracker, true, _getPersonFromXmlNode, prefix: nameof(GetPersonFromXmlNodePrefix),
-                postfix: nameof(GetPersonFromXmlNodePostfix), suppress: true);
-
-            return true;
+            lock (_lock)
+            {
+                PatchUnpatch(Instance.PatchTracker, false, _getPersonFromXmlNode,
+                    prefix: nameof(GetPersonFromXmlNodePrefix), postfix: nameof(GetPersonFromXmlNodePostfix),
+                    suppress: true);
+                PatchUnpatch(Instance.PatchTracker, true, _getPersonFromXmlNode,
+                    prefix: nameof(GetPersonFromXmlNodePrefix), postfix: nameof(GetPersonFromXmlNodePostfix),
+                    suppress: true);
+            }
         }
 
         [HarmonyPrefix]
@@ -128,23 +132,22 @@ namespace StrmAssistant.Mod.Metadata
 
                 if (personContent != null)
                 {
-                    using (var reader = XmlReader.Create(new StringReader(personContent), ReaderSettings))
+                    using var reader = XmlReader.Create(new StringReader(personContent), ReaderSettings);
+
+                    while (await reader.ReadAsync().ConfigureAwait(false))
                     {
-                        while (await reader.ReadAsync().ConfigureAwait(false))
+                        if (reader.IsStartElement("thumb"))
                         {
-                            if (reader.IsStartElement("thumb"))
+                            var thumb = await reader.ReadElementContentAsStringAsync().ConfigureAwait(false);
+
+                            if (IsValidHttpUrl(thumb))
                             {
-                                var thumb = await reader.ReadElementContentAsStringAsync().ConfigureAwait(false);
-
-                                if (IsValidHttpUrl(thumb))
-                                {
-                                    personInfo.ImageUrl = thumb;
-                                    //Plugin.Instance.logger.Debug("EnhanceNfoMetadata - Imported " + personInfo.Name +
-                                    //                             " " + personInfo.ImageUrl);
-                                }
-
-                                break;
+                                personInfo.ImageUrl = thumb;
+                                //Plugin.Instance.logger.Debug("EnhanceNfoMetadata - Imported " + personInfo.Name +
+                                //                             " " + personInfo.ImageUrl);
                             }
+
+                            break;
                         }
                     }
                 }

@@ -11,8 +11,9 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Reflection.Emit;
-using System.Threading;
 using System.Threading.Tasks;
+using static MovieDb.MovieDbPersonProvider;
+using static MovieDb.MovieDbSeasonProvider;
 using static StrmAssistant.Common.LanguageUtility;
 using static StrmAssistant.Mod.PatchManager;
 using static StrmAssistant.Reflection.MediaBrowser;
@@ -37,7 +38,7 @@ namespace StrmAssistant.Mod.Metadata
 
         protected override void OnInitialize()
         {
-            if (_movieDbAssembly is null)
+            if (!IsSupported)
             {
                 PatchTracker.FallbackPatchApproach = PatchApproach.None;
                 PatchTracker.IsSupported = false;
@@ -97,17 +98,15 @@ namespace StrmAssistant.Mod.Metadata
         }
 
         [HarmonyPrefix]
-        private static bool PersonImportDataPrefix(Person item, object info, bool isFirstLanguage)
+        private static void PersonImportDataPrefix(Person item, PersonResult info, bool isFirstLanguage)
         {
-            if (!RefreshPersonTask.IsRunning) return true;
+            if (!RefreshPersonTask.IsRunning) return;
 
-            var adult = Traverse.Create(info).Property("adult").GetValue<bool>();
-            if (adult && RefreshPersonTask.NoAdult) return true;
+            var adult = info.adult;
+            if (adult && RefreshPersonTask.NoAdult) return;
 
-            var nameProperty = Traverse.Create(info).Property("name");
-            var name = nameProperty.GetValue<string>();
-            var placeOfBirthProperty = Traverse.Create(info).Property("place_of_birth");
-            var placeOfBirth = placeOfBirthProperty.GetValue<string>();
+            var name = info.name;
+            var placeOfBirth = info.place_of_birth;
 
             if (!string.IsNullOrEmpty(name))
             {
@@ -115,28 +114,28 @@ namespace StrmAssistant.Mod.Metadata
 
                 if (updateNameResult.Item2)
                 {
-                    if (!string.Equals(name, CleanPersonName(updateNameResult.Item1),
-                            StringComparison.Ordinal))
-                        nameProperty.SetValue(updateNameResult.Item1);
+                    if (!string.Equals(name, CleanPersonName(updateNameResult.Item1), StringComparison.Ordinal))
+                        info.name = updateNameResult.Item1;
                 }
                 else
                 {
-                    var alsoKnownAsProperty = Traverse.Create(info).Property("also_known_as");
-                    var alsoKnownAsValueType = alsoKnownAsProperty.GetValueType();
-                    var alsoKnownAsList = (alsoKnownAsValueType == typeof(List<string>)
-                            ? alsoKnownAsProperty.GetValue<List<string>>()
-                            : alsoKnownAsProperty.GetValue<List<object>>()?.OfType<string>())
-                        ?.Where(alias => !string.IsNullOrEmpty(alias))
+                    var alsoKnownAsList = (PluginVer > MinVer
+                            ? info.also_known_as
+                            : Traverse.Create(info)
+                                .Property("also_known_as")
+                                .GetValue<List<object>>()
+                                ?.OfType<string>())
+                        ?.Where(s => !string.IsNullOrEmpty(s))
                         .ToList();
 
-                    if (alsoKnownAsList?.Any() == true)
+                    if (alsoKnownAsList?.Any() is true)
                     {
                         foreach (var alias in alsoKnownAsList)
                         {
                             var updateAliasResult = ProcessPersonInfoAsExpected(alias, placeOfBirth);
                             if (updateAliasResult.Item2)
                             {
-                                nameProperty.SetValue(updateAliasResult.Item1);
+                                info.name = updateAliasResult.Item1;
                                 break;
                             }
                         }
@@ -144,8 +143,7 @@ namespace StrmAssistant.Mod.Metadata
                 }
             }
 
-            var biographyProperty = Traverse.Create(info).Property("biography");
-            var biography =biographyProperty.GetValue<string>();
+            var biography = info.biography;
 
             if (!string.IsNullOrEmpty(biography))
             {
@@ -154,24 +152,18 @@ namespace StrmAssistant.Mod.Metadata
                 if (updateBiographyResult.Item2)
                 {
                     if (!string.Equals(biography, updateBiographyResult.Item1, StringComparison.Ordinal))
-                        biographyProperty.SetValue(updateBiographyResult.Item1);
+                        info.biography = updateBiographyResult.Item1;
                 }
             }
-
-            return true;
         }
 
         [HarmonyPrefix]
-        private static bool SeasonImportDataPrefix(Season item, object seasonInfo, string name, int seasonNumber,
-            bool isFirstLanguage)
+        private static void SeasonImportDataPrefix(Season item, SeasonRootObject seasonInfo, string name,
+            int seasonNumber, bool isFirstLanguage)
         {
             if (isFirstLanguage)
             {
-                var cast = Traverse.Create(seasonInfo)
-                    .Property("credits")
-                    .Property("cast")
-                    .GetValue<IEnumerable<object>>()
-                    ?.OrderBy(c => Traverse.Create(c).Property("order").GetValue<int>());
+                var cast = seasonInfo.credits?.cast?.OrderBy(c => c.order);
 
                 if (cast != null)
                 {
@@ -179,11 +171,10 @@ namespace StrmAssistant.Mod.Metadata
 
                     foreach (var actor in cast)
                     {
-                        var traverseActor = Traverse.Create(actor);
-                        var id = traverseActor.Property("id").GetValue<int>();
-                        var actorName = traverseActor.Property("name").GetValue<string>().Trim();
-                        var character = traverseActor.Property("character").GetValue<string>().Trim();
-                        var profilePath = traverseActor.Property("profile_path").GetValue<string>();
+                        var id = actor.id;
+                        var actorName = actor.name.Trim();
+                        var character = actor.character.Trim();
+                        var profilePath = actor.profile_path;
 
                         var personInfo = new PersonInfo { Name = actorName, Role = character, Type = PersonType.Actor };
 
@@ -203,13 +194,11 @@ namespace StrmAssistant.Mod.Metadata
                     SeasonPersonInfoDictionary[item] = personInfoList;
                 }
             }
-
-            return true;
         }
 
         [HarmonyPostfix]
         private static void SeasonGetMetadataPostfix(RemoteMetadataFetchOptions<SeasonInfo> options,
-            CancellationToken cancellationToken, Task<MetadataResult<Season>> __result)
+            Task<MetadataResult<Season>> __result)
         {
             MetadataResult<Season> result = null;
 

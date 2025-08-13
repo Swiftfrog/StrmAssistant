@@ -4,7 +4,6 @@ using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Library;
 using System.Linq;
 using static StrmAssistant.Mod.PatchManager;
-using static StrmAssistant.Options.Utility;
 using static StrmAssistant.Reflection.EmbyServerImplementations;
 
 namespace StrmAssistant.Mod.UIFunction
@@ -13,21 +12,9 @@ namespace StrmAssistant.Mod.UIFunction
     {
         public NoBoxsetsAutoCreation()
         {
-            Initialize();
-
             if (Plugin.Instance.ExperienceEnhanceStore.GetOptions().UIFunctionOptions.NoBoxsetsAutoCreation)
             {
                 Patch();
-            }
-        }
-
-        protected override void OnInitialize()
-        {
-            if (AppVer < Ver4840)
-            {
-                Plugin.Instance.Logger.Warn("NoBoxsetsAutoCreation - Minimum required server version is 4.8.4.0");
-                PatchTracker.FallbackPatchApproach = PatchApproach.None;
-                PatchTracker.IsSupported = false;
             }
         }
 
@@ -44,13 +31,11 @@ namespace StrmAssistant.Mod.UIFunction
         }
 
         [HarmonyPrefix]
-        private static bool GetUserViewsPrefix(UserViewQuery query, User user, ref Folder[] folders)
+        private static void GetUserViewsPrefix(UserViewQuery query, User user, ref Folder[] folders)
         {
             folders = folders.Where(i => !(i is CollectionFolder library) ||
                                          library.CollectionType != CollectionType.BoxSets.ToString())
                 .ToArray();
-
-            return true;
         }
     }
 }

@@ -1,3 +1,4 @@
+using Emby.Server.Implementations.Data;
 using HarmonyLib;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller;
@@ -17,14 +18,12 @@ using StrmAssistant.Options;
 using StrmAssistant.Properties;
 using System;
 using System.Collections.Generic;
-using System.Data;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using static StrmAssistant.Options.Utility;
 using static StrmAssistant.Reflection.EmbyProviders;
-using static StrmAssistant.Reflection.EmbyServerImplementations;
 
 namespace StrmAssistant.Common
 {
@@ -76,7 +75,7 @@ namespace StrmAssistant.Common
 
             if (_audioFingerprintManager is null || _createTitleFingerprint is null ||
                 _getTitleFingerprintFileName is null || _getAllFingerprintFilesForSeason is null ||
-                _updateSequencesForSeason is null || _clearItemExtradata is null)
+                _updateSequencesForSeason is null)
             {
                 _logger.Warn($"{PatchTracker.PatchType.Name} Init Failed");
                 PatchTracker.FallbackPatchApproach = PatchApproach.None;
@@ -90,7 +89,6 @@ namespace StrmAssistant.Common
                     nameof(GetAllFingerprintFilesForSeasonStub));
                 PatchManager.ReversePatch(PatchTracker, _updateSequencesForSeason,
                     nameof(UpdateSequencesForSeasonStub));
-                PatchManager.ReversePatch(PatchTracker, _clearItemExtradata, nameof(ClearItemExtradataStub));
             }
         }
 
@@ -109,10 +107,6 @@ namespace StrmAssistant.Common
         private static async Task<Tuple<string, bool>> CreateTitleFingerprintStub(object instance, Episode item,
             LibraryOptions libraryOptions, IDirectoryService directoryService, CancellationToken cancellationToken) =>
             throw new NotImplementedException();
-
-        [HarmonyReversePatch]
-        internal static void ClearItemExtradataStub(object instance, long itemId, long extradataTypeId) =>
-            throw new NoNullAllowedException();
 #pragma warning restore CS1998
 
         public Task<Tuple<string, bool>> CreateTitleFingerprint(Episode item, IDirectoryService directoryService,
@@ -526,7 +520,7 @@ namespace StrmAssistant.Common
                 }
             }
 
-            ClearItemExtradataStub(_itemRepository, item.InternalId, _introFingerprintExtradataId);
+            ((SqliteItemRepository)_itemRepository).ClearItemExtradata(item.InternalId, _introFingerprintExtradataId);
         }
     }
 }

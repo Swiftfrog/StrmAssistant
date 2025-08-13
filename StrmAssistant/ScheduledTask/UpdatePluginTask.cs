@@ -95,7 +95,7 @@ namespace StrmAssistant.ScheduledTask
 
                 var apiResult = _jsonSerializer.DeserializeFromStream<ApiResponseInfo>(contentStream);
 
-                var currentVersion = ParseVersion(Plugin.Instance.CurrentVersion);
+                var currentVersion = Plugin.Instance.CurrentVersion;
                 var remoteVersion = ParseVersion(apiResult?.tag_name);
 
                 if (currentVersion.CompareTo(remoteVersion) < 0)

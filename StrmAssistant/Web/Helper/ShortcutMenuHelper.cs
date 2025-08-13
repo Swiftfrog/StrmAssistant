@@ -1,4 +1,5 @@
-﻿using System;
+﻿using StrmAssistant.Mod;
+using System;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -8,6 +9,9 @@ namespace StrmAssistant.Web.Helper
 {
     internal static class ShortcutMenuHelper
     {
+        private static readonly PatchTracker PatchTracker =
+            new PatchTracker(typeof(ShortcutMenuHelper), PatchApproach.Injection, "ShortcutMenuHelper");
+
         public static ReadOnlyMemory<byte> ModifiedShortcutsBytes { get; private set; }
         public static ReadOnlyMemory<byte> StrmAssistantJsBytes { get; private set; }
 
@@ -24,7 +28,7 @@ namespace StrmAssistant.Web.Helper
             }
             catch (Exception e)
             {
-                Plugin.Instance.Logger.Error($"{nameof(ShortcutMenuHelper)} Init Failed");
+                Plugin.Instance.Logger.Error($"{PatchTracker.Name} Init Failed");
                 Plugin.Instance.Logger.Error(e.Message);
                 Plugin.Instance.Logger.Debug(e.StackTrace);
             }

@@ -1,4 +1,5 @@
 ﻿using Emby.Media.Model.ProbeModel;
+using Emby.ProcessRun.Common;
 using HarmonyLib;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
@@ -44,32 +45,28 @@ namespace StrmAssistant.Mod.MediaInfo
             var concurrency = Plugin.Instance.MainOptionsStore.GetOptions().GeneralOptions.MaxConcurrentCount;
             timeoutMs = Math.Min(baseTimeoutMs + (concurrency - 1) * 5000, 150000);
         }
-        
+
         [HarmonyFinalizer]
-        private static void RunFfProcessFinalizer(Task __result, Exception __exception)
+        private static void RunFfProcessFinalizer(Task<ProcessResult?> __result, Exception __exception)
         {
             if (__result.IsCanceled || __result.IsFaulted) return;
 
             if (ExclusiveExtract.ExclusiveItemValue == 0L) return;
 
-            var result = Traverse.Create(__result).Property("Result").GetValue();
+            var result = __result.Result;
 
             if (result != null)
             {
-                var traverseResult = Traverse.Create(result);
-                var standardOutput = traverseResult.Property("StandardOutput").GetValue().ToString();
-                var standardError = traverseResult.Property("StandardError").GetValue().ToString();
+                var standardOutput = result.Value.StandardOutput;
+                var standardError = result.Value.StandardError;
 
                 if (standardOutput != null && standardError != null)
                 {
-                    var partialOutput = standardOutput.Length > 20
-                        ? standardOutput.Substring(0, 20)
-                        : standardOutput;
+                    var partialOutput = standardOutput.Length > 20 ? standardOutput.Substring(0, 20) : standardOutput;
 
                     if (Regex.Replace(partialOutput, @"\s+", "") == "{}")
                     {
-                        var lines = standardError.Split(new[] { '\r', '\n' },
-                            StringSplitOptions.RemoveEmptyEntries);
+                        var lines = standardError.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
 
                         if (lines.Length > 0)
                         {
