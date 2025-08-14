@@ -18,6 +18,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Tvdb;
+using static MovieDb.MovieDbProvider;
 using static MovieDb.MovieDbSeriesProvider;
 using static StrmAssistant.Mod.PatchManager;
 using static StrmAssistant.Reflection.EmbyLocalMetadata;
@@ -177,11 +178,11 @@ namespace StrmAssistant.Mod.Metadata
         private static void GetMovieInfoTmdbPostfix(BaseItem item, string language, IJsonSerializer jsonSerializer,
             CancellationToken cancellationToken, Task __result)
         {
-            object movieData = null;
+            CompleteMovieData movieData = null;
 
             try
             {
-                movieData = Traverse.Create(__result).Property("Result").GetValue();
+                movieData = Traverse.Create(__result).Property("Result").GetValue<CompleteMovieData>();
             }
             catch
             {
@@ -203,7 +204,7 @@ namespace StrmAssistant.Mod.Metadata
         }
 
         [HarmonyPostfix]
-        private static void EnsureSeriesInfoTmdbPostfix(string tmdbId, string language, Task<SeriesRootObject> __result)
+        private static void EnsureSeriesInfoTmdbPostfix(string tmdbId, string language, Task __result)
         {
             if (!WasCalledByMethod(_movieDbAssembly, "FetchImages")) return;
 
@@ -211,7 +212,7 @@ namespace StrmAssistant.Mod.Metadata
 
             try
             {
-                seriesInfo = __result?.Result;
+                seriesInfo = Traverse.Create(__result).Property("Result").GetValue<SeriesRootObject>();
             }
             catch
             {
@@ -231,7 +232,7 @@ namespace StrmAssistant.Mod.Metadata
         }
 
         [HarmonyPostfix]
-        private static void EnsureMovieInfoTvdbPostfix(string tvdbId, Task<MovieData> __result)
+        private static void EnsureMovieInfoTvdbPostfix(string tvdbId, Task __result)
         {
             if (!WasCalledByMethod(_tvdbAssembly, "GetImages")) return;
 
@@ -239,7 +240,7 @@ namespace StrmAssistant.Mod.Metadata
 
             try
             {
-                movieData = __result?.Result;
+                movieData = Traverse.Create(__result).Property("Result").GetValue<MovieData>();
             }
             catch
             {
@@ -260,7 +261,7 @@ namespace StrmAssistant.Mod.Metadata
         }
 
         [HarmonyPostfix]
-        private static void EnsureSeriesInfoTvdbPostfix(string tvdbId, Task<SeriesData> __result)
+        private static void EnsureSeriesInfoTvdbPostfix(string tvdbId, Task __result)
         {
             if (!WasCalledByMethod(_tvdbAssembly, "GetImages")) return;
 
@@ -268,7 +269,7 @@ namespace StrmAssistant.Mod.Metadata
 
             try
             {
-                seriesData = __result?.Result;
+                seriesData = Traverse.Create(__result).Property("Result").GetValue<SeriesData>();
             }
             catch
             {
@@ -289,11 +290,11 @@ namespace StrmAssistant.Mod.Metadata
         }
 
         [HarmonyPostfix]
-        private static void GetBackdropsPostfix(IEnumerable<TmdbImage> __result)
+        private static void GetBackdropsPostfix(IEnumerable<object> __result)
         {
-            if (__result != null)
+            if (__result is IEnumerable<TmdbImage> images)
             {
-                foreach (var image in __result)
+                foreach (var image in images)
                 {
                     var filePath = image.file_path;
                     var language = image.iso_639_1;
