@@ -206,7 +206,7 @@ namespace StrmAssistant.Common
                 .Select(s => _libraryManager.GetItemPeople(s))
                 .ToList();
 
-            peopleLists.Add(seriesPeople);
+            peopleLists.Insert(0, seriesPeople);
 
             var maxPeopleCount = peopleLists.Max(seasonPeople => seasonPeople.Count);
 
