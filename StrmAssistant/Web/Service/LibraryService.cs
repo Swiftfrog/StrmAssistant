@@ -135,7 +135,7 @@ namespace StrmAssistant.Web.Service
             }
         }
 
-        private List<BaseItem> GetSeasonEpisodesSameVersion(Episode episode)
+        private static List<BaseItem> GetSeasonEpisodesSameVersion(Episode episode)
         {
             var seasonFolderChildren = episode.Parent.GetItemList(new InternalItemsQuery
                 {
@@ -165,18 +165,17 @@ namespace StrmAssistant.Web.Service
                 })
                 .Items.ToList();
 
-            var similarEpisodes = new List<BaseItem>();
-
-            foreach (var ep in allEpisodes)
-            {
-                var cleanedName = CleanEpisodeName(ep.FileNameWithoutExtension);
-                var similarity = LevenshteinDistance(targetCleaned, cleanedName);
-
-                if (similarity > 0.92)
+            var similarEpisodes = allEpisodes
+                .Select(ep => new
                 {
-                    similarEpisodes.Add(ep);
-                }
-            }
+                    Episode = ep,
+                    Similarity = LevenshteinDistance(targetCleaned, CleanEpisodeName(ep.FileNameWithoutExtension))
+                })
+                .Where(x => x.Similarity > 0.92)
+                .OrderByDescending(x => x.Similarity)
+                .Take(seasonEpisodesCount)
+                .Select(x => x.Episode)
+                .ToList();
 
             return similarEpisodes;
         }

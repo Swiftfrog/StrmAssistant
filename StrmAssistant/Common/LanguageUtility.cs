@@ -20,7 +20,8 @@ namespace StrmAssistant.Common
         private static readonly Regex DefaultChineseCollectionNameRegex = new Regex(@"（系列）$", RegexOptions.Compiled);
         private static readonly Regex CleanPersonNameRegex = new Regex(@"\s+", RegexOptions.Compiled);
         private static readonly Regex CleanEpisodeNameRegex =
-            new Regex(@"(\.)(?:S[0-9]+[eE][0-9]+|[sS][0-9]+[xX][0-9]+|[sS][0-9]+[-_][0-9]+|第[0-9一二三四五六七八九十百]+集)?",
+            new Regex(
+                @"(?:[Ss]\d+[Ee]\d+(?:[Ee]\d+)*|[Ss]\d+[xX]\d+(?:[xX]\d+)*|[Ss]\d+[-_]\d+(?:[-_]\d+)*|第\s*[0-9一二三四五六七八九十百]+\s*集)",
                 RegexOptions.Compiled);
 
         public static readonly string[] MovieDbFallbackLanguages = { "zh-CN", "zh-SG", "zh-HK", "zh-TW", "ja-JP" };
