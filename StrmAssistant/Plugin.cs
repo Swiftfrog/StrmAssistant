@@ -418,7 +418,8 @@ namespace StrmAssistant
 
         public bool DebugMode;
 
-        public bool IsModSupported = RuntimeInformation.ProcessArchitecture == Architecture.X64;
+        public bool IsModSupported = RuntimeInformation.ProcessArchitecture == Architecture.X64 ||
+                                     RuntimeInformation.ProcessArchitecture == Architecture.Arm64;
 
         public Stream GetThumbImage()
         {
