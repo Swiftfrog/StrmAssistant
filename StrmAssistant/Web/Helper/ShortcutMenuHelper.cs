@@ -1,7 +1,7 @@
-﻿using StrmAssistant.Mod;
+﻿using HarmonyLib;
+using StrmAssistant.Mod;
 using System;
 using System.IO;
-using System.Linq;
 using System.Reflection;
 using System.Text;
 
@@ -168,28 +168,20 @@ setTimeout(() => {
     });
 }, 3000);
     ";
-            var dataExplorer2Assembly = AppDomain.CurrentDomain.GetAssemblies()
-                .FirstOrDefault(a => a.GetName().Name == "Emby.DataExplorer2");
-
             var modifiedShortcutsString =
                 File.ReadAllText(Path.Combine(dashboardSourcePath, "modules", "shortcuts.js")) + injectShortcutCommand;
             ModifiedShortcutsBytes = new ReadOnlyMemory<byte>(Encoding.UTF8.GetBytes(modifiedShortcutsString));
-
-            if (dataExplorer2Assembly != null)
+            
+            var contextMenuHelperType = AccessTools.TypeByName("Emby.DataExplorer2.Api.ContextMenuHelper");
+            
+            if (contextMenuHelperType is null) return;
+            
+            if (Plugin.Instance.DebugMode)
             {
-                if (Plugin.Instance.DebugMode)
-                {
-                    Plugin.Instance.Logger.Debug($"{nameof(ShortcutMenuHelper)} - Emby.DataExplorer2 plugin is installed");
-                }
+                Plugin.Instance.Logger.Debug($"{nameof(ShortcutMenuHelper)} - Emby.DataExplorer2 plugin is installed");
+            }
 
-                var contextMenuHelperType = dataExplorer2Assembly.GetType("Emby.DataExplorer2.Api.ContextMenuHelper");
-                var modifiedShortcutsProperty = contextMenuHelperType?.GetProperty("ModifiedShortcutsString",
-                    BindingFlags.Static | BindingFlags.Public);
-                var setMethod = modifiedShortcutsProperty?.GetSetMethod(true);
-
-                if (setMethod != null)
-                {
-                    const string injectDataExplorerCommand = @"
+            const string injectDataExplorerCommand = @"
 const dataExplorerCommandSource = {
     getCommands(options) {
         const commands = [];
@@ -215,10 +207,9 @@ setTimeout(() => {
     });
 }, 5000);
 ";
-                    modifiedShortcutsString += injectDataExplorerCommand;
-                    setMethod.Invoke(null, new object[] { modifiedShortcutsString });
-                }
-            }
+            modifiedShortcutsString += injectDataExplorerCommand;
+            Traverse.Create(contextMenuHelperType).Property("ModifiedShortcutsString")
+                .SetValue(modifiedShortcutsString);
         }
     }
 }

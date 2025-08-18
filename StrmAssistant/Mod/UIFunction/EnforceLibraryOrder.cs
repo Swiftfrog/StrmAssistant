@@ -22,11 +22,9 @@ namespace StrmAssistant.Mod.UIFunction
         }
 
         [HarmonyPrefix]
-        private static bool GetUserViewsPrefix(User user)
+        private static void GetUserViewsPrefix(User user)
         {
             user.Configuration.OrderedViews = LibraryApi.AdminOrderedViews;
-
-            return true;
         }
     }
 }

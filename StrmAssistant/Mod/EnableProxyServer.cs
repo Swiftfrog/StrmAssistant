@@ -31,7 +31,7 @@ namespace StrmAssistant.Mod
         }
 
         [HarmonyPostfix]
-        private static void CreateHttpClientHandlerPostfix(ref HttpMessageHandler __result)
+        private static void CreateHttpClientHandlerPostfix(HttpMessageHandler __result)
         {
             var options = Plugin.Instance.MainOptionsStore.PluginOptions.NetworkOptions;
             var proxyStatus = options.ProxyServerStatus.Status;
