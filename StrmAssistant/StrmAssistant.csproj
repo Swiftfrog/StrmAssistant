@@ -8,14 +8,18 @@
     <LangVersion>8.0</LangVersion>
   </PropertyGroup>
   <ItemGroup>
-    <None Remove="Tokenizer\linux\libsimple.so" />
-    <None Remove="Tokenizer\win\libsimple.so" />
+    <None Remove="Tokenizer\win_x64\libsimple.so" />
+    <None Remove="Tokenizer\linux_x64\libsimple.so" />
+    <None Remove="Tokenizer\linux_arm64\libsimple.so" />
+    <None Remove="Tokenizer\osx_universal\libsimple.so" />
     <None Remove="Web\Resources\strmassistant.js" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Properties\thumb.png" />
-    <EmbeddedResource Include="Tokenizer\linux\libsimple.so" />
-    <EmbeddedResource Include="Tokenizer\win\libsimple.so" />
+    <EmbeddedResource Include="Tokenizer\win_x64\libsimple.so" />
+    <EmbeddedResource Include="Tokenizer\linux_x64\libsimple.so" />
+    <EmbeddedResource Include="Tokenizer\linux_arm64\libsimple.so" />
+    <EmbeddedResource Include="Tokenizer\osx_universal\libsimple.so" />
     <EmbeddedResource Include="Web\Resources\strmassistant.js" />
   </ItemGroup>
   <ItemGroup>

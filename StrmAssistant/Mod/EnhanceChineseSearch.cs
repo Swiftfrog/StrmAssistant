@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using static StrmAssistant.Mod.PatchManager;
@@ -17,14 +18,31 @@ namespace StrmAssistant.Mod
 {
     public class EnhanceChineseSearch : PatchBase<EnhanceChineseSearch>
     {
-        private static MethodInfo _createConnection;
+        private static readonly string TokenizerPath =
+            Path.Combine(Plugin.Instance.ApplicationPaths.PluginsPath, "libsimple.so");
+        private static readonly string StockTokenizerName = "unicode61 remove_diacritics 2";
+        private static readonly string SimpleTokenizerName = "simple";
+        private static readonly string FtsTableName = AppVer >= Ver4830 ? "fts_search9" : "fts_search8";
+        private static readonly string TokenizerCheckQuery = $@"
+                SELECT 
+                    CASE 
+                        WHEN instr(sql, 'tokenize=""{SimpleTokenizerName}""') > 0 THEN '{SimpleTokenizerName}'
+                        WHEN instr(sql, 'tokenize=""{StockTokenizerName}""') > 0 THEN '{StockTokenizerName}'
+                        ELSE 'unknown'
+                    END AS tokenizer_name
+                FROM 
+                    sqlite_master 
+                WHERE 
+                    type = 'table' AND 
+                    name = '{FtsTableName}';";
 
         public static string CurrentTokenizerName { get; private set; } = "unknown";
 
-        private static string _tokenizerPath;
+        private static MethodInfo _createConnection;
         private static readonly object _lock = new object();
         private static bool _patchPhase2Initialized;
-        private static readonly Dictionary<string, Regex> patterns = new Dictionary<string, Regex>
+
+        private static readonly Dictionary<string, Regex> ProviderPatterns = new Dictionary<string, Regex>
         {
             { "imdb", new Regex(@"^tt\d{7,8}$", RegexOptions.IgnoreCase | RegexOptions.Compiled) },
             { "tmdb", new Regex(@"^tmdb(id)?=(\d+)$", RegexOptions.IgnoreCase | RegexOptions.Compiled) },
@@ -33,8 +51,6 @@ namespace StrmAssistant.Mod
 
         public EnhanceChineseSearch()
         {
-            _tokenizerPath = Path.Combine(Plugin.Instance.ApplicationPaths.PluginsPath, "libsimple.so");
-
             Initialize();
 
             if (Plugin.Instance.MainOptionsStore.GetOptions().ModOptions.EnhanceChineseSearch ||
@@ -79,36 +95,12 @@ namespace StrmAssistant.Mod
 
         private static void PatchPhase2(IDatabaseConnection connection)
         {
-            string ftsTableName;
-
-            if (AppVer >= Ver4830)
-            {
-                ftsTableName = "fts_search9";
-            }
-            else
-            {
-                ftsTableName = "fts_search8";
-            }
-
-            var tokenizerCheckQuery = $@"
-                SELECT 
-                    CASE 
-                        WHEN instr(sql, 'tokenize=""simple""') > 0 THEN 'simple'
-                        WHEN instr(sql, 'tokenize=""unicode61 remove_diacritics 2""') > 0 THEN 'unicode61 remove_diacritics 2'
-                        ELSE 'unknown'
-                    END AS tokenizer_name
-                FROM 
-                    sqlite_master 
-                WHERE 
-                    type = 'table' AND 
-                    name = '{ftsTableName}';";
-
             var rebuildFtsResult = true;
             var patchSearchFunctionsResult = false;
 
             try
             {
-                using (var statement = connection.PrepareStatement(tokenizerCheckQuery))
+                using (var statement = connection.PrepareStatement(TokenizerCheckQuery))
                 {
                     try
                     {
@@ -129,13 +121,13 @@ namespace StrmAssistant.Mod
                 {
                     if (Plugin.Instance.MainOptionsStore.GetOptions().ModOptions.EnhanceChineseSearchRestore)
                     {
-                        if (string.Equals(CurrentTokenizerName, "simple", StringComparison.Ordinal))
+                        if (string.Equals(CurrentTokenizerName, SimpleTokenizerName, StringComparison.Ordinal))
                         {
-                            rebuildFtsResult = RebuildFts(connection, ftsTableName, "unicode61 remove_diacritics 2");
+                            rebuildFtsResult = RebuildFts(connection, FtsTableName, StockTokenizerName);
                         }
                         if (rebuildFtsResult)
                         {
-                            CurrentTokenizerName = "unicode61 remove_diacritics 2";
+                            CurrentTokenizerName = StockTokenizerName;
                             Plugin.Instance.Logger.Info("EnhanceChineseSearch - Restore Success");
                         }
                         ResetOptions();
@@ -146,14 +138,14 @@ namespace StrmAssistant.Mod
 
                         if (patchSearchFunctionsResult)
                         {
-                            if (string.Equals(CurrentTokenizerName, "unicode61 remove_diacritics 2", StringComparison.Ordinal))
+                            if (string.Equals(CurrentTokenizerName, StockTokenizerName, StringComparison.Ordinal))
                             {
-                                rebuildFtsResult = RebuildFts(connection, ftsTableName, "simple");
+                                rebuildFtsResult = RebuildFts(connection, FtsTableName, SimpleTokenizerName);
                             }
 
                             if (rebuildFtsResult)
                             {
-                                CurrentTokenizerName = "simple";
+                                CurrentTokenizerName = SimpleTokenizerName;
                                 Plugin.Instance.Logger.Info("EnhanceChineseSearch - Load Success");
                             }
                         }
@@ -249,13 +241,13 @@ namespace StrmAssistant.Mod
             var resourceName = GetTokenizerResourceName();
             var expectedSha1 = GetExpectedSha1();
 
-            if (resourceName == null || expectedSha1 == null) return false;
+            if (resourceName is null || expectedSha1 is null) return false;
 
             try
             {
-                if (File.Exists(_tokenizerPath))
+                if (File.Exists(TokenizerPath))
                 {
-                    var existingSha1 = ComputeSha1(_tokenizerPath);
+                    var existingSha1 = ComputeSha1(TokenizerPath);
 
                     if (expectedSha1.ContainsValue(existingSha1))
                     {
@@ -266,35 +258,34 @@ namespace StrmAssistant.Mod
                         {
                             Plugin.Instance.Logger.Info(
                                 $"EnhanceChineseSearch - Tokenizer exists with matching SHA-1 for the highest version {highestVersion}");
-                        }
-                        else
-                        {
-                            var currentVersion = expectedSha1.FirstOrDefault(x => x.Value == existingSha1).Key;
-                            Plugin.Instance.Logger.Info(
-                                $"EnhanceChineseSearch - Tokenizer exists for version {currentVersion} but does not match the highest version {highestVersion}. Upgrading...");
-                            ExportTokenizer(resourceName);
+
+                            return true;
                         }
 
-                        return true;
+                        var currentVersion = expectedSha1.FirstOrDefault(x => x.Value == existingSha1).Key;
+                        Plugin.Instance.Logger.Info(
+                            $"EnhanceChineseSearch - Tokenizer exists for version {currentVersion} but does not match the highest version {highestVersion}. Upgrading...");
                     }
 
                     Plugin.Instance.Logger.Info(
-                        "EnhanceChineseSearch - Tokenizer exists but SHA-1 is not recognized. No action taken.");
-
-                    return true;
+                        "EnhanceChineseSearch - Tokenizer exists but SHA-1 is not recognized. Overwriting...");
+                }
+                else
+                {
+                    Plugin.Instance.Logger.Info("EnhanceChineseSearch - Tokenizer does not exist. Exporting...");
                 }
 
-                Plugin.Instance.Logger.Info("EnhanceChineseSearch - Tokenizer does not exist. Exporting...");
                 ExportTokenizer(resourceName);
 
                 return true;
             }
             catch (Exception e)
             {
+                Plugin.Instance.Logger.Debug("EnhanceChineseSearch - EnsureTokenizerExists Failed");
+                Plugin.Instance.Logger.Debug(e.Message);
+
                 if (Plugin.Instance.DebugMode)
                 {
-                    Plugin.Instance.Logger.Debug("EnhanceChineseSearch - EnsureTokenizerExists Failed");
-                    Plugin.Instance.Logger.Debug(e.Message);
                     Plugin.Instance.Logger.Debug(e.StackTrace);
                 }
             }
@@ -306,61 +297,109 @@ namespace StrmAssistant.Mod
         {
             using (var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName))
             {
-                using (var fileStream = new FileStream(_tokenizerPath, FileMode.Create, FileAccess.Write))
+                using (var fileStream = new FileStream(TokenizerPath, FileMode.Create, FileAccess.Write))
                 {
                     stream.CopyTo(fileStream);
                 }
             }
 
-            Plugin.Instance.Logger.Info($"EnhanceChineseSearch - Exported {resourceName} to {_tokenizerPath}");
+            Plugin.Instance.Logger.Info($"EnhanceChineseSearch - Exported {resourceName} to {TokenizerPath}");
         }
 
         private static string GetTokenizerResourceName()
         {
-            var tokenizerNamespace = Assembly.GetExecutingAssembly().GetName().Name + ".Tokenizer";
-            var winSimpleTokenizer = $"{tokenizerNamespace}.win.libsimple.so";
-            var linuxSimpleTokenizer = $"{tokenizerNamespace}.linux.libsimple.so";
+            if (!Environment.Is64BitOperatingSystem) return null;
 
-            switch (Environment.OSVersion.Platform)
+            var tokenizerNamespace = typeof(Plugin).Namespace + ".Tokenizer";
+
+            string platformPart = null;
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                case PlatformID.Win32NT when Environment.Is64BitOperatingSystem:
-                    return winSimpleTokenizer;
-                case PlatformID.Unix when Environment.Is64BitOperatingSystem:
-                    return linuxSimpleTokenizer;
-                default:
-                    return null;
+                if (RuntimeInformation.OSArchitecture == Architecture.X64)
+                {
+                    platformPart = "win_x64";
+                }
             }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                switch (RuntimeInformation.OSArchitecture)
+                {
+                    case Architecture.X64:
+                        platformPart = "linux_x64";
+                        break;
+                    case Architecture.Arm64:
+                        platformPart = "linux_arm64";
+                        break;
+                }
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                platformPart = "osx_universal";
+            }
+
+            if (platformPart is null) return null;
+
+            return $"{tokenizerNamespace}.{platformPart}.libsimple.so";
         }
 
         private static Dictionary<Version, string> GetExpectedSha1()
         {
-            switch (Environment.OSVersion.Platform)
+            if (!Environment.Is64BitOperatingSystem) return null;
+
+            var arch = RuntimeInformation.OSArchitecture;
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                case PlatformID.Win32NT:
+                if (arch == Architecture.X64)
+                {
                     return new Dictionary<Version, string>
                     {
                         { new Version(0, 4, 0), "a83d90af9fb88e75a1ddf2436c8b67954c761c83" },
-                        { new Version(0, 5, 0), "aed57350b46b51bb7d04321b7fe8e5e60b0cdbdc" }
+                        { new Version(0, 5, 0), "aed57350b46b51bb7d04321b7fe8e5e60b0cdbdc" },
+                        { new Version(0, 5, 2), "e99315d7005c6b04b55a5f71e45eb3aac41670ba" }
                     };
-                case PlatformID.Unix:
+                }
+            }
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                if (arch == Architecture.X64)
+                {
                     return new Dictionary<Version, string>
                     {
                         { new Version(0, 4, 0), "f7fb8ba0b98e358dfaa87570dc3426ee7f00e1b6" },
-                        { new Version(0, 5, 0), "8e36162f96c67d77c44b36093f31ae4d297b15c0" }
+                        { new Version(0, 5, 0), "8e36162f96c67d77c44b36093f31ae4d297b15c0" },
+                        { new Version(0, 5, 2), "b1650dd9348e7242a2908eee1f998d510564d4e7" }
                     };
-                default:
-                    return null;
+                }
+
+                if (arch == Architecture.Arm64)
+                {
+                    return new Dictionary<Version, string>
+                    {
+                        { new Version(0, 5, 2), "acb77b9ea2b823a1a4d8383ce501271cfb27ba19" }
+                    };
+                }
             }
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                return new Dictionary<Version, string>
+                {
+                    { new Version(0, 5, 2), "20a299e89ecf02dd75d2835c922c53c6cca133d8" }
+                };
+            }
+
+            return null;
         }
 
         private static string ComputeSha1(string filePath)
         {
-            using (var sha1 = SHA1.Create())
-            using (var stream = File.OpenRead(filePath))
-            {
-                var hash = sha1.ComputeHash(stream);
-                return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
-            }
+            using var sha1 = SHA1.Create();
+            using var stream = File.OpenRead(filePath);
+            var hash = sha1.ComputeHash(stream);
+            return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
         }
 
         private static void ResetOptions()
@@ -390,18 +429,21 @@ namespace StrmAssistant.Mod
             {
                 var db = Traverse.Create(connection).Field("db").GetValue();
                 EnableLoadExtensionStub(db, 1);
-                connection.Execute("SELECT load_extension('" + _tokenizerPath + "')");
+                connection.Execute("SELECT load_extension('" + TokenizerPath + "')");
 
                 return true;
             }
             catch (Exception e)
             {
+                Plugin.Instance.Logger.Warn("EnhanceChineseSearch - Load tokenizer failed.");
+
                 if (Plugin.Instance.DebugMode)
                 {
-                    Plugin.Instance.Logger.Warn("EnhanceChineseSearch - Load tokenizer failed.");
                     Plugin.Instance.Logger.Debug(e.Message);
                     Plugin.Instance.Logger.Debug(e.StackTrace);
                 }
+
+                Instance.PatchTracker.FallbackPatchApproach = PatchApproach.None;
             }
 
             return false;
@@ -494,7 +536,7 @@ namespace StrmAssistant.Mod
 
             if (!string.IsNullOrEmpty(searchTerm))
             {
-                foreach (var provider in patterns)
+                foreach (var provider in ProviderPatterns)
                 {
                     var match = provider.Value.Match(searchTerm.Trim());
                     if (match.Success)
