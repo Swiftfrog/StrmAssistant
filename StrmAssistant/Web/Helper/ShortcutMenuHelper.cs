@@ -96,11 +96,8 @@ const strmAssistantCommandSource = {
             }
             if (options.items[0].hasOwnProperty('LockData') && options.items[0].Type !== 'CollectionFolder' &&
                 (options.user && options.user.Policy.IsAdministrator || false)) {
-                if (options.items[0].LockData) {
-                    result.push({ name: unlockCommandName, id: 'unlock', icon: 'lock_open' });
-                } else {
-                    result.push({ name: lockCommandName, id: 'lock', icon: 'lock' });
-                }
+                result.push({ name: lockCommandName, id: 'lock', icon: 'lock' });
+                result.push({ name: unlockCommandName, id: 'unlock', icon: 'lock_open' });
             }
             if ((options.items[0].Type === 'Series' || options.items[0].Type === 'Season') &&
                 (options.user && options.user.Policy.IsAdministrator || false)) {
