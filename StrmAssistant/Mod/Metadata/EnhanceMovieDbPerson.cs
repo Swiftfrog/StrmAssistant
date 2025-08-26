@@ -119,13 +119,12 @@ namespace StrmAssistant.Mod.Metadata
                 }
                 else
                 {
-                    var alsoKnownAsList = (PluginVer > MinVer
-                            ? info.also_known_as
-                            : Traverse.Create(info)
-                                .Property("also_known_as")
-                                .GetValue<List<object>>()
-                                ?.OfType<string>())
-                        ?.Where(s => !string.IsNullOrEmpty(s))
+                    var alsoKnownAsProperty = Traverse.Create(info).Property("also_known_as");
+                    var alsoKnownAsValueType = alsoKnownAsProperty.GetValueType();
+                    var alsoKnownAsList = (alsoKnownAsValueType == typeof(List<string>)
+                            ? alsoKnownAsProperty.GetValue<List<string>>()
+                            : alsoKnownAsProperty.GetValue<List<object>>()?.OfType<string>())
+                        ?.Where(alias => !string.IsNullOrEmpty(alias))
                         .ToList();
 
                     if (alsoKnownAsList?.Any() is true)
