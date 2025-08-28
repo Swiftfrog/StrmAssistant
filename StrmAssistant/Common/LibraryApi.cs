@@ -640,15 +640,15 @@ namespace StrmAssistant.Common
             if (!extractSkip && enableImageCapture && !taskItem.HasImage(ImageType.Primary) &&
                 ImageCaptureEnabled(taskItem, libraryOptions))
             {
-                EnableImageCapture.AllowImageCaptureInstance(taskItem);
-
                 refreshOptions.ImageRefreshMode = MetadataRefreshMode.FullRefresh;
                 refreshOptions.ReplaceAllImages = true;
 
-                taskItem.DateLastRefreshed = new DateTimeOffset();
-
+                var workItem = _libraryManager.GetItemById(taskItem.InternalId);
+                workItem.DateLastRefreshed = new DateTimeOffset();
+                EnableImageCapture.AllowImageCaptureInstance(workItem);
+                
                 await _providerManager
-                    .RefreshSingleItem(taskItem, refreshOptions, collectionFolders, dummyLibraryOptions,
+                    .RefreshSingleItem(workItem, refreshOptions, collectionFolders, dummyLibraryOptions,
                         cancellationToken).ConfigureAwait(false);
             }
             else
@@ -678,11 +678,12 @@ namespace StrmAssistant.Common
                     option.ImageFetchers = Array.Empty<string>();
                 }
 
-                taskItem.DateLastRefreshed = new DateTimeOffset();
+                var workItem = _libraryManager.GetItemById(taskItem.InternalId);
+                workItem.DateLastRefreshed = new DateTimeOffset();
 
                 await _providerManager
-                    .RefreshSingleItem(taskItem, refreshOptions, collectionFolders, dummyLibraryOptions, cancellationToken)
-                    .ConfigureAwait(false);
+                    .RefreshSingleItem(workItem, refreshOptions, collectionFolders, dummyLibraryOptions,
+                        cancellationToken).ConfigureAwait(false);
             }
 
             if (persistMediaInfo)
