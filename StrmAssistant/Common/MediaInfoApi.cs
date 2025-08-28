@@ -304,7 +304,13 @@ namespace StrmAssistant.Common
 
             if (!HasMediaInfo(workItem))
             {
-                _logger.Info("MediaInfoPersist - Serialization Skipped - No MediaInfo (" + source + ")");
+                _logger.Info($"MediaInfoPersist - Serialization Skipped - No MediaInfo ({source})");
+                return false;
+            }
+
+            if (workItem.Size == 0L || !workItem.RunTimeTicks.HasValue)
+            {
+                _logger.Info($"MediaInfoPersist - Serialization Skipped - Abnormal MediaInfo ({source})");
                 return false;
             }
             
@@ -332,7 +338,8 @@ namespace StrmAssistant.Common
                             .DeserializeFromFileAsync<List<MediaSourceWithChapters>>(mediaInfoJsonPath)
                             .ConfigureAwait(false)).ToArray()[0];
 
-                    if (mediaSourceWithChapters?.MediaSourceInfo?.Size > 0L &&
+                    var mediaSource = mediaSourceWithChapters?.MediaSourceInfo;
+                    if (mediaSource != null && mediaSource.Size > 0L && mediaSource.RunTimeTicks.HasValue &&
                         (ignoreFileChange || !Plugin.LibraryApi.HasFileChanged(item, directoryService)))
                     {
                         foreach (var subtitle in mediaSourceWithChapters.MediaSourceInfo.MediaStreams.Where(m =>
@@ -393,16 +400,16 @@ namespace StrmAssistant.Common
                             }
                         }
 
-                        _logger.Info("MediaInfoPersist - Deserialization Success (" + source + "): " + mediaInfoJsonPath);
+                        _logger.Info($"MediaInfoPersist - Deserialization Success ({source}): {mediaInfoJsonPath}");
 
                         return true;
                     }
 
-                    _logger.Info("MediaInfoPersist - Deserialization Skipped (" + source + "): " + mediaInfoJsonPath);
+                    _logger.Info($"MediaInfoPersist - Deserialization Skipped - Abnormal MediaInfo ({source}): {mediaInfoJsonPath}");
                 }
                 catch (Exception e)
                 {
-                    _logger.Error("MediaInfoPersist - Deserialization Failed (" + source + "): " + mediaInfoJsonPath);
+                    _logger.Error($"MediaInfoPersist - Deserialization Failed ({source}): {mediaInfoJsonPath}");
                     _logger.Error(e.Message);
                     _logger.Debug(e.StackTrace);
                 }
@@ -437,8 +444,7 @@ namespace StrmAssistant.Common
                                !string.Equals(currentDir, jsonRoot, StringComparison.OrdinalIgnoreCase) &&
                                IsDirectoryEmpty(currentDir))
                         {
-                            _logger.Info(
-                                $"MediaInfoPersist - Attempting to delete empty folder ({source}): {currentDir}");
+                            _logger.Info($"MediaInfoPersist - Attempting to delete empty folder ({source}): {currentDir}");
                             _fileSystem.DeleteDirectory(currentDir, false);
                             currentDir = Path.GetDirectoryName(currentDir);
                         }
@@ -504,7 +510,7 @@ namespace StrmAssistant.Common
                         _itemRepository.LogIntroDetectionFailureFailure(item.InternalId,
                             item.DateModified.ToUnixTimeSeconds());
 
-                        _logger.Info("ChapterInfoPersist - Log Zero Fingerprint Confidence (" + source + "): " + mediaInfoJsonPath);
+                        _logger.Info($"ChapterInfoPersist - Log Zero Fingerprint Confidence ({source}): {mediaInfoJsonPath}");
 
                         return true;
                     }
@@ -527,14 +533,14 @@ namespace StrmAssistant.Common
                         PersistMediaInfoHelper.BypassChapterInstance(item);
                         _itemRepository.SaveChapters(item.InternalId, chapters);
 
-                        _logger.Info("ChapterInfoPersist - Deserialization Success (" + source + "): " + mediaInfoJsonPath);
+                        _logger.Info($"ChapterInfoPersist - Deserialization Success ({source}): {mediaInfoJsonPath}");
 
                         return true;
                     }
                 }
                 catch (Exception e)
                 {
-                    _logger.Error("ChapterInfoPersist - Deserialization Failed (" + source + "): " + mediaInfoJsonPath);
+                    _logger.Error($"ChapterInfoPersist - Deserialization Failed ({source}): {mediaInfoJsonPath}");
                     _logger.Error(e.Message);
                     _logger.Debug(e.StackTrace);
                 }
@@ -568,8 +574,7 @@ namespace StrmAssistant.Common
 
                     if (thumbnailResult)
                     {
-                        _logger.Info("ChapterInfoPersist - Video Thumbnail Restore Success (" + source + "): " +
-                                     localThumbnailSets[0].Path);
+                        _logger.Info($"ChapterInfoPersist - Video Thumbnail Restore Success ({source}): {localThumbnailSets[0].Path}");
                     }
                 }
             }
