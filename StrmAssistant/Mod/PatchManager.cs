@@ -42,13 +42,13 @@ namespace StrmAssistant.Mod
 
         public static void Initialize()
         {
+            ModMap[typeof(ExtractMediaInfoHelper)] = new ExtractMediaInfoHelper();
             ModMap[typeof(EnableImageCapture)] = new EnableImageCapture();
             ModMap[typeof(EnhanceChineseSearch)] = new EnhanceChineseSearch();
             ModMap[typeof(MergeMultiVersion)] = new MergeMultiVersion();
             ModMap[typeof(ChineseMovieDb)] = new ChineseMovieDb();
             ModMap[typeof(ChineseTvdb)] = new ChineseTvdb();
             ModMap[typeof(MovieDbEpisodeGroup)] = new MovieDbEpisodeGroup();
-            ModMap[typeof(ExtractMediaInfoHelper)] = new ExtractMediaInfoHelper();
             ModMap[typeof(ExclusiveExtract)] = new ExclusiveExtract();
             ModMap[typeof(EnhanceMovieDbPerson)] = new EnhanceMovieDbPerson();
             ModMap[typeof(AltMovieDbConfig)] = new AltMovieDbConfig();

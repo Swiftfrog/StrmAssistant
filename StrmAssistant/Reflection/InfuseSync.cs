@@ -21,10 +21,7 @@ namespace StrmAssistant.Reflection
             {
                 RegisterAssemblyResolve(AssemblyName, _infuseSyncAssembly);
                 new InfuseSync().Initialize();
-            }
-            else
-            {
-                Plugin.Instance.Logger.Info($"{AssemblyName} plugin is not installed");
+                Plugin.Instance.Logger.Debug($"{AssemblyName} plugin is installed");
             }
         }
 

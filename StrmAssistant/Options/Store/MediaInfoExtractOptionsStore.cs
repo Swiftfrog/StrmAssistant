@@ -73,7 +73,7 @@ namespace StrmAssistant.Options.Store
                     {
                         PatchManager.GetMod<EnableImageCapture>().Patch();
                         if (Plugin.Instance.MainOptionsStore.GetOptions().GeneralOptions.MaxConcurrentCount !=
-                            EnableImageCapture.SemaphoreFFmpegMaxCount)
+                            EnableImageCapture.SemaphoreFfmpegMaxCount)
                         {
                             NotifyPendingRestart();
                         }

@@ -27,10 +27,8 @@ namespace StrmAssistant.Mod
 
         protected override void Prepare(bool apply)
         {
-            EnableImageCapture.PatchUnpatchIsShortcut(apply);
-
             PatchUnpatch(PatchTracker, apply, _isIntroDetectionSupported,
-                prefix: nameof(IsIntroDetectionSupportedPrefix), postfix: nameof(IsIntroDetectionSupportedPostfix));
+                prefix: nameof(IsIntroDetectionSupportedPrefix));
             PatchUnpatch(PatchTracker, apply, _createQueryForEpisodeIntroDetection,
                 postfix: nameof(CreateQueryForEpisodeIntroDetectionPostfix));
             PatchUnpatch(PatchTracker, apply, _detectSequences, postfix: nameof(DetectSequencesPostfix));
@@ -38,28 +36,9 @@ namespace StrmAssistant.Mod
         }
 
         [HarmonyPrefix]
-        private static bool IsIntroDetectionSupportedPrefix(Episode item, LibraryOptions libraryOptions,
-            ref bool __result, out bool __state)
+        private static void IsIntroDetectionSupportedPrefix(Episode item, LibraryOptions libraryOptions)
         {
-            __state = false;
-
-            if (item.IsShortcut)
-            {
-                EnableImageCapture.PatchIsShortcutInstance(item);
-                __state = true;
-            }
-
-            return true;
-        }
-
-        [HarmonyPostfix]
-        private static void IsIntroDetectionSupportedPostfix(Episode item, LibraryOptions libraryOptions,
-            ref bool __result, bool __state)
-        {
-            if (__state)
-            {
-                EnableImageCapture.UnpatchIsShortcutInstance(item);
-            }
+            if (item.IsShortcut) ExtractMediaInfoHelper.ShortcutItem.Value = item.InternalId;
         }
 
         [HarmonyPostfix]

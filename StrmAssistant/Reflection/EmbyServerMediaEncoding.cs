@@ -11,7 +11,6 @@ namespace StrmAssistant.Reflection
     {
         internal static Type _quickSingleImageExtractor;
         internal static ConstructorInfo _staticConstructor;
-        internal static FieldInfo _resourcePoolField;
         internal static MethodInfo _runExtraction;
         internal static MethodInfo _extractVideoImagesOnInterval;
         internal static MethodInfo _enableQuickImageSeriesExtractor;
@@ -30,8 +29,9 @@ namespace StrmAssistant.Reflection
         protected override void OnInitialize()
         {
             _staticConstructor = AccessTools.Constructor(typeof(ImageExtractorBase), Type.EmptyTypes, true);
-            _resourcePoolField = AccessTools.Field(typeof(ImageExtractorBase), "resourcePool");
             _runExtraction = AccessTools.Method(typeof(ImageExtractorBase), "RunExtraction");
+            _quickSingleImageExtractor =
+                AccessTools.TypeByName("Emby.Server.MediaEncoding.ImageExtraction.QuickSingleImageExtractor");
             _addHdrAdjustFilter = AccessTools.Method(typeof(ImageExtractorBase), "AddHdrAdjustFilter");
 
             _extractVideoImagesOnInterval =

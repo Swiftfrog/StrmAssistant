@@ -5,7 +5,6 @@ using MediaBrowser.Common;
 using MediaBrowser.Model.Logging;
 using StrmAssistant.Common;
 using StrmAssistant.Mod;
-using StrmAssistant.Mod.MediaInfo;
 using StrmAssistant.Options.UIBaseClasses.Store;
 using StrmAssistant.Properties;
 using System;
@@ -120,8 +119,7 @@ namespace StrmAssistant.Options.Store
 
                     QueueManager.UpdateMasterSemaphore(maxConcurrentCount);
 
-                    if (Plugin.Instance.MediaInfoExtractStore.GetOptions().EnableImageCapture)
-                        EnableImageCapture.UpdateResourcePool(maxConcurrentCount);
+                    if (Plugin.Instance.MediaInfoExtractStore.GetOptions().EnableImageCapture) NotifyPendingRestart();
                 }
 
                 if (changedProperties.Contains(nameof(PluginOptions.GeneralOptions.Tier2MaxConcurrentCount)))

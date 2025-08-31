@@ -69,7 +69,6 @@ namespace StrmAssistant.Mod.MediaInfo
             PatchUnpatch(PatchTracker, apply, _removeMediaPath, prefix: nameof(RefreshLibraryPrefix));
             PatchUnpatch(PatchTracker, apply, _saveChapters, prefix: nameof(SaveChaptersPrefix));
             PatchUnpatch(PatchTracker, apply, _deleteChapters, prefix: nameof(DeleteChaptersPrefix));
-            PatchUnpatch(PatchTracker, apply, _getRefreshOptions, postfix: nameof(GetRefreshOptionsPostfix));
         }
 
         public static void AllowExtractInstance(BaseItem item)
@@ -389,15 +388,6 @@ namespace StrmAssistant.Mod.MediaInfo
             if (ProtectIntroItem.Value != 0L && ProtectIntroItem.Value == itemId) return false;
 
             return true;
-        }
-
-        [HarmonyPostfix]
-        private static void GetRefreshOptionsPostfix(IReturnVoid request, MetadataRefreshOptions __result)
-        {
-            var id = Traverse.Create(request).Property("Id").GetValue<string>();
-            var item = BaseItem.LibraryManager.GetItemById(id);
-
-            Plugin.MediaInfoApi.QueueRefreshAlternateVersions(item, __result, true);
         }
     }
 }

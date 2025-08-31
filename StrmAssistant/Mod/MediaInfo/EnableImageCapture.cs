@@ -7,9 +7,7 @@ using MediaBrowser.Model.MediaInfo;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection.Emit;
 using System.Threading;
-using static StrmAssistant.Common.CommonUtility;
 using static StrmAssistant.Mod.PatchManager;
 using static StrmAssistant.Reflection.EmbyProviders;
 using static StrmAssistant.Reflection.EmbyServerImplementations;
@@ -20,52 +18,48 @@ namespace StrmAssistant.Mod.MediaInfo
 {
     public class EnableImageCapture : PatchBase<EnableImageCapture>
     {
-        private static readonly AsyncLocal<BaseItem> ShortcutItem = new AsyncLocal<BaseItem>();
         private static readonly AsyncLocal<BaseItem> ImageCaptureItem = new AsyncLocal<BaseItem>();
         private static readonly AsyncLocal<MediaContainers?> VideoThumbnailMediaContainer =
             new AsyncLocal<MediaContainers?>();
-        private static int _isShortcutPatchUsageCount;
         private static readonly object AddHdrAdjustFilterLock = new object();
 
-        private static SemaphoreSlim SemaphoreFFmpeg;
-        public static int SemaphoreFFmpegMaxCount { get; private set; }
+        public static int SemaphoreFfmpegMaxCount { get; private set; }
 
         public EnableImageCapture()
         {
-            SemaphoreFFmpegMaxCount = Plugin.Instance.MainOptionsStore.GetOptions().GeneralOptions.MaxConcurrentCount;
-
             Initialize();
 
             if (Plugin.Instance.MediaInfoExtractStore.GetOptions().EnableImageCapture)
             {
-                SemaphoreFFmpeg = new SemaphoreSlim(SemaphoreFFmpegMaxCount);
-                PatchResourcePool();
-                var resourcePool = (SemaphoreSlim)_resourcePoolField?.GetValue(null);
+                Patch();
 
                 if (Plugin.Instance.DebugMode)
                 {
-                    Plugin.Instance.Logger.Debug("Current FFmpeg ResourcePool: " + resourcePool?.CurrentCount);
+                    var resourcePool = Traverse.Create(typeof(ImageExtractorBase))
+                        .Field("resourcePool")
+                        .GetValue<SemaphoreSlim>();
+                    Plugin.Instance.Logger.Debug("Current Ffmpeg ResourcePool: " + resourcePool?.CurrentCount);
                 }
-
-                Patch();
             }
         }
 
         protected override void OnInitialize()
         {
+            SemaphoreFfmpegMaxCount = Plugin.Instance.MainOptionsStore.GetOptions().GeneralOptions.MaxConcurrentCount;
             ReversePatch(PatchTracker, _addHdrAdjustFilter, nameof(AddHdrAdjustFilterStub));
         }
 
         protected override void Prepare(bool apply)
         {
-            PatchUnpatchIsShortcut(apply);
+            if (apply)
+            {
+                PatchUnpatch(Instance.PatchTracker, true, _staticConstructor, prefix: nameof(ResourcePoolPrefix));
+            }
 
-            PatchUnpatch(PatchTracker, apply, _supportsVideoImageCapture, prefix: nameof(SupportsImageCapturePrefix),
-                postfix: nameof(SupportsImageCapturePostfix));
+            PatchUnpatch(PatchTracker, apply, _supportsVideoImageCapture, prefix: nameof(SupportsImageCapturePrefix));
             PatchUnpatch(PatchTracker, apply, _getThumbnailPositionTicks,
                 prefix: nameof(GetThumbnailPositionTicksPrefix));
-            PatchUnpatch(PatchTracker, apply, _supportsAudioEmbeddedImages, prefix: nameof(SupportsImageCapturePrefix),
-                postfix: nameof(SupportsImageCapturePostfix));
+            PatchUnpatch(PatchTracker, apply, _supportsAudioEmbeddedImages, prefix: nameof(SupportsImageCapturePrefix));
             PatchUnpatch(PatchTracker, apply, _getImage, prefix: nameof(GetImagePrefix));
             PatchUnpatch(PatchTracker, apply, _supportsThumbnailsGetter,
                 prefix: nameof(SupportsThumbnailsGetterPrefix), postfix: nameof(SupportsThumbnailsGetterPostfix));
@@ -79,100 +73,11 @@ namespace StrmAssistant.Mod.MediaInfo
             PatchUnpatch(PatchTracker, apply, _addHdrAdjustFilter, prefix: nameof(AddHdrAdjustFilterPrefix));
         }
 
-        private static void PatchResourcePool()
+        [HarmonyPrefix]
+        private static bool ResourcePoolPrefix(ref SemaphoreSlim ___resourcePool)
         {
-            var result = PatchUnpatch(Instance.PatchTracker, true, _staticConstructor,
-                prefix: nameof(ResourcePoolPrefix));
-            //var result = PatchUnpatch(Instance.PatchTracker, true, _staticConstructor,
-            //    transpiler: nameof(ResourcePoolTranspiler));
-
-            if (!result && Instance.PatchTracker.FallbackPatchApproach == PatchApproach.Reflection)
-                PatchResourcePoolByReflection();
-        }
-
-        private static void PatchResourcePoolByReflection()
-        {
-            //works only with modded Emby.Server.MediaEncoding.dll
-
-            try
-            {
-                _resourcePoolField.SetValue(null, SemaphoreFFmpeg);
-
-                if (Plugin.Instance.DebugMode)
-                {
-                    Plugin.Instance.Logger.Debug("Patch FFmpeg ResourcePool Success by Reflection");
-                }
-            }
-            catch (Exception re)
-            {
-                if (Plugin.Instance.DebugMode)
-                {
-                    Plugin.Instance.Logger.Debug("Patch FFmpeg ResourcePool Failed by Reflection");
-                    Plugin.Instance.Logger.Debug(re.Message);
-                }
-
-                Instance.PatchTracker.FallbackPatchApproach = PatchApproach.None;
-            }
-        }
-
-        private void UnpatchResourcePool()
-        {
-            PatchUnpatch(PatchTracker, false, _staticConstructor, prefix: nameof(ResourcePoolPrefix));
-            //PatchUnpatch(PatchTracker, false, _staticConstructor, transpiler: nameof(ResourcePoolTranspiler));
-
-            var resourcePool = (SemaphoreSlim)_resourcePoolField.GetValue(null);
-            Plugin.Instance.Logger.Info("Current FFmpeg Resource Pool: " + resourcePool?.CurrentCount ?? string.Empty);
-        }
-
-        public static void UpdateResourcePool(int maxConcurrentCount)
-        {
-            if (SemaphoreFFmpegMaxCount != maxConcurrentCount)
-            {
-                SemaphoreFFmpegMaxCount = maxConcurrentCount;
-                SemaphoreSlim newSemaphoreFFmpeg;
-                SemaphoreSlim oldSemaphoreFFmpeg;
-
-                switch (Instance.PatchTracker.FallbackPatchApproach)
-                {
-                    case PatchApproach.Harmony:
-                        NotifyPendingRestart();
-
-                        /* un-patch and re-patch don't work for readonly static field
-                        UnpatchResourcePool();
-
-                        _currentMaxConcurrentCount = maxConcurrentCount;
-                        newSemaphoreFFmpeg = new SemaphoreSlim(maxConcurrentCount);
-                        oldSemaphoreFFmpeg = SemaphoreFFmpeg;
-                        SemaphoreFFmpeg = newSemaphoreFFmpeg;
-
-                        PatchResourcePool();
-
-                        oldSemaphoreFFmpeg.Dispose();
-                        */
-                        break;
-
-                    case PatchApproach.Reflection:
-
-                        newSemaphoreFFmpeg = new SemaphoreSlim(maxConcurrentCount);
-                        oldSemaphoreFFmpeg = SemaphoreFFmpeg;
-                        SemaphoreFFmpeg = newSemaphoreFFmpeg;
-
-                        PatchResourcePoolByReflection();
-
-                        oldSemaphoreFFmpeg.Dispose();
-
-                        break;
-                }
-            }
-
-            var resourcePool = (SemaphoreSlim)_resourcePoolField.GetValue(null);
-            Plugin.Instance.Logger.Info("Current FFmpeg ResourcePool: " + resourcePool?.CurrentCount ?? string.Empty);
-        }
-
-        public static void PatchUnpatchIsShortcut(bool apply)
-        {
-            PatchUnpatch(Instance.PatchTracker, apply, _isShortcutGetter, ref _isShortcutPatchUsageCount,
-                prefix: nameof(IsShortcutPrefix));
+            ___resourcePool = new SemaphoreSlim(SemaphoreFfmpegMaxCount);
+            return false;
         }
 
         public static void AllowImageCaptureInstance(BaseItem item)
@@ -180,120 +85,13 @@ namespace StrmAssistant.Mod.MediaInfo
             ImageCaptureItem.Value = item;
         }
 
-        public static void PatchIsShortcutInstance(BaseItem item)
-        {
-            switch (Instance.PatchTracker.FallbackPatchApproach)
-            {
-                case PatchApproach.Harmony:
-                    ShortcutItem.Value = item;
-                    break;
-
-                case PatchApproach.Reflection:
-                    try
-                    {
-                        _isShortcutProperty.SetValue(item, true); //special logic depending on modded MediaBrowser.Controller.dll
-                        //Plugin.Instance.Logger.Debug("Patch IsShortcut Success by Reflection" + " - " + item.Name + " - " + item.Path);
-                    }
-                    catch (Exception re)
-                    {
-                        if (Plugin.Instance.DebugMode)
-                        {
-                            Plugin.Instance.Logger.Debug("Patch IsShortcut Failed by Reflection");
-                            Plugin.Instance.Logger.Debug(re.Message);
-                        }
-
-                        Instance.PatchTracker.FallbackPatchApproach = PatchApproach.None;
-                    }
-                    break;
-            }
-        }
-
-        public static void UnpatchIsShortcutInstance(BaseItem item)
-        {
-            switch (Instance.PatchTracker.FallbackPatchApproach)
-            {
-                case PatchApproach.Harmony:
-                    ShortcutItem.Value = null;
-                    break;
-
-                case PatchApproach.Reflection:
-                    try
-                    {
-                        _isShortcutProperty.SetValue(item, false); //special logic depending on modded MediaBrowser.Controller.dll
-                        //Plugin.Instance.Logger.Debug("Unpatch IsShortcut Success by Reflection" + " - " + item.Name + " - " + item.Path);
-                    }
-                    catch (Exception re)
-                    {
-                        if (Plugin.Instance.DebugMode)
-                        {
-                            Plugin.Instance.Logger.Debug("Unpatch IsShortcut Failed by Reflection");
-                            Plugin.Instance.Logger.Debug(re.Message);
-                        }
-                    }
-                    break;
-            }
-        }
-
         [HarmonyPrefix]
-        private static bool ResourcePoolPrefix()
+        private static void SupportsImageCapturePrefix(BaseItem item)
         {
-            _resourcePoolField.SetValue(null, SemaphoreFFmpeg);
-            return false;
-        }
-
-        [HarmonyTranspiler]
-        private static IEnumerable<CodeInstruction> ResourcePoolTranspiler(IEnumerable<CodeInstruction> instructions)
-        {
-            var codes = new List<CodeInstruction>(instructions);
-
-            for (int i = 0; i < codes.Count; i++)
-            {
-                if (codes[i].opcode == OpCodes.Ldc_I4_1)
-                {
-                    codes[i] = new CodeInstruction(OpCodes.Ldc_I4_S,
-                        (sbyte)Plugin.Instance.MainOptionsStore.GetOptions().GeneralOptions.MaxConcurrentCount);
-                    if (i + 1 < codes.Count && codes[i + 1].opcode == OpCodes.Ldc_I4_1)
-                    {
-                        codes[i + 1] = new CodeInstruction(OpCodes.Ldc_I4_S,
-                            (sbyte)Plugin.Instance.MainOptionsStore.GetOptions().GeneralOptions.MaxConcurrentCount);
-                    }
-                    break;
-                }
-            }
-            return codes.AsEnumerable();
-        }
-
-        [HarmonyPrefix]
-        private static bool IsShortcutPrefix(BaseItem __instance, ref bool __result)
-        {
-            if (ShortcutItem.Value != null && __instance.InternalId == ShortcutItem.Value.InternalId)
-            {
-                __result = false;
-                return false;
-            }
-
-            return true;
-        }
-
-        [HarmonyPrefix]
-        private static void SupportsImageCapturePrefix(BaseItem item, out bool __state)
-        {
-            __state = false;
-
             if (item.IsShortcut && ImageCaptureItem.Value != null &&
                 ImageCaptureItem.Value.InternalId == item.InternalId)
             {
-                PatchIsShortcutInstance(item);
-                __state = true;
-            }
-        }
-
-        [HarmonyPostfix]
-        private static void SupportsImageCapturePostfix(BaseItem item, bool __result, bool __state)
-        {
-            if (__state)
-            {
-                UnpatchIsShortcutInstance(item);
+                ExtractMediaInfoHelper.ShortcutItem.Value = item.InternalId;
             }
         }
 
@@ -381,39 +179,23 @@ namespace StrmAssistant.Mod.MediaInfo
         }
 
         [HarmonyPrefix]
-        private static bool SupportsThumbnailsGetterPrefix(BaseItem __instance, ref bool __result,
-            out (bool, ExtraType?) __state)
+        private static void SupportsThumbnailsGetterPrefix(BaseItem __instance, out ExtraType? __state)
         {
-            __state = new ValueTuple<bool, ExtraType?>(false, __instance.ExtraType);
+            __state = __instance.ExtraType;
 
-            if (__instance.IsShortcut)
-            {
-                PatchIsShortcutInstance(__instance);
-                __state.Item1 = true;
-            }
+            if (__instance.IsShortcut) ExtractMediaInfoHelper.ShortcutItem.Value = __instance.InternalId;
 
-            if (__instance.ExtraType.HasValue)
-            {
-                __instance.ExtraType = null;
-            }
-
-            return true;
+            if (__instance.ExtraType.HasValue) __instance.ExtraType = null;
         }
 
         [HarmonyPostfix]
-        private static void SupportsThumbnailsGetterPostfix(BaseItem __instance, ref bool __result,
-            (bool, ExtraType?) __state)
+        private static void SupportsThumbnailsGetterPostfix(BaseItem __instance, ref bool __result, ExtraType? __state)
         {
-            if (__state.Item1)
+            if (__result && __state.HasValue)
             {
-                UnpatchIsShortcutInstance(__instance);
-            }
+                __instance.ExtraType = __state;
 
-            if (__result && __state.Item2.HasValue)
-            {
-                __instance.ExtraType = __state.Item2;
-
-                if (__state.Item2 == ExtraType.Trailer || __state.Item2 == ExtraType.ThemeVideo)
+                if (__state == ExtraType.Trailer || __state == ExtraType.ThemeVideo)
                 {
                     __result = false;
                 }

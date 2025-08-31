@@ -1,9 +1,12 @@
-﻿using Emby.Media.Model.ProbeModel;
+﻿using Emby.Api;
+using Emby.Media.Model.ProbeModel;
 using Emby.ProcessRun.Common;
 using HarmonyLib;
+using MediaBrowser.Controller.Api;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
+using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.MediaInfo;
@@ -15,17 +18,26 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using static StrmAssistant.Mod.PatchManager;
+using static StrmAssistant.Reflection.EmbyApi;
 using static StrmAssistant.Reflection.EmbyProviders;
 using static StrmAssistant.Reflection.EmbyServerMediaEncoding;
+using static StrmAssistant.Reflection.MediaBrowser;
 
 namespace StrmAssistant.Mod.MediaInfo
 {
     public class ExtractMediaInfoHelper : PatchBase<ExtractMediaInfoHelper>
     {
+        internal static AsyncLocal<long> ShortcutItem = new AsyncLocal<long>();
         private static readonly AsyncLocal<bool> ShouldCleanEmbeddedMetadata = new AsyncLocal<bool>();
+
+        public ExtractMediaInfoHelper()
+        {
+            Patch();
+        }
 
         protected override void Prepare(bool apply)
         {
+            PatchUnpatch(PatchTracker, apply, _isShortcutGetter, prefix: nameof(IsShortcutPrefix));
             PatchUnpatch(PatchTracker, true, _runFfProcess, prefix: nameof(RunFfProcessPrefix),
                 finalizer: nameof(RunFfProcessFinalizer));
             PatchUnpatch(PatchTracker, true, _getInputArgument, prefix: nameof(GetInputArgumentPrefix));
@@ -34,6 +46,19 @@ namespace StrmAssistant.Mod.MediaInfo
                 prefix: nameof(GetAnalyzeDurationArgumentPrefix));
             PatchUnpatch(PatchTracker, apply, _getProbeSizeArgument, prefix: nameof(GetProbeSizeArgumentPrefix));
             PatchUnpatch(PatchTracker, true, _getMediaInfo, postfix: nameof(GetMediaInfoPostfix));
+            PatchUnpatch(PatchTracker, apply, _getRefreshOptions, postfix: nameof(GetRefreshOptionsPostfix));
+        }
+
+        [HarmonyPrefix]
+        private static bool IsShortcutPrefix(BaseItem __instance, ref bool __result)
+        {
+            if (__instance.InternalId == ShortcutItem.Value)
+            {
+                __result = false;
+                return false;
+            }
+
+            return true;
         }
         
         [HarmonyPrefix]
@@ -161,6 +186,15 @@ namespace StrmAssistant.Mod.MediaInfo
             __result.Artists = Array.Empty<string>();
             __result.Genres = Array.Empty<string>();
             __result.MediaStreams = __result.MediaStreams.Where(ms => ms.Type != MediaStreamType.EmbeddedImage).ToList();
+        }
+
+        [HarmonyPostfix]
+        private static void GetRefreshOptionsPostfix(BaseApiService __instance, RefreshItem request,
+            MetadataRefreshOptions __result)
+        {
+            var item = __instance.LibraryManager.GetItemById(request.Id);
+
+            Plugin.MediaInfoApi.QueueRefreshAlternateVersions(item, __result, true);
         }
     }
 }
