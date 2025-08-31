@@ -166,7 +166,7 @@ namespace StrmAssistant.Common
                     .Concat(includeExtra
                         ? expanded.SelectMany(f => f.GetExtras(IncludeExtraTypes))
                         : Enumerable.Empty<BaseItem>())
-                    .Where(i => Plugin.MediaInfoApi.HasMediaInfo(i) && !i.HasImage(ImageType.Chapter))
+                    .Where(i => Plugin.MediaInfoApi.HasMediaInfo(i))
                     .ToArray();
             }
 
@@ -202,7 +202,7 @@ namespace StrmAssistant.Common
             return filteredItems;
         }
 
-        private static List<Video> FilterUnprocessed(List<Video> items)
+        private List<Video> FilterUnprocessed(List<Video> items)
         {
             var results = new List<Video>();
 
@@ -215,13 +215,25 @@ namespace StrmAssistant.Common
                 }
 
                 if (item.MediaContainer.HasValue &&
-                    !VideoThumbnailExcludeMediaContainers.Contains(item.MediaContainer.Value))
+                    VideoThumbnailExcludeMediaContainers.Contains(item.MediaContainer.Value))
+                {
+                    continue;
+                }
+
+                if (IsExtractNeeded(item))
                 {
                     results.Add(item);
                 }
             }
 
             return results;
+        }
+
+        private bool IsExtractNeeded(Video item)
+        {
+            var chapters = Plugin.MediaInfoApi.GetChaptersSafe(item);
+
+            return chapters.Any(c => c.StartPositionTicks < item.RunTimeTicks && string.IsNullOrEmpty(c.ImagePath));
         }
     }
 }

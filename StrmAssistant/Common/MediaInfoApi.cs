@@ -185,13 +185,14 @@ namespace StrmAssistant.Common
             });
         }
 
+        public IEnumerable<ChapterInfo> GetChaptersSafe(BaseItem item)
+        {
+            return ConditionalLock.Run(() => _itemRepository.GetChapters(item));
+        }
+
         public bool HasIntro(BaseItem item)
         {
-            return ConditionalLock.Run(() =>
-            {
-                return _itemRepository.GetChapters(item)
-                    .Any(c => c.MarkerType == MarkerType.IntroStart);
-            });
+            return GetChaptersSafe(item).Any(c => c.MarkerType == MarkerType.IntroStart);
         }
 
         public static string GetMediaInfoJsonPath(BaseItem item)
