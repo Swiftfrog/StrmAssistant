@@ -7,6 +7,7 @@ using StrmAssistant.Web.Api;
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using static StrmAssistant.Options.Utility;
 
 namespace StrmAssistant.Web.Service
 {
@@ -24,9 +25,11 @@ namespace StrmAssistant.Web.Service
         public void Post(LockItem request)
         {
             var itemById = _libraryManager.GetItemById(request.ItemId);
+            var isExtra = itemById.ExtraType != null;
 
             var items = _libraryManager.GetItemList(new InternalItemsQuery
             {
+                HasExtraType = isExtra,
                 PresentationUniqueKey = itemById.PresentationUniqueKey
             });
 
@@ -48,6 +51,16 @@ namespace StrmAssistant.Web.Service
                         if (UpdateItemLockStatus(child, requestLock))
                         {
                             updatedItems.Add(child);
+                        }
+                    }
+                }
+                else if (!isExtra)
+                {
+                    foreach (var extra in item.GetExtras(IncludeExtraTypes))
+                    {
+                        if (UpdateItemLockStatus(extra, requestLock))
+                        {
+                            updatedItems.Add(extra);
                         }
                     }
                 }
