@@ -506,7 +506,16 @@ namespace StrmAssistant.Common
         
         public void ClearFingerprintCache(BaseItem item)
         {
-            var fingerprints = _fileSystem.GetFilePaths(item.GetInternalMetadataPath(), new[] { ".fp" }, false, false);
+            List<string> fingerprints;
+            try
+            {
+                fingerprints = _fileSystem.GetFilePaths(item.GetInternalMetadataPath(), new[] { ".fp" }, false, false)
+                    .ToList();
+            }
+            catch
+            {
+                fingerprints = new List<string>();
+            }
 
             foreach (var fp in fingerprints)
             {
