@@ -171,18 +171,19 @@ namespace StrmAssistant.Common
             };
         }
 
+        public IEnumerable<MediaStream> GetMediaStreamsSafe(BaseItem item)
+        {
+            return ConditionalLock.Run(item.GetMediaStreams);
+        }
+
         public bool HasMediaInfo(BaseItem item)
         {
             if (!item.RunTimeTicks.HasValue) return false;
 
             if (item.Size == 0L) return false;
 
-            return ConditionalLock.Run(() =>
-            {
-                return item.GetMediaStreams()
-                    .Any(i => (i.Type == MediaStreamType.Video || i.Type == MediaStreamType.Audio) &&
-                              !i.IsExternal);
-            });
+            return GetMediaStreamsSafe(item)
+                .Any(i => (i.Type == MediaStreamType.Video || i.Type == MediaStreamType.Audio) && !i.IsExternal);
         }
 
         public IEnumerable<ChapterInfo> GetChaptersSafe(BaseItem item)

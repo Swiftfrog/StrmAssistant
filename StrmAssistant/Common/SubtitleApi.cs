@@ -165,9 +165,10 @@ namespace StrmAssistant.Common
             bool persistMediaInfo)
         {
             var directoryService = refreshOptions.DirectoryService;
-            var currentStreams = item.GetMediaStreams()
-                .FindAll(i =>
-                    !(i.IsExternal && i.Type == MediaStreamType.Subtitle && i.Protocol == MediaProtocol.File));
+            var currentStreams = Plugin.MediaInfoApi.GetMediaStreamsSafe(item)
+                .Where(i => !(i.IsExternal && (i.Type == MediaStreamType.Subtitle || i.Type == MediaStreamType.Audio) &&
+                              i.Protocol == MediaProtocol.File))
+                .ToList();
             var startIndex = currentStreams.Count == 0 ? 0 : currentStreams.Max(i => i.Index) + 1;
 
             if (GetExternalSubtitleStreams(item, startIndex, directoryService, clearCache) is

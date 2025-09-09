@@ -465,16 +465,14 @@ namespace StrmAssistant.Common
 
             var libraryOptions = _libraryManager.GetLibraryOptions(item);
 
-            switch (item)
+            return item switch
             {
-                case Video _:
-                    return !item.HasImage(ImageType.Primary) && ImageCaptureEnabled(item, libraryOptions);
-                case Audio _:
-                    return !item.HasImage(ImageType.Primary) && ImageCaptureEnabled(item, libraryOptions) &&
-                           item.GetMediaStreams().Any(i => i.Type == MediaStreamType.EmbeddedImage);
-                default:
-                    return false;
-            }
+                Video _ => !item.HasImage(ImageType.Primary) && ImageCaptureEnabled(item, libraryOptions),
+                Audio _ => !item.HasImage(ImageType.Primary) && ImageCaptureEnabled(item, libraryOptions) && Plugin
+                    .MediaInfoApi.GetMediaStreamsSafe(item)
+                    .Any(i => i.Type == MediaStreamType.EmbeddedImage),
+                _ => false
+            };
         }
 
         public List<BaseItem> ExpandFavorites(List<BaseItem> items, bool filterNeeded, bool? preExtract,
