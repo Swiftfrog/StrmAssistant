@@ -92,12 +92,13 @@ namespace StrmAssistant.Mod.MediaInfo
                 return true;
             }
 
-            if (item.Parent is null && item.ExtraType is null || !(item is Video || item is Audio))
+            if (item.Parent is null && item.ExtraType is null)
             {
                 return true;
             }
 
-            if (refreshOptions is MetadataRefreshOptions options)
+            if (refreshOptions is MetadataRefreshOptions options && item.IsFileProtocol &&
+                (item is Video || item is Audio))
             {
                 if (CurrentRefreshContext.Value is null)
                 {

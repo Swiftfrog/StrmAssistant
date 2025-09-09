@@ -241,8 +241,8 @@ namespace StrmAssistant
             {
                 var deserializeResult = false;
 
-                if (e.Item is Video && MediaInfoExtractStore.GetOptions().PersistMediaInfoMode !=
-                    PersistMediaInfoOption.None.ToString())
+                if (e.Item.IsFileProtocol && e.Item is Video &&
+                    MediaInfoExtractStore.GetOptions().PersistMediaInfoMode != PersistMediaInfoOption.None.ToString())
                 {
                     deserializeResult = MediaInfoApi.HasMediaInfo(e.Item);
 
@@ -260,7 +260,8 @@ namespace StrmAssistant
                     }
                 }
 
-                if ((e.Item is Video || e.Item is Audio) && MainOptionsStore.PluginOptions.GeneralOptions.CatchupMode)
+                if (e.Item.IsFileProtocol && (e.Item is Video || e.Item is Audio) &&
+                    MainOptionsStore.PluginOptions.GeneralOptions.CatchupMode)
                 {
                     if (IntroSkipStore.IntroSkipOptions.UnlockIntroSkip &&
                         IsCatchupTaskSelected(CatchupTask.Fingerprint) &&
@@ -343,7 +344,7 @@ namespace StrmAssistant
 
         private void OnItemRemoved(object sender, ItemChangeEventArgs e)
         {
-            if (e.Item is Video && MediaInfoExtractStore.GetOptions().PersistMediaInfoMode !=
+            if (e.Item.IsFileProtocol && e.Item is Video && MediaInfoExtractStore.GetOptions().PersistMediaInfoMode !=
                 PersistMediaInfoOption.Restore.ToString())
             {
                 var directoryService = new DirectoryService(Logger, _fileSystem);
