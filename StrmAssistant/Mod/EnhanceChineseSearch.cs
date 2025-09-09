@@ -123,7 +123,7 @@ namespace StrmAssistant.Mod
                     {
                         if (string.Equals(CurrentTokenizerName, SimpleTokenizerName, StringComparison.Ordinal))
                         {
-                            rebuildFtsResult = RebuildFts(connection, FtsTableName, StockTokenizerName);
+                            rebuildFtsResult = RebuildFts(connection, StockTokenizerName);
                         }
                         if (rebuildFtsResult)
                         {
@@ -140,7 +140,7 @@ namespace StrmAssistant.Mod
                         {
                             if (string.Equals(CurrentTokenizerName, StockTokenizerName, StringComparison.Ordinal))
                             {
-                                rebuildFtsResult = RebuildFts(connection, FtsTableName, SimpleTokenizerName);
+                                rebuildFtsResult = RebuildFts(connection, SimpleTokenizerName);
                             }
 
                             if (rebuildFtsResult)
@@ -171,26 +171,30 @@ namespace StrmAssistant.Mod
             }
         }
 
-        private static bool RebuildFts(IDatabaseConnection connection, string ftsTableName, string tokenizerName)
+        private static bool RebuildFts(IDatabaseConnection connection, string tokenizerName)
         {
+            var dropFtsTableQuery = $"DROP TABLE IF EXISTS {FtsTableName}";
+
+            var isSimple = string.Equals(tokenizerName, SimpleTokenizerName, StringComparison.Ordinal);
+            var prefix = isSimple ? "" : ", prefix='1 2 3 4'";
+            var createFtsTableQuery = $"CREATE VIRTUAL TABLE IF NOT EXISTS {FtsTableName} " +
+                                      $"USING FTS5 (Name, OriginalTitle, SeriesName, Album, tokenize=\"{tokenizerName}\"{prefix})";
+
             string populateQuery;
 
             if (AppVer < Ver4900)
             {
                 populateQuery =
-                    $"insert into {ftsTableName}(RowId, Name, OriginalTitle, SeriesName, Album) select id, " +
-                    GetSearchColumnNormalization("Name") + ", " +
-                    GetSearchColumnNormalization("OriginalTitle") + ", " +
-                    GetSearchColumnNormalization("SeriesName") + ", " +
-                    GetSearchColumnNormalization("Album") +
+                    $"insert into {FtsTableName}(RowId, Name, OriginalTitle, SeriesName, Album) select id, " +
+                    GetSearchColumnNormalization("Name") + ", " + GetSearchColumnNormalization("OriginalTitle") + ", " +
+                    GetSearchColumnNormalization("SeriesName") + ", " + GetSearchColumnNormalization("Album") +
                     " from MediaItems";
             }
             else
             {
                 populateQuery =
-                    $"insert into {ftsTableName}(RowId, Name, OriginalTitle, SeriesName, Album) select id, " +
-                    GetSearchColumnNormalization("Name") + ", " +
-                    GetSearchColumnNormalization("OriginalTitle") + ", " +
+                    $"insert into {FtsTableName}(RowId, Name, OriginalTitle, SeriesName, Album) select id, " +
+                    GetSearchColumnNormalization("Name") + ", " + GetSearchColumnNormalization("OriginalTitle") + ", " +
                     GetSearchColumnNormalization("SeriesName") + ", " +
                     GetSearchColumnNormalization(
                         "(select case when AlbumId is null then null else (select name from MediaItems where Id = AlbumId limit 1) end)") +
@@ -200,19 +204,15 @@ namespace StrmAssistant.Mod
             connection.BeginTransaction(TransactionMode.Immediate);
             try
             {
-                var dropFtsTableQuery = $"DROP TABLE IF EXISTS {ftsTableName}";
                 connection.Execute(dropFtsTableQuery);
-
-                var createFtsTableQuery =
-                    $"CREATE VIRTUAL TABLE IF NOT EXISTS {ftsTableName} USING FTS5 (Name, OriginalTitle, SeriesName, Album, tokenize=\"{tokenizerName}\", prefix='1 2 3 4')";
                 connection.Execute(createFtsTableQuery);
 
-                Plugin.Instance.Logger.Info($"EnhanceChineseSearch - Filling {ftsTableName} Start");
+                Plugin.Instance.Logger.Info($"EnhanceChineseSearch - Filling {FtsTableName} Start");
 
                 connection.Execute(populateQuery);
                 connection.CommitTransaction();
 
-                Plugin.Instance.Logger.Info($"EnhanceChineseSearch - Filling {ftsTableName} Complete");
+                Plugin.Instance.Logger.Info($"EnhanceChineseSearch - Filling {FtsTableName} Complete");
 
                 return true;
             }
@@ -510,8 +510,8 @@ namespace StrmAssistant.Mod
                 index < parts.Length - 1 && part.Length > 1 ? part + " " : part));
 
             var terms = normalized.Trim()
-                .Split(' ', StringSplitOptions.RemoveEmptyEntries)
-                .Select(i => i.Replace("\"", string.Empty).Replace("'", string.Empty));
+                .Split(new[] { ' ', ',' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(i => i.Replace("\"", "\"\"").Replace("'", string.Empty));
 
             __result = string.Join(" ", terms);
 
