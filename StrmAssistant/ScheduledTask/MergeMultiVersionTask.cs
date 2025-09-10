@@ -200,6 +200,7 @@ namespace StrmAssistant.ScheduledTask
         {
             var allSeries = _libraryManager.GetItemList(new InternalItemsQuery
                 {
+                    HasPath = true,
                     Recursive = true,
                     ParentIds = parents,
                     IncludeItemTypes = new[] { nameof(Series) },
@@ -213,7 +214,8 @@ namespace StrmAssistant.ScheduledTask
 
             var dupSeries = allSeries
                 .SelectMany(item =>
-                    item.ProviderIds.Where(kvp => ProviderIdCheckKeys.Contains(kvp.Key))
+                    item.ProviderIds.Where(kvp => ProviderIdCheckKeys.Contains(kvp.Key) &&
+                                                  IsValidProviderId(kvp.Key, kvp.Value))
                         .Select(kvp => new { kvp.Key, kvp.Value, item }))
                 .GroupBy(x => new { x.Key, x.Value })
                 .Where(g =>
@@ -298,6 +300,7 @@ namespace StrmAssistant.ScheduledTask
         {
             var allMovies = _libraryManager.GetItemList(new InternalItemsQuery
             {
+                HasPath = true,
                 Recursive = true,
                 ParentIds = parents,
                 IncludeItemTypes = new[] { nameof(Movie) },
@@ -311,7 +314,8 @@ namespace StrmAssistant.ScheduledTask
 
             var dupMovies = allMovies
                 .SelectMany(item =>
-                    item.ProviderIds.Where(kvp => ProviderIdCheckKeys.Contains(kvp.Key))
+                    item.ProviderIds.Where(kvp => ProviderIdCheckKeys.Contains(kvp.Key) &&
+                                                  IsValidProviderId(kvp.Key, kvp.Value))
                         .Select(kvp => new { kvp.Key, kvp.Value, item }))
                 .GroupBy(kvp => new { kvp.Key, kvp.Value })
                 .Where(g =>
@@ -324,6 +328,7 @@ namespace StrmAssistant.ScheduledTask
                     return g.Count() != 1 + altVersionCount / g.Count();
                 })
                 .ToList();
+
             allMovies.Clear();
             allMovies.TrimExcess();
 
@@ -387,6 +392,19 @@ namespace StrmAssistant.ScheduledTask
 
                 groupProgress?.Report(100);
             }
+        }
+
+        private static bool IsValidProviderId(string key, string value)
+        {
+            if (string.IsNullOrEmpty(value)) return false;
+
+            if (key.Equals("tmdb", StringComparison.OrdinalIgnoreCase) ||
+                key.Equals("tvdb", StringComparison.OrdinalIgnoreCase))
+            {
+                return int.TryParse(value, out var id) && id > 0;
+            }
+
+            return true;
         }
     }
 }
