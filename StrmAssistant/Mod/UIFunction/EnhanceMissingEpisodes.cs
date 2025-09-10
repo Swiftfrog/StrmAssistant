@@ -14,7 +14,7 @@ namespace StrmAssistant.Mod.UIFunction
 {
     public class EnhanceMissingEpisodes : PatchBase<EnhanceMissingEpisodes>
     {
-        public static AsyncLocal<string> CurrentSeriesContainingFolderPath = new AsyncLocal<string>();
+        public static readonly AsyncLocal<Series> CurrentSeries = new AsyncLocal<Series>();
 
         public EnhanceMissingEpisodes()
         {
@@ -34,7 +34,7 @@ namespace StrmAssistant.Mod.UIFunction
         private static void GetEnabledMetadataProvidersPostfix(BaseItem item, LibraryOptions libraryOptions,
             ref IMetadataProvider[] __result)
         {
-            if (item is Series && item.ProviderIds.ContainsKey(MetadataProviders.Tmdb.ToString()))
+            if (item is Series series && item.ProviderIds.ContainsKey(MetadataProviders.Tmdb.ToString()))
             {
                 var movieDbSeriesProvider =
                     __result.FirstOrDefault(p => p.GetType().FullName == "MovieDb.MovieDbSeriesProvider");
@@ -52,7 +52,10 @@ namespace StrmAssistant.Mod.UIFunction
                     newResult.Add(provider);
                 }
 
-                CurrentSeriesContainingFolderPath.Value = item.ContainingFolderPath;
+                if (Plugin.Instance.MetadataEnhanceStore.GetOptions().LocalEpisodeGroup)
+                {
+                    CurrentSeries.Value = series;
+                }
 
                 __result = newResult.ToArray();
             }

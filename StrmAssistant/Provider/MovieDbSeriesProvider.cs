@@ -2,7 +2,6 @@ using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Providers;
 using StrmAssistant.Common;
-using StrmAssistant.Mod.Metadata;
 using StrmAssistant.Mod.UIFunction;
 using System;
 using System.Collections.Generic;
@@ -32,22 +31,15 @@ namespace StrmAssistant.Provider
             var episodeGroupId = seriesInfo.GetProviderId(MovieDbEpisodeGroupExternalId.StaticName);
             episodeGroupId = episodeGroupId?.Trim();
 
-            EpisodeGroupResponse episodeGroupInfo = null;
-            string localEpisodeGroupPath = null;
-
-            if (Plugin.Instance.MetadataEnhanceStore.GetOptions().LocalEpisodeGroup &&
-                EnhanceMissingEpisodes.CurrentSeriesContainingFolderPath.Value != null)
-            {
-                localEpisodeGroupPath = Path.Combine(EnhanceMissingEpisodes.CurrentSeriesContainingFolderPath.Value,
-                    MovieDbEpisodeGroup.LocalEpisodeGroupFileName);
-                EnhanceMissingEpisodes.CurrentSeriesContainingFolderPath.Value = null;
-
-                episodeGroupInfo = await Plugin.MetadataApi.FetchLocalEpisodeGroup(localEpisodeGroupPath)
-                    .ConfigureAwait(false);
-            }
+            var localEpisodeGroupPath =
+                MetadataApi.GetLocalEpisodeGroupPath(EnhanceMissingEpisodes.CurrentSeries.Value);
+            EnhanceMissingEpisodes.CurrentSeries.Value = null;
 
             try
             {
+                var episodeGroupInfo = await Plugin.MetadataApi.FetchLocalEpisodeGroup(localEpisodeGroupPath)
+                    .ConfigureAwait(false);
+
                 if (episodeGroupInfo is null && !string.IsNullOrEmpty(episodeGroupId))
                 {
                     episodeGroupInfo = await Plugin.MetadataApi

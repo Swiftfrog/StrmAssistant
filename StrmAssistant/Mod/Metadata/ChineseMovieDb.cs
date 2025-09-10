@@ -31,8 +31,6 @@ namespace StrmAssistant.Mod.Metadata
         {
             Initialize();
 
-            PatchCacheTime();
-
             if (Plugin.Instance.MetadataEnhanceStore.GetOptions().ChineseMovieDb)
             {
                 Patch();
@@ -45,6 +43,7 @@ namespace StrmAssistant.Mod.Metadata
             {
                 ReversePatch(PatchTracker, _getTitleMovieData, nameof(MovieGetTitleStub));
                 ReversePatch(PatchTracker, _mapLanguageToProviderLanguage, nameof(MapLanguageToProviderLanguageStub));
+                PatchCacheTime();
             }
             else
             {

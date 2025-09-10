@@ -35,6 +35,7 @@ namespace StrmAssistant.Common
         private readonly IHttpClient _httpClient;
 
         private static readonly LruCache LruCache = new LruCache(20);
+        private const string LocalEpisodeGroupFileName = "episodegroup.json";
         private static long _lastRequestTicks;
 
         public const int RequestIntervalMs = 100;
@@ -318,6 +319,19 @@ namespace StrmAssistant.Common
             LruCache.AddOrUpdateCache(cacheKey, result);
         }
 
+        public void RemoveCache(string cacheKey, string cachePath)
+        {
+            LruCache.RemoveCache(cacheKey);
+            try
+            {
+                _fileSystem.DeleteFile(cachePath);
+            }
+            catch
+            {
+                // ignored
+            }
+        }
+
         public Series GetSeriesByPath(string path)
         {
             var items = _libraryManager.GetItemList(new InternalItemsQuery { Path = path });
@@ -343,24 +357,31 @@ namespace StrmAssistant.Common
             return null;
         }
         
-        public async Task<EpisodeGroupResponse> FetchOnlineEpisodeGroup(string seriesTmdbId,
-            string episodeGroupId, string language, string localEpisodeGroupPath, CancellationToken cancellationToken)
+        public static (string CacheKey, string CachePath, bool IsExternal) GetEpisodeGroupCacheInfo(
+            string episodeGroupId, string tmdbId)
         {
-            var isExternalEpisodeGroup = IsValidHttpUrl(episodeGroupId);
-
-            var url = isExternalEpisodeGroup
-                ? episodeGroupId
-                : BuildMovieDbApiUrl($"tv/episode_group/{episodeGroupId}", language);
-
-            if (isExternalEpisodeGroup)
+            var isExternal = IsValidHttpUrl(episodeGroupId);
+            if (isExternal)
             {
                 episodeGroupId = GenerateFixedCode(episodeGroupId, "external_", 24);
             }
 
-            var cacheKey = "tmdb_episode_group_" + seriesTmdbId + "_" + episodeGroupId;
+            var cacheKey = $"tmdb_episode_group_{tmdbId}_{episodeGroupId}";
 
-            var cachePath = Path.Combine(Plugin.Instance.ApplicationPaths.CachePath, "tmdb-tv", seriesTmdbId,
+            var cachePath = Path.Combine(Plugin.Instance.ApplicationPaths.CachePath, "tmdb-tv", tmdbId,
                 episodeGroupId + ".json");
+
+            return (cacheKey, cachePath, isExternal);
+        }
+
+        public async Task<EpisodeGroupResponse> FetchOnlineEpisodeGroup(string tmdbId,
+            string episodeGroupId, string language, string localEpisodeGroupPath, CancellationToken cancellationToken)
+        {
+            var (cacheKey, cachePath, isExternal) = GetEpisodeGroupCacheInfo(episodeGroupId, tmdbId);
+
+            var url = isExternal
+                ? episodeGroupId
+                : BuildMovieDbApiUrl($"tv/episode_group/{episodeGroupId}", language);
 
             var episodeGroupResponse = await Plugin.MetadataApi
                 .GetMovieDbResponse<EpisodeGroupResponse>(url, cacheKey, cachePath, cancellationToken)
@@ -368,7 +389,7 @@ namespace StrmAssistant.Common
 
             if (episodeGroupResponse != null && !string.IsNullOrEmpty(localEpisodeGroupPath))
             {
-                if (isExternalEpisodeGroup && string.IsNullOrEmpty(episodeGroupResponse.id))
+                if (isExternal && string.IsNullOrEmpty(episodeGroupResponse.id))
                 {
                     episodeGroupResponse.id = url;
                 }
@@ -425,6 +446,13 @@ namespace StrmAssistant.Common
             }
 
             return result;
+        }
+
+        public static string GetLocalEpisodeGroupPath(Series series)
+        {
+            return series?.ContainingFolderPath != null
+                ? Path.Combine(series.ContainingFolderPath, LocalEpisodeGroupFileName)
+                : null;
         }
         
         public static string BuildMovieDbApiUrl(string endpoint, string language)

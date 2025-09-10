@@ -18,6 +18,7 @@ namespace StrmAssistant.Reflection
         internal static MethodInfo _getRefreshOptions;
         internal static MethodInfo _getPrefixes;
         internal static MethodInfo _getArtistPrefixes;
+        internal static MethodInfo _updateItem;
 
         static EmbyApi()
         {
@@ -38,6 +39,8 @@ namespace StrmAssistant.Reflection
             _getRefreshOptions = AccessTools.Method(typeof(ItemRefreshService), "GetRefreshOptions");
             _getPrefixes = AccessTools.Method(typeof(TagService), "Get", new[] { typeof(GetPrefixes) });
             _getArtistPrefixes = AccessTools.Method(typeof(TagService), "Get", new[] { typeof(GetArtistPrefixes) });
+
+            _updateItem = AccessTools.Method(typeof(ItemUpdateService), "UpdateItem");
         }
     }
 }

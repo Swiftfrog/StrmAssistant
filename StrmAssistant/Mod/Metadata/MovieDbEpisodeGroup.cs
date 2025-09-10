@@ -1,19 +1,23 @@
 using HarmonyLib;
+using MediaBrowser.Controller.Api;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.TV;
+using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Configuration;
+using MediaBrowser.Model.Dto;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Providers;
+using StrmAssistant.Common;
 using StrmAssistant.Provider;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using static StrmAssistant.Common.LanguageUtility;
 using static StrmAssistant.Mod.PatchManager;
+using static StrmAssistant.Reflection.EmbyApi;
 using static StrmAssistant.Reflection.EmbyProviders;
 using static StrmAssistant.Reflection.MovieDb;
 
@@ -40,8 +44,6 @@ namespace StrmAssistant.Mod.Metadata
 
         private static readonly AsyncLocal<Series> CurrentSeries = new AsyncLocal<Series>();
         private static readonly AsyncLocal<bool> WasCalledByGetEnabledMetadataProviders = new AsyncLocal<bool>();
-
-        public const string LocalEpisodeGroupFileName = "episodegroup.json";
 
         public MovieDbEpisodeGroup()
         {
@@ -77,6 +79,8 @@ namespace StrmAssistant.Mod.Metadata
             PatchUnpatch(PatchTracker, apply, _canRefreshMetadata, prefix: nameof(CanRefreshMetadataPrefix));
             PatchUnpatch(PatchTracker, apply, _getEnabledMetadataProviders,
                 prefix: nameof(GetEnabledMetadataProvidersPrefix));
+            PatchUnpatch(PatchTracker, apply, _updateItem, prefix: nameof(UpdateItemPrefix),
+                postfix: nameof(UpdateItemPostfix));
         }
 
         [HarmonyPrefix]
@@ -122,13 +126,12 @@ namespace StrmAssistant.Mod.Metadata
         {
             __state = null;
 
-            if (Plugin.Instance.MetadataEnhanceStore.GetOptions().LocalEpisodeGroup &&
-                CurrentSeries.Value?.ContainingFolderPath != null)
+            if (Plugin.Instance.MetadataEnhanceStore.GetOptions().LocalEpisodeGroup && CurrentSeries.Value != null)
             {
                 var series = CurrentSeries.Value;
                 CurrentSeries.Value = null;
 
-                var localEpisodeGroupPath = Path.Combine(series.ContainingFolderPath, LocalEpisodeGroupFileName);
+                var localEpisodeGroupPath = MetadataApi.GetLocalEpisodeGroupPath(series);
                 var episodeGroupInfo = Task.Run(
                     () => Plugin.MetadataApi.FetchLocalEpisodeGroup(localEpisodeGroupPath),
                     cancellationToken).Result;
@@ -175,13 +178,12 @@ namespace StrmAssistant.Mod.Metadata
             EpisodeGroupResponse episodeGroupInfo = null;
             string localEpisodeGroupPath = null;
 
-            if (Plugin.Instance.MetadataEnhanceStore.GetOptions().LocalEpisodeGroup &&
-                CurrentSeries.Value?.ContainingFolderPath != null)
+            if (Plugin.Instance.MetadataEnhanceStore.GetOptions().LocalEpisodeGroup && CurrentSeries.Value != null)
             {
                 var series = CurrentSeries.Value;
                 CurrentSeries.Value = null;
 
-                localEpisodeGroupPath = Path.Combine(series.ContainingFolderPath, LocalEpisodeGroupFileName);
+                localEpisodeGroupPath = MetadataApi.GetLocalEpisodeGroupPath(series);
                 episodeGroupInfo = Task.Run(() => Plugin.MetadataApi.FetchLocalEpisodeGroup(localEpisodeGroupPath),
                     cancellationToken).Result;
 
@@ -271,13 +273,12 @@ namespace StrmAssistant.Mod.Metadata
             string localEpisodeGroupPath = null;
             Series series = null;
 
-            if (Plugin.Instance.MetadataEnhanceStore.GetOptions().LocalEpisodeGroup &&
-                CurrentSeries.Value?.ContainingFolderPath != null)
+            if (Plugin.Instance.MetadataEnhanceStore.GetOptions().LocalEpisodeGroup && CurrentSeries.Value != null)
             {
                 series = CurrentSeries.Value;
                 CurrentSeries.Value = null;
 
-                localEpisodeGroupPath = Path.Combine(series.ContainingFolderPath, LocalEpisodeGroupFileName);
+                localEpisodeGroupPath = MetadataApi.GetLocalEpisodeGroupPath(series);
             }
 
             if (episode.SeriesProviderIds.TryGetValue(MetadataProviders.Tmdb.ToString(), out var seriesTmdbId))
@@ -342,7 +343,7 @@ namespace StrmAssistant.Mod.Metadata
                 var seriesTmdbId = season.Series.GetProviderId(MetadataProviders.Tmdb);
                 var episodeGroupId = season.Series.GetProviderId(MovieDbEpisodeGroupExternalId.StaticName)?.Trim();
                 var localEpisodeGroupPath = Plugin.Instance.MetadataEnhanceStore.GetOptions().LocalEpisodeGroup
-                    ? Path.Combine(season.Series.ContainingFolderPath, LocalEpisodeGroupFileName)
+                    ? MetadataApi.GetLocalEpisodeGroupPath(season.Series)
                     : null;
 
                 var episodeGroupInfo = Task.Run(() => Plugin.MetadataApi.FetchLocalEpisodeGroup(localEpisodeGroupPath),
@@ -397,7 +398,7 @@ namespace StrmAssistant.Mod.Metadata
             {
                 var seriesTmdbId = episode.Series.GetProviderId(MetadataProviders.Tmdb);
                 var localEpisodeGroupPath = Plugin.Instance.MetadataEnhanceStore.GetOptions().LocalEpisodeGroup
-                    ? Path.Combine(episode.Series.ContainingFolderPath, LocalEpisodeGroupFileName)
+                    ? MetadataApi.GetLocalEpisodeGroupPath(episode.Series)
                     : null;
 
                 if (!string.IsNullOrEmpty(seriesTmdbId))
@@ -471,6 +472,60 @@ namespace StrmAssistant.Mod.Metadata
             }
 
             return null;
+        }
+
+        [HarmonyPrefix]
+        private static void UpdateItemPrefix(BaseItemDto request, BaseItem item, out string __state)
+        {
+            __state = item is Series series ? series.GetProviderId(MovieDbEpisodeGroupExternalId.StaticName) : null;
+        }
+
+        [HarmonyPostfix]
+        private static void UpdateItemPostfix(BaseApiService __instance, BaseItemDto request, BaseItem item,
+            string __state)
+        {
+            if (item is Series series)
+            {
+                var episodeGroupId = series.GetProviderId(MovieDbEpisodeGroupExternalId.StaticName);
+                if (!string.Equals(__state, episodeGroupId, StringComparison.OrdinalIgnoreCase))
+                {
+                    var items = __instance.LibraryManager.GetItemList(new InternalItemsQuery
+                        {
+                            PresentationUniqueKey = series.PresentationUniqueKey
+                        })
+                        .OfType<Series>()
+                        .ToList();
+
+                    var itemsToUpdate = new List<BaseItem>();
+
+                    foreach (var itemToProcess in items)
+                    {
+                        if (itemToProcess.InternalId != series.InternalId)
+                        {
+                            itemToProcess.SetProviderId(MovieDbEpisodeGroupExternalId.StaticName, episodeGroupId);
+                            itemsToUpdate.Add(itemToProcess);
+                        }
+
+                        var localEpisodeGroupPath = MetadataApi.GetLocalEpisodeGroupPath(itemToProcess);
+                        Plugin.MetadataApi.RemoveCache(localEpisodeGroupPath, localEpisodeGroupPath);
+                    }
+
+                    if (itemsToUpdate.Count > 0)
+                    {
+                        __instance.LibraryManager.UpdateItems(itemsToUpdate, null, ItemUpdateType.MetadataEdit, true,
+                            false, null, CancellationToken.None);
+                        foreach (var baseItem in itemsToUpdate)
+                            BaseItem.ProviderManager.SaveMetadata(baseItem, ItemUpdateType.MetadataEdit);
+                    }
+
+                    var tmdbId = series.GetProviderId(MetadataProviders.Tmdb);
+                    if (!string.IsNullOrEmpty(__state) && !string.IsNullOrEmpty(tmdbId))
+                    {
+                        var (cacheKey, cachePath, isExternal) = MetadataApi.GetEpisodeGroupCacheInfo(__state, tmdbId);
+                        Plugin.MetadataApi.RemoveCache(cacheKey, cachePath);
+                    }
+                }
+            }
         }
     }
 }

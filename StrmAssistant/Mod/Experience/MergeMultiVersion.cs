@@ -1,5 +1,6 @@
 ﻿using Emby.Api;
 using HarmonyLib;
+using MediaBrowser.Controller.Api;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
@@ -131,7 +132,8 @@ namespace StrmAssistant.Mod.Experience
         }
 
         [HarmonyPostfix]
-        private static void GetRefreshOptionsPostfix(RefreshItem request, MetadataRefreshOptions __result)
+        private static void GetRefreshOptionsPostfix(BaseApiService __instance, RefreshItem request,
+            MetadataRefreshOptions __result)
         {
             var item = BaseItem.LibraryManager.GetItemById(request.Id);
 
@@ -141,15 +143,16 @@ namespace StrmAssistant.Mod.Experience
                 var seriesTmdbId = series?.GetProviderId(MetadataProviders.Tmdb);
                 var episodeGroupId = series?.GetProviderId(MovieDbEpisodeGroupExternalId.StaticName)?.Trim();
 
-                var itemsToRefresh = BaseItem.LibraryManager.GetItemList(new InternalItemsQuery
+                var itemsToRefresh = __instance.LibraryManager.GetItemList(new InternalItemsQuery
                 {
-                    PresentationUniqueKey = item.PresentationUniqueKey,
-                    ExcludeItemIds = new[] { item.InternalId }
+                    PresentationUniqueKey = item.PresentationUniqueKey, ExcludeItemIds = new[] { item.InternalId }
                 });
 
-                foreach (var alt in itemsToRefresh)
+                var itemsToUpdate = new List<BaseItem>();
+
+                if (!string.IsNullOrEmpty(episodeGroupId))
                 {
-                    if (!string.IsNullOrEmpty(episodeGroupId))
+                    foreach (var alt in itemsToRefresh)
                     {
                         var altSeries = alt as Series ?? (alt as Season)?.Series;
 
@@ -162,11 +165,22 @@ namespace StrmAssistant.Mod.Experience
                                     StringComparison.OrdinalIgnoreCase))
                             {
                                 alt.SetProviderId(MovieDbEpisodeGroupExternalId.StaticName, episodeGroupId);
-                                alt.UpdateToRepository(ItemUpdateType.MetadataEdit);
+                                itemsToUpdate.Add(alt);
                             }
                         }
                     }
+                }
 
+                if (itemsToUpdate.Count > 0)
+                {
+                    __instance.LibraryManager.UpdateItems(itemsToUpdate, null, ItemUpdateType.MetadataEdit, true, false,
+                        null, CancellationToken.None);
+                    foreach (var baseItem in itemsToUpdate)
+                        BaseItem.ProviderManager.SaveMetadata(baseItem, ItemUpdateType.MetadataEdit);
+                }
+
+                foreach (var alt in itemsToRefresh)
+                {
                     BaseItem.ProviderManager.QueueRefresh(alt.InternalId, __result, RefreshPriority.Normal, true);
                 }
             }

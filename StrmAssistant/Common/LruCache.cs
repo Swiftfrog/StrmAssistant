@@ -26,19 +26,31 @@ namespace StrmAssistant.Common
             {
                 if (_cacheMap.TryGetValue(key, out var existingNode))
                 {
-                    _orderList.Remove(existingNode);
-                }
-                else if (_cacheMap.Count >= _capacity)
-                {
-                    var leastUsed = _orderList.Last;
-                    _orderList.RemoveLast();
-                    _cacheMap.Remove(leastUsed.Value.Key);
-                }
+                    if (!Equals(existingNode.Value.Value, value))
+                    {
+                        existingNode.Value = new KeyValuePair<string, object>(key, value);
+                    }
 
-                var newNode =
-                    new LinkedListNode<KeyValuePair<string, object>>(new KeyValuePair<string, object>(key, value));
-                _orderList.AddFirst(newNode);
-                _cacheMap[key] = newNode;
+                    if (_orderList.First != existingNode)
+                    {
+                        _orderList.Remove(existingNode);
+                        _orderList.AddFirst(existingNode);
+                    }
+                }
+                else
+                {
+                    if (_cacheMap.Count >= _capacity)
+                    {
+                        var leastUsed = _orderList.Last;
+                        _orderList.RemoveLast();
+                        _cacheMap.Remove(leastUsed.Value.Key);
+                    }
+
+                    var newNode = new LinkedListNode<KeyValuePair<string, object>>(
+                        new KeyValuePair<string, object>(key, value));
+                    _orderList.AddFirst(newNode);
+                    _cacheMap[key] = newNode;
+                }
             }
             finally
             {
@@ -54,10 +66,33 @@ namespace StrmAssistant.Common
                 value = default;
                 if (_cacheMap.TryGetValue(key, out var node))
                 {
-                    _orderList.Remove(node);
-                    _orderList.AddFirst(node);
+                    if (_orderList.First != node)
+                    {
+                        _orderList.Remove(node);
+                        _orderList.AddFirst(node);
+                    }
 
                     value = node.Value.Value as T;
+                    return true;
+                }
+
+                return false;
+            }
+            finally
+            {
+                _lock.ExitWriteLock();
+            }
+        }
+
+        public bool RemoveCache(string key)
+        {
+            _lock.EnterWriteLock();
+            try
+            {
+                if (_cacheMap.TryGetValue(key, out var node))
+                {
+                    _orderList.Remove(node);
+                    _cacheMap.Remove(key);
                     return true;
                 }
 
