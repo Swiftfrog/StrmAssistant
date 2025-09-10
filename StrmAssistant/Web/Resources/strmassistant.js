@@ -167,30 +167,13 @@
         },
 
         clear_intro: function (itemId) {
-            const locale = globalize.getCurrentLocale().toLowerCase();
-            const commandName = locale === 'zh-cn' ? '\u6E05\u9664\u7247\u5934\u6807\u8BB0' : 
-                    (['zh-hk', 'zh-tw'].includes(locale) ? '\u6E05\u9664\u7247\u982D\u6A19\u8A18' : 'Clear Intro Markers');
-            confirm({
-                text: globalize.translate('AreYouSureToContinue'),
-                title: commandName,
-                confirmText: globalize.translate('Clear'),
-                primary: 'cancel'
-            })
-            .then(function() {
-                loading.show();
-                let apiClient = connectionManager.currentApiClient();
-                let clearIntroApi = apiClient.getUrl(`Items/${itemId}/ClearIntro`);
-                apiClient.ajax({
-                    type: "POST",
-                    url: clearIntroApi,
-                    data: {},
-                    contentType: "application/json"
-                }).finally(() => {
-                    loading.hide();
-                    const confirmMessage = (locale === 'zh-cn') ? commandName + '\u6210\u529F' : 
-                        (['zh-hk', 'zh-tw'].includes(locale) ? commandName + '\u6210\u529F' : commandName + ' Success');
-                    toast(confirmMessage);
-                });
+            let apiClient = connectionManager.currentApiClient();
+            let clearIntroApi = apiClient.getUrl(`Items/${itemId}/ClearIntro`);
+            apiClient.ajax({
+                type: "POST",
+                url: clearIntroApi,
+                data: {},
+                contentType: "application/json"
             });
         }
     };

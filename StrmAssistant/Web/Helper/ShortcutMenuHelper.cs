@@ -69,6 +69,8 @@ const strmAssistantCommandSource = {
             'zh-hk': '\u89E3\u9396',
             'zh-tw': '\u89E3\u9396'
         }[locale] || 'Unlock') + (cjk ? this.globalize.translate('Metadata') : ' ' + this.globalize.translate('Metadata'));
+        const clearIntroCommandName = locale === 'zh-cn' ? '\u6E05\u9664\u7247\u5934\u6807\u8BB0' : 
+            (['zh-hk', 'zh-tw'].includes(locale) ? '\u6E05\u9664\u7247\u982D\u6A19\u8A18' : 'Clear Intro Markers');
 
         if (options.items?.length === 1 && options.items[0].LibraryOptions && options.items[0].Type === 'VirtualFolder' &&
             options.items[0].CollectionType !== 'boxsets' && options.items[0].CollectionType !== 'playlists') {
@@ -101,9 +103,7 @@ const strmAssistantCommandSource = {
             }
             if ((options.items[0].Type === 'Series' || options.items[0].Type === 'Season') &&
                 (options.user && options.user.Policy.IsAdministrator || false)) {
-                const commandName = locale === 'zh-cn' ? '\u6E05\u9664\u7247\u5934\u6807\u8BB0' : 
-                    (['zh-hk', 'zh-tw'].includes(locale) ? '\u6E05\u9664\u7247\u982D\u6A19\u8A18' : 'Clear Intro Markers');
-                result.push({ name: commandName, id: 'clear_intro', icon: 'clear_all' });
+                result.push({ name: clearIntroCommandName, id: 'clear_intro', icon: 'clear_all' });
             }
             return result;
         }
@@ -112,6 +112,9 @@ const strmAssistantCommandSource = {
             const result = [];
             result.push({ name: lockCommandName, id: 'lock', icon: 'lock' });
             result.push({ name: unlockCommandName, id: 'unlock', icon: 'lock_open' });
+            if (options.items[0].Type === 'Series' || options.items[0].Type === 'Season') {
+                result.push({ name: clearIntroCommandName, id: 'clear_intro', icon: 'clear_all' });
+            }
             return result;
         }
         return [];
@@ -145,6 +148,26 @@ const strmAssistantCommandSource = {
                 return Promise.all(promises);
             });
         }
+        if (command === actions.clear_intro) {
+            return require(['components/strmassistant/strmassistant']).then(responses => {
+                const locale = this.globalize.getCurrentLocale().toLowerCase();
+                const commandName = locale === 'zh-cn' ? '\u6E05\u9664\u7247\u5934\u6807\u8BB0' : 
+                        (['zh-hk', 'zh-tw'].includes(locale) ? '\u6E05\u9664\u7247\u982D\u6A19\u8A18' : 'Clear Intro Markers');
+                this.confirm({
+                    text: this.globalize.translate('AreYouSureToContinue'),
+                    title: commandName,
+                    confirmText: this.globalize.translate('Clear'),
+                    primary: 'cancel'
+                }).then(() => {
+                    const promises = items.map(item => responses[0].clear_intro(item.Id));
+                    return Promise.all(promises);
+                }).then(() => {
+                    const confirmMessage = (locale === 'zh-cn') ? commandName + '\u6210\u529F' : 
+                        (['zh-hk', 'zh-tw'].includes(locale) ? commandName + '\u6210\u529F' : commandName + ' Success');
+                    this.toast(confirmMessage);
+                });
+            });
+        }
         if (actions[command]) {
             return require(['components/strmassistant/strmassistant']).then(responses => {
                 if (command === 'traverse') {
@@ -157,11 +180,16 @@ const strmAssistantCommandSource = {
 };
 
 setTimeout(() => {
-    Emby.importModule('./modules/common/globalize.js').then(globalize => {
+    Promise.all([
+        Emby.importModule('./modules/common/globalize.js'),
+        Emby.importModule('./modules/common/dialogs/confirm.js'),
+        Emby.importModule('./modules/toast/toast.js'),
+        Emby.importModule('./modules/common/itemmanager/itemmanager.js')
+    ]).then(([globalize, confirm, toast, itemmanager]) => {
         strmAssistantCommandSource.globalize = globalize;
-        Emby.importModule('./modules/common/itemmanager/itemmanager.js').then(itemmanager => {
-            itemmanager.registerCommandSource(strmAssistantCommandSource);
-        });
+        strmAssistantCommandSource.confirm = confirm;
+        strmAssistantCommandSource.toast = toast;
+        itemmanager.registerCommandSource(strmAssistantCommandSource);
     });
 }, 3000);
     ";

@@ -329,7 +329,10 @@ namespace StrmAssistant.Common
                 }
             }
 
-            _logger.Info("IntroSkipClear - Number of items: " + items.Count);
+            if (clearAll)
+            {
+                _logger.Info("IntroSkipClear - Number of items: " + items.Count);
+            }
 
             return items;
         }
