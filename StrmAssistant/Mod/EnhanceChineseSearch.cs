@@ -554,7 +554,7 @@ namespace StrmAssistant.Mod
                 }
             }
 
-            if (AppVer >= Ver49037 && !string.IsNullOrEmpty(query.SearchTerm))
+            if (AppVer >= Ver49037 && (!string.IsNullOrEmpty(query.SearchTerm) || query.Genres.Length != 0))
             {
                 var result = LoadTokenizerExtension(db);
             }
