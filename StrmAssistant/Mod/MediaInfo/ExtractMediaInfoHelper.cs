@@ -66,7 +66,8 @@ namespace StrmAssistant.Mod.MediaInfo
         {
             if (ExclusiveExtract.ExclusiveItemValue == 0L) return;
 
-            var baseTimeoutMs = 60000;
+            var options = Plugin.Instance.MediaInfoExtractStore.GetOptions();
+            var baseTimeoutMs = options.MediaInfoExtractionTimeoutMs > 0 ? options.MediaInfoExtractionTimeoutMs : 60000;
             var concurrency = Plugin.Instance.MainOptionsStore.GetOptions().GeneralOptions.MaxConcurrentCount;
             timeoutMs = Math.Min(baseTimeoutMs + (concurrency - 1) * 5000, 150000);
         }

@@ -119,8 +119,9 @@ namespace StrmAssistant.Options.Store
                 _logger.Info("IncludeExtra is set to {0}", options.IncludeExtra);
                 _logger.Info("EnableImageCapture is set to {0}", options.EnableImageCapture);
                 _logger.Info("ImageCapturePosition is set to {0}", options.ImageCapturePosition);
-                _logger.Info("ExclusiveExtract is set to {0}", options.ExclusiveExtract);
+                _logger.Info("MediaInfoExtractionTimeoutMs is set to {0}", options.MediaInfoExtractionTimeoutMs);
 
+                _logger.Info("ExclusiveExtract is set to {0}", options.ExclusiveExtract);
                 var controlFeatures = GetSelectedExclusiveFeatureDescription();
                 _logger.Info("ExclusiveExtract - ControlFeatures is set to {0}",
                     string.IsNullOrEmpty(controlFeatures) ? "EMPTY" : controlFeatures);
