@@ -102,7 +102,7 @@
     <value>Catch-up Mode</value>
   </data>
   <data name="PluginOptions_CatchupMode_Catch_up_users_favorites__exclusive_to_Strm___Default_is_False_" xml:space="preserve">
-    <value>Extract media info for newly added items and intro marker detection or sync in near real-time. Default is OFF.</value>
+    <value>Run selected tasks on new items in near real-time (one batch ~30s). Default is OFF.</value>
   </data>
   <data name="PluginOptions_IncludeExtra_Include_Extra" xml:space="preserve">
     <value>Include Additional Part and Extra</value>

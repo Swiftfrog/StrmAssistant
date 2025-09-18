@@ -15,7 +15,7 @@
     <value>追更模式</value>
   </data>
   <data name="PluginOptions_CatchupMode_Catch_up_users_favorites__exclusive_to_Strm___Default_is_False_" xml:space="preserve">
-    <value>电影洗版或剧集有更新后实时提取媒体信息以及片头片尾标记探测或同步，默认关闭。</value>
+    <value>媒体入库后实时触发选择的任务，大约每 30 秒处理一批，默认关闭。</value>
   </data>
   <data name="PluginOptions_IncludeExtra_Include_Extra" xml:space="preserve">
     <value>包含分集和附加内容</value>
