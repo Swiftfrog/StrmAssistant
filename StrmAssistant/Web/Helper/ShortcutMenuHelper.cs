@@ -119,7 +119,7 @@ const strmAssistantCommandSource = {
         }
         return [];
     },
-    executeCommand: function(command, items) {
+    executeCommand: function(command, items, options) {
         if (!command || !items?.length) return;
         const actions = {
             copy: 'copy',
@@ -219,7 +219,7 @@ const dataExplorerCommandSource = {
         }
         return commands;
     },
-    executeCommand(command, items) {
+    executeCommand(command, items, options) {
         return require(['components/dataexplorer/dataexplorer']).then((responses) => {
             return responses[0].show(items[0].Id);
         });

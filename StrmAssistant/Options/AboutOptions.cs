@@ -16,9 +16,6 @@ namespace StrmAssistant.Options
         public GenericItemList VersionInfoList { get; set; } = new GenericItemList();
 
         [Browsable(false)]
-        public string DefaultUICulture { get; set; } = "zh-CN";
-
-        [Browsable(false)]
         public bool DebugMode { get; set; } = false;
 
         [Browsable(false)]

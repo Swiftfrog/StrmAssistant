@@ -12,6 +12,7 @@ using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.MediaEncoding;
 using MediaBrowser.Controller.Notifications;
 using MediaBrowser.Controller.Persistence;
+using MediaBrowser.Controller.Plugins;
 using MediaBrowser.Controller.Providers;
 using MediaBrowser.Controller.Session;
 using MediaBrowser.Model.Configuration;
@@ -49,7 +50,7 @@ using static StrmAssistant.Options.Utility;
 
 namespace StrmAssistant
 {
-    public class Plugin : BasePlugin, IHasThumbImage, IHasUIPages
+    public class Plugin : BasePlugin, IHasThumbImage, IHasUIPages, IServerEntryPoint
     {
         private List<IPluginUIPageController> _pages;
         public readonly PluginOptionsStore MainOptionsStore;
@@ -110,6 +111,8 @@ namespace StrmAssistant
             _fileSystem = fileSystem;
             _taskManager = taskManager;
 
+            DefaultUICulture = new CultureInfo(configurationManager.Configuration.UICulture);
+
             MainOptionsStore = new PluginOptionsStore(applicationHost, Logger, Name);
             MediaInfoExtractStore =
                 new MediaInfoExtractOptionsStore(applicationHost, Logger, Name + "_" + nameof(MediaInfoExtractOptions));
@@ -145,9 +148,11 @@ namespace StrmAssistant
                 jsonSerializer, httpClient);
             VideoThumbnailApi = new VideoThumbnailApi(libraryManager, fileSystem, imageExtractionManager, itemRepository,
                 mediaMountManager, serverApplicationPaths, libraryMonitor, ffmpegManager);
-
-            Initialize();
         }
+
+        public void Run() => Initialize();
+
+        public void Dispose() { }
 
         private void Initialize()
         {
@@ -414,8 +419,7 @@ namespace StrmAssistant
 
         public string UserAgent => $"{Name}/{CurrentVersion.ToString()}";
 
-        public CultureInfo DefaultUICulture =>
-            new CultureInfo(MainOptionsStore.GetOptions().AboutOptions.DefaultUICulture);
+        public CultureInfo DefaultUICulture { get; private set; }
 
         public bool DebugMode;
 
