@@ -29,7 +29,7 @@ namespace StrmAssistant.Web.Service
             var targetOptions = LibraryApi.CopyLibraryOptions(sourceOptions);
             targetOptions.PathInfos = Array.Empty<MediaPathInfo>();
 
-            var suffix = new Random().Next(100, 999).ToString();
+            var suffix = Random.Shared.Next(100, 999).ToString();
             _libraryManager.AddVirtualFolder(sourceLibrary.Name + " #" + suffix, targetOptions, false);
         }
     }

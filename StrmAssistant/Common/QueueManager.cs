@@ -22,7 +22,6 @@ namespace StrmAssistant.Common
         private static DateTime _fingerprintProcessLastRunTime = DateTime.MinValue;
         private static DateTime _episodeRefreshProcessLastRunTime = DateTime.MinValue;
         private static readonly TimeSpan ThrottleInterval = TimeSpan.FromSeconds(30);
-        private static readonly Random Random = new Random();
         private static int _currentMasterMaxConcurrentCount;
         private static int _currentTier2MaxConcurrentCount;
 
@@ -703,7 +702,7 @@ namespace StrmAssistant.Common
                                 try
                                 {
                                     await Task.Delay(
-                                            Random.Next(0,
+                                            Random.Shared.Next(0,
                                                 Math.Max(0, tier2MaxConcurrentCount - Tier2Semaphore.CurrentCount) *
                                                 MetadataApi.RequestIntervalMs), cancellationToken)
                                         .ConfigureAwait(false);

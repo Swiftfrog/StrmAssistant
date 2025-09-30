@@ -25,7 +25,6 @@ namespace StrmAssistant.ScheduledTask
 
         private static readonly HashSet<string> ProviderIdCheckKeys =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "tmdb", "imdb", "tvdb" };
-        private static readonly Random Random = new Random();
 
         public RefreshPersonTask(ILibraryManager libraryManager)
         {
@@ -192,7 +191,7 @@ namespace StrmAssistant.ScheduledTask
                         try
                         {
                             await Task.Delay(
-                                    Random.Next(0,
+                                    Random.Shared.Next(0,
                                         Math.Max(0,
                                             tier2MaxConcurrentCount - QueueManager.Tier2Semaphore.CurrentCount) *
                                         MetadataApi.RequestIntervalMs), cancellationToken)

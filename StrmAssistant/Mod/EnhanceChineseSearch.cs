@@ -295,7 +295,7 @@ namespace StrmAssistant.Mod
 
         private static void ExportTokenizer(string resourceName)
         {
-            using (var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName))
+            using (var stream = typeof(Plugin).Assembly.GetManifestResourceStream(resourceName))
             {
                 using (var fileStream = new FileStream(TokenizerPath, FileMode.Create, FileAccess.Write))
                 {

@@ -62,8 +62,8 @@ namespace StrmAssistant.ScheduledTask
             yield return new TaskTriggerInfo
             {
                 Type = TaskTriggerInfo.TriggerWeekly,
-                DayOfWeek = (DayOfWeek)new Random().Next(7),
-                TimeOfDayTicks = TimeSpan.FromMinutes(new Random().Next(24 * 4) * 15).Ticks
+                DayOfWeek = (DayOfWeek)Random.Shared.Next(7),
+                TimeOfDayTicks = TimeSpan.FromMinutes(Random.Shared.Next(24 * 4) * 15).Ticks
             };
         }
 

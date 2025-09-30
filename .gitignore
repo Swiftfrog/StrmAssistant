@@ -9,5 +9,3 @@ x64/
 build/
 [Bb]in/
 [Oo]bj/
-
-!libs/**/*.dll
