@@ -252,15 +252,8 @@ namespace StrmAssistant.Common
             bool enableAlternateMediaSources, bool enablePathSubstitution, bool fillChapters, // 修复：顺序和参数
             BaseItem[] collectionFolders, LibraryOptions libraryOptions, DeviceProfile deviceProfile)
             // 修复：不包含可选的 User 参数
-            => throw new NotImplementedException();
-        
+            => throw new NotImplementedException();     
 
-        // private List<MediaSourceInfo> GetStaticMediaSourcesByApi(BaseItem item, bool enableAlternateMediaSources,
-        //     LibraryOptions libraryOptions)
-        // {
-        //     return _mediaSourceManager.GetStaticMediaSources(item, enableAlternateMediaSources, false,
-        //         libraryOptions, null, null);
-        // }
         // 修改 GetStaticMediaSourcesByApi 方法，使其也处理异常
         private List<MediaSourceInfo> GetStaticMediaSourcesByApi(BaseItem item, bool enableAlternateMediaSources,
             LibraryOptions libraryOptions)
@@ -283,22 +276,6 @@ namespace StrmAssistant.Common
                 return new List<MediaSourceInfo>();
             }
         }
-        
-        // private List<MediaSourceInfo> GetStaticMediaSourcesByRef(BaseItem item, bool enableAlternateMediaSources,
-        //     LibraryOptions libraryOptions)
-        // {
-        //     switch (PatchTracker.FallbackPatchApproach)
-        //     {
-        //         case PatchApproach.Harmony:
-        //             return GetStaticMediaSourcesStub(_mediaSourceManager, item, enableAlternateMediaSources, false,
-        //                 false, libraryOptions, null, null);
-        //         case PatchApproach.Reflection:
-        //             return (List<MediaSourceInfo>)_getStaticMediaSources.Invoke(_mediaSourceManager,
-        //                 new object[] { item, enableAlternateMediaSources, false, false, libraryOptions, null, null });
-        //         default:
-        //             throw new NotImplementedException();
-        //     }
-        // }
         
         // 修改 GetStaticMediaSourcesByRef 方法，使其在 PatchApproach 为 None 时也返回标准 API 调用结果
         private List<MediaSourceInfo> GetStaticMediaSourcesByRef(BaseItem item, bool enableAlternateMediaSources,
