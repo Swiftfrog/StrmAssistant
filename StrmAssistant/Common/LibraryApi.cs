@@ -947,7 +947,7 @@ namespace StrmAssistant.Common
             var folder = _fileSystem.GetDirectoryName(item.Path);
             var relatedFiles = GetRelatedPaths(basename, folder);
 
-            return new[] { new FileSystemMetadata { FullName = item.Path, IsDirectory = item.IsFolder } }
+            return new[] { new FileSystemMetadata { FullName = item.Path, IsDirectory = item is Folder } }
                 .Concat(relatedFiles)
                 .ToArray();
         }
