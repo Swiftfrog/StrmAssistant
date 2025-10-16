@@ -32,12 +32,6 @@
 
 ## 安装与使用说明请查看 [Wiki](https://github.com/sjtuross/StrmAssistant/wiki)
 
-## 赞赏
-
-如果这个项目对你有帮助，不妨请我喝杯咖啡。如果你欣赏这个项目，欢迎为它点亮一颗⭐️。感谢你对开源精神的认可与支持！
-
-![donate](donate.png "donate")
-
 ## 声明
 
 本项目为开源项目，与 Emby LLC 没有任何关联，也未获得 Emby LLC 的授权或认可。本项目的目的是为合法购买并安装了 Emby 软件的用户提供额外的功能增强和使用便利。
@@ -63,7 +57,3 @@
 
 1. 本项目开发者不对因使用本项目而可能导致的任何直接或间接后果（包括但不限于数据丢失、软件故障或法律纠纷）负责。
 2. 如果认为本项目可能侵犯相关方的合法权益，请与开发者取得联系。
-
-### 星星数
-
-[![Star History Chart](https://api.star-history.com/svg?repos=sjtuross/strmassistant&type=Date)](https://www.star-history.com/#sjtuross/strmassistant&Date)
