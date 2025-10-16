@@ -812,15 +812,12 @@ namespace StrmAssistant.Common
 
         public async Task<string> GetStrmMountPath(string strmPath)
         {
-            // 修复：直接使用 string 类型的 strmPath，而不是转换为 ReadOnlyMemory<char>
-            // var path = strmPath.AsMemory(); // 删除这行
-        
             try
             {
-                // 修复：将 strmPath 直接传递给 Mount 方法
                 using var mediaMount = await _mediaMountManager.Mount(strmPath, null, CancellationToken.None);
         
-                return mediaMount?.MountedPath;
+                // 修复：使用 mediaMount.MountedPathInfo.FullName 而不是 mediaMount.MountedPath
+                return mediaMount?.MountedPathInfo?.FullName;
             }
             catch
             {
