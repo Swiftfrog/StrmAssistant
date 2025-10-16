@@ -111,65 +111,137 @@ namespace StrmAssistant.Common
             };
         }
 
+        // public bool HasExternalSubtitleChanged(BaseItem item, IDirectoryService directoryService, bool clearCache)
+        // {
+        //     var currentExternalSubtitleFiles = _libraryManager.GetExternalSubtitleFiles(item.InternalId);
+        //     var currentSet = new HashSet<string>(currentExternalSubtitleFiles, StringComparer.Ordinal);
+
+        //     try
+        //     {
+        //         var newExternalSubtitleFiles = GetExternalSubtitleStreams(item, 0, directoryService, clearCache)
+        //             .Select(i => i.Path)
+        //             .ToArray();
+        //         var newSet = new HashSet<string>(newExternalSubtitleFiles, StringComparer.Ordinal);
+
+        //         return !currentSet.SetEquals(newSet);
+        //     }
+        //     catch
+        //     {
+        //         // ignored
+        //     }
+
+        //     return false;
+        // }
+
         public bool HasExternalSubtitleChanged(BaseItem item, IDirectoryService directoryService, bool clearCache)
         {
-            var currentExternalSubtitleFiles = _libraryManager.GetExternalSubtitleFiles(item.InternalId);
+            // ✅ 使用公开 API 获取当前已知的外部字幕文件路径
+            var currentExternalSubtitleFiles = _libraryManager.GetExternalTracks(
+                item.InternalId,
+                new[] { MediaStreamType.Subtitle },
+                CancellationToken.None)
+                .Select(t => t.Item1)
+                .ToArray();
             var currentSet = new HashSet<string>(currentExternalSubtitleFiles, StringComparer.Ordinal);
-
+        
             try
             {
+                // 获取磁盘上实际存在的外部字幕（通过反射调用 SubtitleResolver）
                 var newExternalSubtitleFiles = GetExternalSubtitleStreams(item, 0, directoryService, clearCache)
                     .Select(i => i.Path)
                     .ToArray();
                 var newSet = new HashSet<string>(newExternalSubtitleFiles, StringComparer.Ordinal);
-
+        
                 return !currentSet.SetEquals(newSet);
             }
             catch
             {
                 // ignored
             }
-
+        
             return false;
         }
+        
+        // public async Task UpdateExternalSubtitles(BaseItem item, MetadataRefreshOptions refreshOptions, bool clearCache,
+        //     bool persistMediaInfo)
+        // {
+        //     var directoryService = refreshOptions.DirectoryService;
+        //     var currentStreams = item.GetMediaStreams()
+        //         .FindAll(i =>
+        //             !(i.IsExternal && i.Type == MediaStreamType.Subtitle && i.Protocol == MediaProtocol.File));
+        //     var startIndex = currentStreams.Count == 0 ? 0 : currentStreams.Max(i => i.Index) + 1;
 
+        //     if (GetExternalSubtitleStreams(item, startIndex, directoryService, clearCache) is
+        //         { } externalSubtitleStreams)
+        //     {
+        //         foreach (var subtitleStream in externalSubtitleStreams)
+        //         {
+        //             var extension = Path.GetExtension(subtitleStream.Path);
+        //             if (!string.IsNullOrEmpty(extension) && ProbeExtensions.Contains(extension))
+        //             {
+        //                 var result =
+        //                     await UpdateExternalSubtitleStream(item, subtitleStream, refreshOptions,
+        //                         CancellationToken.None).ConfigureAwait(false);
+
+        //                 if (!result)
+        //                     _logger.Warn("No result when probing external subtitle file: {0}", subtitleStream.Path);
+        //             }
+
+        //             _logger.Info("ExternalSubtitle - Subtitle Processed: " + subtitleStream.Path);
+        //         }
+
+        //         currentStreams.AddRange(externalSubtitleStreams);
+        //         _itemRepository.SaveMediaStreams(item.InternalId, currentStreams, CancellationToken.None);
+
+        //         if (persistMediaInfo && Plugin.LibraryApi.IsLibraryInScope(item))
+        //         {
+        //             _ = Plugin.MediaInfoApi.SerializeMediaInfo(item.InternalId, directoryService, true,
+        //                 "External Subtitle Update").ConfigureAwait(false);
+        //         }
+        //     }
+        // }
+        
         public async Task UpdateExternalSubtitles(BaseItem item, MetadataRefreshOptions refreshOptions, bool clearCache,
             bool persistMediaInfo)
         {
             var directoryService = refreshOptions.DirectoryService;
-            var currentStreams = item.GetMediaStreams()
-                .FindAll(i =>
-                    !(i.IsExternal && i.Type == MediaStreamType.Subtitle && i.Protocol == MediaProtocol.File));
-            var startIndex = currentStreams.Count == 0 ? 0 : currentStreams.Max(i => i.Index) + 1;
-
-            if (GetExternalSubtitleStreams(item, startIndex, directoryService, clearCache) is
-                { } externalSubtitleStreams)
+            
+            // 1. 获取所有非外部字幕流（保留音频、视频、内嵌字幕等）
+            var nonExternalStreams = item.GetMediaStreams()
+                .Where(s => !IsExternalFileSubtitle(s))
+                .ToList();
+        
+            // 2. 获取磁盘上最新的外部字幕流
+            var startIndex = nonExternalStreams.Count == 0 ? 0 : nonExternalStreams.Max(s => s.Index) + 1;
+            var externalSubtitleStreams = GetExternalSubtitleStreams(item, startIndex, directoryService, clearCache);
+        
+            // 3. Probe 需要 probe 的字幕（如 .sub, .smi 等）
+            foreach (var subtitleStream in externalSubtitleStreams)
             {
-                foreach (var subtitleStream in externalSubtitleStreams)
+                var extension = Path.GetExtension(subtitleStream.Path);
+                if (!string.IsNullOrEmpty(extension) && ProbeExtensions.Contains(extension))
                 {
-                    var extension = Path.GetExtension(subtitleStream.Path);
-                    if (!string.IsNullOrEmpty(extension) && ProbeExtensions.Contains(extension))
-                    {
-                        var result =
-                            await UpdateExternalSubtitleStream(item, subtitleStream, refreshOptions,
-                                CancellationToken.None).ConfigureAwait(false);
-
-                        if (!result)
-                            _logger.Warn("No result when probing external subtitle file: {0}", subtitleStream.Path);
-                    }
-
-                    _logger.Info("ExternalSubtitle - Subtitle Processed: " + subtitleStream.Path);
+                    var result = await UpdateExternalSubtitleStream(item, subtitleStream, refreshOptions, CancellationToken.None);
+                    if (!result)
+                        _logger.Warn("No result when probing external subtitle file: {0}", subtitleStream.Path);
                 }
-
-                currentStreams.AddRange(externalSubtitleStreams);
-                _itemRepository.SaveMediaStreams(item.InternalId, currentStreams, CancellationToken.None);
-
-                if (persistMediaInfo && Plugin.LibraryApi.IsLibraryInScope(item))
-                {
-                    _ = Plugin.MediaInfoApi.SerializeMediaInfo(item.InternalId, directoryService, true,
-                        "External Subtitle Update").ConfigureAwait(false);
-                }
+        
+                _logger.Info("ExternalSubtitle - Subtitle Processed: " + subtitleStream.Path);
+            }
+        
+            // 4. 合并：非外部流 + 新外部流（完全替换旧外部流）
+            var allStreams = nonExternalStreams.Concat(externalSubtitleStreams).ToList();
+        
+            // 5. 保存到数据库
+            _itemRepository.SaveMediaStreams(item.InternalId, allStreams, CancellationToken.None);
+        
+            // 6. 可选：持久化媒体信息
+            if (persistMediaInfo && Plugin.LibraryApi.IsLibraryInScope(item))
+            {
+                _ = Plugin.MediaInfoApi.SerializeMediaInfo(item.InternalId, directoryService, true,
+                    "External Subtitle Update").ConfigureAwait(false);
             }
         }
+        
     }
 }
