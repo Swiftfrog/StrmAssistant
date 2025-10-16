@@ -1,16 +1,17 @@
 name: Build Plugin
 
 on:
-  push:
-    branches:
-      - tab-ui
-      - simple-ui
-      - lite
-  pull_request:
-    branches:
-      - tab-ui
-      - simple-ui
-      - lite
+  workflow_dispatch:
+  # push:
+  #   branches:
+  #     - tab-ui
+  #     - simple-ui
+  #     - lite
+  # pull_request:
+  #   branches:
+  #     - tab-ui
+  #     - simple-ui
+  #     - lite
 
 jobs:
   build:
@@ -18,10 +19,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v3
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '6.x'
 
