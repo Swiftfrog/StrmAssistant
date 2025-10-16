@@ -23,12 +23,12 @@ namespace StrmAssistant.Common
 
         private const string MarkerSuffix = "#SA";
 
-        // public ChapterApi(ILibraryManager libraryManager, IItemRepository itemRepository)
-        // {
-        //     _logger = Plugin.Instance.Logger;
-        //     _libraryManager = libraryManager;
-        //     _itemRepository = itemRepository;
-        // }
+        public ChapterApi(ILibraryManager libraryManager, IItemRepository itemRepository)
+        {
+            _logger = Plugin.Instance.Logger;
+            _libraryManager = libraryManager;
+            _itemRepository = itemRepository;
+        }
 
         // public long? GetIntroStart(BaseItem item)
         // {
