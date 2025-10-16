@@ -814,31 +814,31 @@ namespace StrmAssistant.Common
             return path != null && string.Equals(Path.GetExtension(path), ".strm", StringComparison.OrdinalIgnoreCase);
         }
 
-        public async Task<string> GetStrmMountPath(string strmPath)
-        {
-            var path = strmPath.AsMemory();
-
-            using var mediaMount = await _mediaMountManager.Mount(path, null, CancellationToken.None);
-            
-            return mediaMount?.MountedPath;
-        }
-
         // public async Task<string> GetStrmMountPath(string strmPath)
         // {
-        //     try
-        //     {
-        //         using var mediaMount = await _mediaMountManager.Mount(strmPath, null, CancellationToken.None);
-        
-        //         // 修复：使用 mediaMount.MountedPathInfo.FullName 而不是 mediaMount.MountedPath
-        //         return mediaMount?.MountedPathInfo?.FullName;
-        //     }
-        //     catch
-        //     {
-        //         // ignored
-        //     }
-        
-        //     return null;
+        //     var path = strmPath.AsMemory();
+
+        //     using var mediaMount = await _mediaMountManager.Mount(path, null, CancellationToken.None);
+            
+        //     return mediaMount?.MountedPath;
         // }
+
+        public async Task<string> GetStrmMountPath(string strmPath)
+        {
+            try
+            {
+                using var mediaMount = await _mediaMountManager.Mount(strmPath, null, CancellationToken.None);
+        
+                // 修复：使用 mediaMount.MountedPathInfo.FullName 而不是 mediaMount.MountedPath
+                return mediaMount?.MountedPathInfo?.FullName;
+            }
+            catch
+            {
+                // ignored
+            }
+        
+            return null;
+        }
         
         public BaseItem[] GetItemsByIds(long[] itemIds)
         {
