@@ -139,28 +139,127 @@ namespace StrmAssistant.Common
             };
         }
 
+        // public bool HasExternalSubtitleChanged(BaseItem item, IDirectoryService directoryService, bool clearCache)
+        // {
+        //     var currentExternalSubtitleFiles = _libraryManager.GetExternalSubtitleFiles(item.InternalId);
+        //     var currentSet = new HashSet<string>(currentExternalSubtitleFiles, StringComparer.Ordinal);
+
+        //     try
+        //     {
+        //         var newExternalSubtitleFiles = GetExternalSubtitleStreams(item, 0, directoryService, clearCache)
+        //             .Select(i => i.Path)
+        //             .ToArray();
+        //         var newSet = new HashSet<string>(newExternalSubtitleFiles, StringComparer.Ordinal);
+
+        //         return !currentSet.SetEquals(newSet);
+        //     }
+        //     catch
+        //     {
+        //         // ignored
+        //     }
+
+        //     return false;
+        // }
+
         public bool HasExternalSubtitleChanged(BaseItem item, IDirectoryService directoryService, bool clearCache)
         {
-            var currentExternalSubtitleFiles = _libraryManager.GetExternalSubtitleFiles(item.InternalId);
-            var currentSet = new HashSet<string>(currentExternalSubtitleFiles, StringComparer.Ordinal);
-
-            try
-            {
-                var newExternalSubtitleFiles = GetExternalSubtitleStreams(item, 0, directoryService, clearCache)
-                    .Select(i => i.Path)
-                    .ToArray();
-                var newSet = new HashSet<string>(newExternalSubtitleFiles, StringComparer.Ordinal);
-
-                return !currentSet.SetEquals(newSet);
-            }
-            catch
-            {
-                // ignored
-            }
-
-            return false;
+            // 修复：不再依赖可能已移除或变更的 _libraryManager.GetExternalSubtitleFiles
+            // 修复：不再依赖可能已移除或变更的内部方法 GetExternalSubtitleStreams
+            // 方案：获取当前已知的外部字幕流路径，然后手动扫描目录获取新的潜在外部字幕文件路径，进行比较。
+        
+            // 1. 获取当前 item 中已知的外部字幕流路径
+            var currentExternalSubtitlePaths = Plugin.MediaInfoApi.GetMediaStreamsSafe(item)
+                .Where(stream => stream.IsExternal && stream.Type == MediaStreamType.Subtitle && stream.Protocol == MediaProtocol.File)
+                .Select(stream => stream.Path)
+                .Where(path => !string.IsNullOrEmpty(path)) // 过滤掉可能的 null 或空路径
+                .ToList();
+        
+            var currentSet = new HashSet<string>(currentExternalSubtitlePaths, StringComparer.OrdinalIgnoreCase);
+        
+            // 2. 手动扫描媒体文件所在目录，获取所有潜在的外部字幕文件路径
+            var newPotentialSubtitlePaths = GetExternalSubtitleFilesManually(item);
+        
+            // 3. 比较集合
+            var newSet = new HashSet<string>(newPotentialSubtitlePaths, StringComparer.OrdinalIgnoreCase);
+        
+            // 4. 检查是否有差异
+            // 集合不相等意味着：文件增、删、改名
+            // 或者，可以更精确地检查：
+            // var hasFilesAddedOrRemoved = !currentSet.SetEquals(newSet);
+            // var hasFilesChanged = clearCache || hasFilesAddedOrRemoved; // clearCache 通常意味着强制重新扫描和处理
+        
+            // 对于 HasExternalSubtitleChanged 这个方法名，检查集合是否相等通常就足够了
+            return !currentSet.SetEquals(newSet);
         }
-
+        
+        // 辅助方法：手动查找外部字幕文件
+        private List<string> GetExternalSubtitleFilesManually(BaseItem item)
+        {
+            var subtitleFiles = new List<string>();
+            if (string.IsNullOrEmpty(item.Path) || !item.IsFileProtocol)
+            {
+                return subtitleFiles; // 如果项目没有路径或不是文件协议，则没有外部文件
+            }
+        
+            var mediaFileDirectory = Path.GetDirectoryName(item.Path);
+            if (string.IsNullOrEmpty(mediaFileDirectory) || !_fileSystem.DirectoryExists(mediaFileDirectory))
+            {
+                return subtitleFiles; // 如果目录不存在，则没有外部文件
+            }
+        
+            var mediaFileNameWithoutExtension = Path.GetFileNameWithoutExtension(item.Path);
+        
+            // 查找与媒体文件同名的字幕文件（通常的命名模式）
+            // 例如：movie.mkv, movie.srt, movie.en.srt, movie.eng.srt, movie.chi.srt
+            var potentialSubtitleFiles = _fileSystem.GetFiles(mediaFileDirectory, true) // 递归搜索子目录？根据需要调整，这里设为 true 以查找 .subtitles 文件夹
+                .Where(f => IsSubtitleFile(f) && IsRelatedToMediaFile(f, mediaFileNameWithoutExtension))
+                .Select(f => f.FullName);
+        
+            subtitleFiles.AddRange(potentialSubtitleFiles);
+        
+            // 你也可以根据需要添加其他查找逻辑，比如查找同目录下的 .subtitles 文件夹等
+            // 例如：
+            // var subtitlesFolder = Path.Combine(mediaFileDirectory, ".subtitles");
+            // if (_fileSystem.DirectoryExists(subtitlesFolder))
+            // {
+            //     var subFolderFiles = _fileSystem.GetFiles(subtitlesFolder, false) // 通常不递归
+            //         .Where(f => IsSubtitleFile(f) && IsRelatedToMediaFile(f, mediaFileNameWithoutExtension))
+            //         .Select(f => f.FullName);
+            //     subtitleFiles.AddRange(subFolderFiles);
+            // }
+        
+            return subtitleFiles;
+        }
+        
+        // 辅助方法：判断文件是否为字幕文件
+        private bool IsSubtitleFile(FileSystemInfo file)
+        {
+            var extension = file.Extension;
+            return !string.IsNullOrEmpty(extension) &&
+                   (extension.Equals(".srt", StringComparison.OrdinalIgnoreCase) ||
+                    extension.Equals(".ass", StringComparison.OrdinalIgnoreCase) ||
+                    extension.Equals(".ssa", StringComparison.OrdinalIgnoreCase) ||
+                    extension.Equals(".vtt", StringComparison.OrdinalIgnoreCase) ||
+                    extension.Equals(".sub", StringComparison.OrdinalIgnoreCase) ||
+                    extension.Equals(".smi", StringComparison.OrdinalIgnoreCase) ||
+                    extension.Equals(".sami", StringComparison.OrdinalIgnoreCase) ||
+                    extension.Equals(".mpl", StringComparison.OrdinalIgnoreCase) ||
+                    extension.Equals(".ttml", StringComparison.OrdinalIgnoreCase) ||
+                    extension.Equals(".sup", StringComparison.OrdinalIgnoreCase) || // PGS subtitles
+                    extension.Equals(".idx", StringComparison.OrdinalIgnoreCase)); // VobSub index file (often paired with .sub)
+                    // 添加更多字幕扩展名，根据需要
+        }
+        
+        // 辅助方法：判断文件名是否与媒体文件相关（基于名称匹配）
+        private bool IsRelatedToMediaFile(FileSystemInfo file, string mediaFileNameWithoutExtension)
+        {
+            var fileNameWithoutExtension = Path.GetFileNameWithoutExtension(file.Name);
+            // 基本匹配：文件名开头与媒体文件名相同（忽略大小写）
+            return fileNameWithoutExtension.StartsWith(mediaFileNameWithoutExtension, StringComparison.OrdinalIgnoreCase);
+            // 你可能需要更复杂的逻辑来处理语言代码等，例如 "movie.en.srt", "movie.eng.forced.ass"
+            // 这里使用简单的前缀匹配作为起点
+        }
+        
         public async Task UpdateExternalSubtitles(BaseItem item, MetadataRefreshOptions refreshOptions, bool clearCache,
             bool persistMediaInfo)
         {
