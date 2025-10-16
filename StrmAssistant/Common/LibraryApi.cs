@@ -792,24 +792,44 @@ namespace StrmAssistant.Common
             return path != null && string.Equals(Path.GetExtension(path), ".strm", StringComparison.OrdinalIgnoreCase);
         }
 
+        // public async Task<string> GetStrmMountPath(string strmPath)
+        // {
+        //     var path = strmPath.AsMemory();
+
+        //     try
+        //     {
+        //         using var mediaMount = await _mediaMountManager.Mount(path, null, CancellationToken.None);
+
+        //         return mediaMount?.MountedPath;
+        //     }
+        //     catch
+        //     {
+        //         // ignored
+        //     }
+
+        //     return null;
+        // }
+
         public async Task<string> GetStrmMountPath(string strmPath)
         {
-            var path = strmPath.AsMemory();
-
+            // 修复：直接使用 string 类型的 strmPath，而不是转换为 ReadOnlyMemory<char>
+            // var path = strmPath.AsMemory(); // 删除这行
+        
             try
             {
-                using var mediaMount = await _mediaMountManager.Mount(path, null, CancellationToken.None);
-
+                // 修复：将 strmPath 直接传递给 Mount 方法
+                using var mediaMount = await _mediaMountManager.Mount(strmPath, null, CancellationToken.None);
+        
                 return mediaMount?.MountedPath;
             }
             catch
             {
                 // ignored
             }
-
+        
             return null;
         }
-
+        
         public BaseItem[] GetItemsByIds(long[] itemIds)
         {
             var items = _libraryManager.GetItemList(new InternalItemsQuery { ItemIds = itemIds });
