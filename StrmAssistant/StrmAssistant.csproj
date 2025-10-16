@@ -50,6 +50,6 @@
     </EmbeddedResource>
   </ItemGroup>
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-        <Exec Command="$(ILRepack) /out:%25AppData%25\Emby-Server\programdata\plugins\$(TargetFileName)  $(TargetPath) $(TargetDir)0Harmony.dll $(TargetDir)ChineseConverter.dll $(TargetDir)TinyPinyin.dll /lib:$(TargetDir)" />
+        <Exec Command="$(ILRepack) /out:%25AppData%25\Emby-Server\programdata\plugins\$(TargetFileName)  $(TargetPath) $(TargetDir)0Harmony.dll $(TargetDir)ChineseConverter.dll /lib:$(TargetDir)" />
   </Target>
 </Project>
