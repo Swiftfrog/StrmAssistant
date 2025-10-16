@@ -1,16 +1,17 @@
 name: Build Plugin
 
 on:
-  push:
-    branches:
-      - tab-ui
-      - simple-ui
-      - lite
-  pull_request:
-    branches:
-      - tab-ui
-      - simple-ui
-      - lite
+  workflow_dispatch:
+  # push:
+  #   branches:
+  #     - tab-ui
+  #     - simple-ui
+  #     - lite
+  # pull_request:
+  #   branches:
+  #     - tab-ui
+  #     - simple-ui
+  #     - lite
 
 jobs:
   build:
