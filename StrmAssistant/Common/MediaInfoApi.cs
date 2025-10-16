@@ -140,12 +140,30 @@ namespace StrmAssistant.Common
             }
         }
 
+        // private List<MediaSourceInfo> GetStaticMediaSourcesByApi(BaseItem item, bool enableAlternateMediaSources,
+        //     LibraryOptions libraryOptions)
+        // {
+        //     return _mediaSourceManager.GetStaticMediaSources(item, enableAlternateMediaSources, false, null, null);
+        // }
+
+        //适配4.9.1.80
         private List<MediaSourceInfo> GetStaticMediaSourcesByApi(BaseItem item, bool enableAlternateMediaSources,
             LibraryOptions libraryOptions)
         {
-            return _mediaSourceManager.GetStaticMediaSources(item, enableAlternateMediaSources, false, null, null);
+            // ✅ 直接调用 8 参数的公开版本
+            // 参数顺序: item, enableAlternateMediaSources, enablePathSubstitution, fillChapters, collectionFolders, libraryOptions, deviceProfile, user
+            return _mediaSourceManager.GetStaticMediaSources(
+                item,
+                enableAlternateMediaSources, // 你想要的
+                false,                       // enablePathSubstitution - 设为 false
+                false,                       // fillChapters - 设为 false
+                Array.Empty<BaseItem>(),     // collectionFolders - 传空数组
+                libraryOptions,              // 你想要的
+                null,                        // deviceProfile - 传 null
+                null                         // user - 传 null
+            );
         }
-
+        
         // private List<MediaSourceInfo> GetStaticMediaSourcesByRef(BaseItem item, bool enableAlternateMediaSources,
         //     LibraryOptions libraryOptions)
         // {
