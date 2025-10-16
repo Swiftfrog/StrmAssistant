@@ -65,6 +65,7 @@ namespace StrmAssistant.Common
             _itemRepository = itemRepository;
             _jsonSerializer = jsonSerializer;
 
+            //++
             if (AppVer >= Ver49025)
             {
                 try
@@ -73,8 +74,16 @@ namespace StrmAssistant.Common
                         .GetMethod("GetStaticMediaSources",
                             new[]
                             {
-                                typeof(BaseItem), typeof(bool), typeof(bool), typeof(bool), typeof(LibraryOptions),
-                                typeof(DeviceProfile), typeof(User)
+                                typeof(BaseItem), // item
+                                typeof(bool),     // enableAlternateMediaSources
+                                typeof(bool),     // enablePathSubstitution
+                                typeof(bool),     // fillMediaStreams  <-- 新增参数
+                                typeof(bool),     // fillChapters
+                                typeof(BaseItem[]), // collectionFolders
+                                typeof(LibraryOptions), // libraryOptions
+                                typeof(DeviceProfile), // deviceProfile
+                                typeof(User),     // user
+                                typeof(CancellationToken) // cancellationToken <-- 新增参数
                             });
                 }
                 catch (Exception e)
@@ -85,7 +94,7 @@ namespace StrmAssistant.Common
                         _logger.Debug(e.StackTrace);
                     }
                 }
-
+            
                 if (_getStaticMediaSources is null)
                 {
                     _logger.Warn($"{PatchTracker.PatchType.Name} Init Failed");
@@ -97,7 +106,8 @@ namespace StrmAssistant.Common
                         nameof(GetStaticMediaSourcesStub));
                 }
             }
-
+            //++
+            
             try
             {
                 var alwaysIgnoreExtensions = libraryMonitor.GetType()
@@ -121,8 +131,8 @@ namespace StrmAssistant.Common
 
         [HarmonyReversePatch]
         private static List<MediaSourceInfo> GetStaticMediaSourcesStub(IMediaSourceManager instance, BaseItem item,
-            bool enableAlternateMediaSources, bool enablePathSubstitution, bool fillChapters,
-            LibraryOptions libraryOptions, DeviceProfile deviceProfile, User user = null) =>
+            bool enableAlternateMediaSources, bool enablePathSubstitution, bool fillMediaStreams, bool fillChapters,
+            BaseItem[] collectionFolders, LibraryOptions libraryOptions, DeviceProfile deviceProfile, User user = null, CancellationToken cancellationToken = default) =>
             throw new NotImplementedException();
 
         private List<MediaSourceInfo> GetStaticMediaSourcesByApi(BaseItem item, bool enableAlternateMediaSources,
@@ -138,11 +148,20 @@ namespace StrmAssistant.Common
             switch (PatchTracker.FallbackPatchApproach)
             {
                 case PatchApproach.Harmony:
+                    // 注意：这里需要传入所有参数，包括 collectionFolders, fillMediaStreams, cancellationToken
                     return GetStaticMediaSourcesStub(_mediaSourceManager, item, enableAlternateMediaSources, false,
-                        false, libraryOptions, null, null);
+                        true, // fillMediaStreams - 通常设为 true 以填充媒体流信息
+                        false, // fillChapters - 根据你的需求设置
+                        null, // collectionFolders - 通常为 null
+                        libraryOptions, null, null, CancellationToken.None); // user and cancellationToken
                 case PatchApproach.Reflection:
+                    // 同样，需要传入所有参数
                     return (List<MediaSourceInfo>)_getStaticMediaSources.Invoke(_mediaSourceManager,
-                        new object[] { item, enableAlternateMediaSources, false, false, libraryOptions, null, null });
+                        new object[] { item, enableAlternateMediaSources, false,
+                            true, // fillMediaStreams
+                            false, // fillChapters
+                            null, // collectionFolders
+                            libraryOptions, null, null, CancellationToken.None }); // deviceProfile, user, cancellationToken
                 default:
                     throw new NotImplementedException();
             }
