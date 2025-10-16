@@ -168,13 +168,13 @@ namespace StrmAssistant.Common
         //     LibraryOptions libraryOptions, DeviceProfile deviceProfile, User user = null) =>
         //     throw new NotImplementedException();
 
-        // 修复：Stub 签名匹配 7 参数 + 1 可选 User 的版本
+        // 修复：Stub 签名匹配 7 个必需参数的版本，不包含可选的 User
         [HarmonyReversePatch]
         private static List<MediaSourceInfo> GetStaticMediaSourcesStub(IMediaSourceManager instance, BaseItem item,
             bool enableAlternateMediaSources, bool enablePathSubstitution, bool fillChapters, // 修复：顺序和参数
-            BaseItem[] collectionFolders, LibraryOptions libraryOptions, DeviceProfile deviceProfile,
-            User user = null) => // 明确包含可选参数
-            throw new NotImplementedException();
+            BaseItem[] collectionFolders, LibraryOptions libraryOptions, DeviceProfile deviceProfile)
+            // 修复：不包含可选的 User 参数
+            => throw new NotImplementedException();
         
 
         // private List<MediaSourceInfo> GetStaticMediaSourcesByApi(BaseItem item, bool enableAlternateMediaSources,
@@ -187,13 +187,14 @@ namespace StrmAssistant.Common
         private List<MediaSourceInfo> GetStaticMediaSourcesByApi(BaseItem item, bool enableAlternateMediaSources,
             LibraryOptions libraryOptions)
         {
-            // 修复：调用匹配的 7 参数 + 1 可选 User 的版本
+            // 修复：只调用 7 个必需参数的版本，不传递可选的 User 参数
+            // BaseItem, bool, bool, bool, BaseItem[], LibraryOptions, DeviceProfile
             return _mediaSourceManager.GetStaticMediaSources(item, enableAlternateMediaSources, false, // enablePathSubstitution
                 false, // fillChapters
                 Array.Empty<BaseItem>(), // collectionFolders
                 libraryOptions, 
-                null,  // deviceProfile
-                null   // user (可选参数)
+                null  // deviceProfile
+                // 不传递 User 参数，使用其默认值 null
             );
         }
         
@@ -212,33 +213,33 @@ namespace StrmAssistant.Common
         //             throw new NotImplementedException();
         //     }
         // }
-
+        
         private List<MediaSourceInfo> GetStaticMediaSourcesByRef(BaseItem item, bool enableAlternateMediaSources,
             LibraryOptions libraryOptions)
         {
             switch (PatchTracker.FallbackPatchApproach)
             {
                 case PatchApproach.Harmony:
-                    // 修复：调用匹配 Stub 签名的方法
+                    // 修复：调用匹配 Stub 签名的方法 (7 个必需参数，可选 User 用默认值)
                     return GetStaticMediaSourcesStub(_mediaSourceManager, item, enableAlternateMediaSources, false, // enablePathSubstitution
                         false, // fillChapters
                         Array.Empty<BaseItem>(), // collectionFolders
                         libraryOptions, 
-                        null,  // deviceProfile
-                        null   // user (可选参数)
+                        null  // deviceProfile
+                        // 不传递可选的 User 参数
                     );
                 case PatchApproach.Reflection:
-                    // 修复：使用正确的 7 参数调用 (可选参数 user 传 null)
+                    // 修复：使用正确的 7 个必需参数调用 (不包含可选的 User)
                     return (List<MediaSourceInfo>)_getStaticMediaSources.Invoke(_mediaSourceManager,
                         new object[] { 
                             item, 
                             enableAlternateMediaSources, 
                             false, // enablePathSubstitution
                             false, // fillChapters
-                            Array.Empty<BaseItem>(), // collectionFolders - 修复：提供这个参数
+                            Array.Empty<BaseItem>(), // collectionFolders
                             libraryOptions, 
-                            null,  // deviceProfile
-                            null   // user (可选参数)
+                            null   // deviceProfile
+                            // 不包含可选的 User 参数
                         });
                 default:
                     throw new NotImplementedException();
