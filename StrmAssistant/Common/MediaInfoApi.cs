@@ -57,16 +57,46 @@ namespace StrmAssistant.Common
             _itemRepository = itemRepository;
             _jsonSerializer = jsonSerializer;
 
+            // if (Plugin.Instance.ApplicationHost.ApplicationVersion >= new Version("4.9.0.25"))
+            // {
+            //     try
+            //     {
+            //         _getStaticMediaSources = mediaSourceManager.GetType()
+            //             .GetMethod("GetStaticMediaSources",
+            //                 new[]
+            //                 {
+            //                     typeof(BaseItem), typeof(bool), typeof(bool), typeof(bool), typeof(LibraryOptions),
+            //                     typeof(DeviceProfile), typeof(User)
+            //                 });
+            //         _fallbackApproach = true;
+            //     }
+            //     catch (Exception e)
+            //     {
+            //         if (Plugin.Instance.DebugMode)
+            //         {
+            //             _logger.Debug(e.Message);
+            //             _logger.Debug(e.StackTrace);
+            //         }
+            //     }
+
+            //     if (_getStaticMediaSources is null)
+            //     {
+            //         _logger.Warn($"{nameof(MediaInfoApi)} Init Failed");
+            //     }
+            // }
+            
+            //适配4.9.1.80
             if (Plugin.Instance.ApplicationHost.ApplicationVersion >= new Version("4.9.0.25"))
             {
                 try
                 {
+                    // 查找 8 参数的重载
                     _getStaticMediaSources = mediaSourceManager.GetType()
                         .GetMethod("GetStaticMediaSources",
                             new[]
                             {
-                                typeof(BaseItem), typeof(bool), typeof(bool), typeof(bool), typeof(LibraryOptions),
-                                typeof(DeviceProfile), typeof(User)
+                                typeof(BaseItem), typeof(bool), typeof(bool), typeof(bool),
+                                typeof(BaseItem[]), typeof(LibraryOptions), typeof(DeviceProfile), typeof(User)
                             });
                     _fallbackApproach = true;
                 }
@@ -78,13 +108,13 @@ namespace StrmAssistant.Common
                         _logger.Debug(e.StackTrace);
                     }
                 }
-
+            
                 if (_getStaticMediaSources is null)
                 {
                     _logger.Warn($"{nameof(MediaInfoApi)} Init Failed");
                 }
             }
-
+            
             try
             {
                 var embyServerImplementationsAssembly = Assembly.Load("Emby.Server.Implementations");
@@ -117,13 +147,31 @@ namespace StrmAssistant.Common
                 libraryOptions, null, null);
         }
 
+        // private List<MediaSourceInfo> GetStaticMediaSourcesByRef(BaseItem item, bool enableAlternateMediaSources,
+        //     LibraryOptions libraryOptions)
+        // {
+        //     return (List<MediaSourceInfo>)_getStaticMediaSources.Invoke(_mediaSourceManager,
+        //         new object[] { item, enableAlternateMediaSources, false, false, libraryOptions, null, null });
+        // }
+
+        //适配4.9.1.80
         private List<MediaSourceInfo> GetStaticMediaSourcesByRef(BaseItem item, bool enableAlternateMediaSources,
             LibraryOptions libraryOptions)
         {
+            // 参数顺序: item, enableAlternateMediaSources, enablePathSubstitution, fillChapters, collectionFolders, libraryOptions, deviceProfile, user
             return (List<MediaSourceInfo>)_getStaticMediaSources.Invoke(_mediaSourceManager,
-                new object[] { item, enableAlternateMediaSources, false, false, libraryOptions, null, null });
+                new object[] {
+                    item,
+                    enableAlternateMediaSources, // 你传入的参数
+                    false,                       // enablePathSubstitution - 设为 false
+                    false,                       // fillChapters - 设为 false
+                    Array.Empty<BaseItem>(),     // collectionFolders - 传空数组
+                    libraryOptions,              // 你传入的参数
+                    null,                        // deviceProfile - 传 null
+                    null                         // user - 传 null
+                });
         }
-
+                
         public List<MediaSourceInfo> GetStaticMediaSources(BaseItem item, bool enableAlternateMediaSources)
         {
             var options = _libraryManager.GetLibraryOptions(item);
