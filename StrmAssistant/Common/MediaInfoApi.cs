@@ -135,12 +135,12 @@ namespace StrmAssistant.Common
             BaseItem[] collectionFolders, LibraryOptions libraryOptions, DeviceProfile deviceProfile, User user = null, CancellationToken cancellationToken = default) =>
             throw new NotImplementedException();
 
-        private List<MediaSourceInfo> GetStaticMediaSourcesByApi(BaseItem item, bool enableAlternateMediaSources,
-            LibraryOptions libraryOptions)
-        {
-            return _mediaSourceManager.GetStaticMediaSources(item, enableAlternateMediaSources, false,
-                libraryOptions, null, null);
-        }
+        // private List<MediaSourceInfo> GetStaticMediaSourcesByApi(BaseItem item, bool enableAlternateMediaSources,
+        //     LibraryOptions libraryOptions)
+        // {
+        //     return _mediaSourceManager.GetStaticMediaSources(item, enableAlternateMediaSources, false,
+        //         libraryOptions, null, null);
+        // }
 
         private List<MediaSourceInfo> GetStaticMediaSourcesByRef(BaseItem item, bool enableAlternateMediaSources,
             LibraryOptions libraryOptions)
@@ -170,10 +170,10 @@ namespace StrmAssistant.Common
         public List<MediaSourceInfo> GetStaticMediaSources(BaseItem item, bool enableAlternateMediaSources)
         {
             var options = _libraryManager.GetLibraryOptions(item);
-
-            return AppVer >= Ver49025
-                ? GetStaticMediaSourcesByRef(item, enableAlternateMediaSources, options)
-                : GetStaticMediaSourcesByApi(item, enableAlternateMediaSources, options);
+            return GetStaticMediaSourcesByRef(item, enableAlternateMediaSources, options);
+            // return AppVer >= Ver49025
+            //     ? GetStaticMediaSourcesByRef(item, enableAlternateMediaSources, options)
+            //     : GetStaticMediaSourcesByApi(item, enableAlternateMediaSources, options);
         }
 
         public MetadataRefreshOptions GetMediaInfoRefreshOptions()
