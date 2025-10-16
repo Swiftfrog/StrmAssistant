@@ -209,32 +209,46 @@ namespace StrmAssistant.Common
         
             var mediaFileNameWithoutExtension = Path.GetFileNameWithoutExtension(item.Path);
         
-            // 查找与媒体文件同名的字幕文件（通常的命名模式）
-            // 例如：movie.mkv, movie.srt, movie.en.srt, movie.eng.srt, movie.chi.srt
-            var potentialSubtitleFiles = _fileSystem.GetFiles(mediaFileDirectory, true) // 递归搜索子目录？根据需要调整，这里设为 true 以查找 .subtitles 文件夹
-                .Where(f => IsSubtitleFile(f) && IsRelatedToMediaFile(f, mediaFileNameWithoutExtension))
-                .Select(f => f.FullName);
+            // 修复：使用 _fileSystem.GetFilePaths 或 _fileSystem.GetFileSystemEntries 来获取 FileSystemMetadata
+            // 注意：GetFiles 返回的是 System.IO.FileSystemInfo，不是 MediaBrowser.Model.IO.FileSystemMetadata
+            // 我们应该使用 GetFileSystemEntries 或 GetFilePaths
         
-            subtitleFiles.AddRange(potentialSubtitleFiles);
+            // 使用 GetFilePaths 获取文件路径字符串列表，然后根据路径创建 FileSystemMetadata 并检查
+            // 或者使用 GetFileSystemEntries 获取 FileSystemMetadata 列表
+            var fileSystemEntries = _fileSystem.GetFileSystemEntries(mediaFileDirectory, true); // 递归搜索子目录？根据需要调整
+        
+            foreach (var entry in fileSystemEntries)
+            {
+                if (entry.IsDirectory) continue; // 只处理文件
+        
+                if (IsSubtitleFile(entry) && IsRelatedToMediaFile(entry, mediaFileNameWithoutExtension))
+                {
+                    subtitleFiles.Add(entry.FullName); // FileSystemMetadata 有 FullName 属性
+                }
+            }
         
             // 你也可以根据需要添加其他查找逻辑，比如查找同目录下的 .subtitles 文件夹等
             // 例如：
             // var subtitlesFolder = Path.Combine(mediaFileDirectory, ".subtitles");
             // if (_fileSystem.DirectoryExists(subtitlesFolder))
             // {
-            //     var subFolderFiles = _fileSystem.GetFiles(subtitlesFolder, false) // 通常不递归
-            //         .Where(f => IsSubtitleFile(f) && IsRelatedToMediaFile(f, mediaFileNameWithoutExtension))
-            //         .Select(f => f.FullName);
-            //     subtitleFiles.AddRange(subFolderFiles);
+            //     var subFolderEntries = _fileSystem.GetFileSystemEntries(subtitlesFolder, false); // 通常不递归
+            //     foreach (var entry in subFolderEntries)
+            //     {
+            //         if (!entry.IsDirectory && IsSubtitleFile(entry) && IsRelatedToMediaFile(entry, mediaFileNameWithoutExtension))
+            //         {
+            //             subtitleFiles.Add(entry.FullName);
+            //         }
+            //     }
             // }
         
             return subtitleFiles;
         }
         
-        // 辅助方法：判断文件是否为字幕文件
-        private bool IsSubtitleFile(FileSystemInfo file)
+        // 修改辅助方法：判断文件是否为字幕文件
+        private bool IsSubtitleFile(FileSystemMetadata file) // 修复：参数类型改为 FileSystemMetadata
         {
-            var extension = file.Extension;
+            var extension = file.Extension; // FileSystemMetadata 也有 Extension 属性
             return !string.IsNullOrEmpty(extension) &&
                    (extension.Equals(".srt", StringComparison.OrdinalIgnoreCase) ||
                     extension.Equals(".ass", StringComparison.OrdinalIgnoreCase) ||
@@ -250,10 +264,10 @@ namespace StrmAssistant.Common
                     // 添加更多字幕扩展名，根据需要
         }
         
-        // 辅助方法：判断文件名是否与媒体文件相关（基于名称匹配）
-        private bool IsRelatedToMediaFile(FileSystemInfo file, string mediaFileNameWithoutExtension)
+        // 修改辅助方法：判断文件名是否与媒体文件相关（基于名称匹配）
+        private bool IsRelatedToMediaFile(FileSystemMetadata file, string mediaFileNameWithoutExtension) // 修复：参数类型改为 FileSystemMetadata
         {
-            var fileNameWithoutExtension = Path.GetFileNameWithoutExtension(file.Name);
+            var fileNameWithoutExtension = Path.GetFileNameWithoutExtension(file.Name); // FileSystemMetadata 有 Name 属性
             // 基本匹配：文件名开头与媒体文件名相同（忽略大小写）
             return fileNameWithoutExtension.StartsWith(mediaFileNameWithoutExtension, StringComparison.OrdinalIgnoreCase);
             // 你可能需要更复杂的逻辑来处理语言代码等，例如 "movie.en.srt", "movie.eng.forced.ass"
