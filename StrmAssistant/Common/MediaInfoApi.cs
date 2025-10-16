@@ -476,7 +476,8 @@ namespace StrmAssistant.Common
 
         public void QueueRefreshAlternateVersions(BaseItem item, MetadataRefreshOptions options, bool force)
         {
-            if (item is not Video video) return;
+            //if (item is not Video video) return;
+            if (!(item is Video video)) return;
             var altIds = video.GetAlternateVersionIds();
             if (!altIds.Any()) return;
 
