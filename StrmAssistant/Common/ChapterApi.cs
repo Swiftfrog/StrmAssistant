@@ -23,36 +23,57 @@ namespace StrmAssistant.Common
 
         private const string MarkerSuffix = "#SA";
 
-        public ChapterApi(ILibraryManager libraryManager, IItemRepository itemRepository)
-        {
-            _logger = Plugin.Instance.Logger;
-            _libraryManager = libraryManager;
-            _itemRepository = itemRepository;
-        }
+        // public ChapterApi(ILibraryManager libraryManager, IItemRepository itemRepository)
+        // {
+        //     _logger = Plugin.Instance.Logger;
+        //     _libraryManager = libraryManager;
+        //     _itemRepository = itemRepository;
+        // }
+
+        // public long? GetIntroStart(BaseItem item)
+        // {
+        //     var introStart = _itemRepository.GetChapters(item.InternalId, new[] { MarkerType.IntroStart })
+        //         .FirstOrDefault();
+
+        //     return introStart?.StartPositionTicks;
+        // }
+
+        // public long? GetIntroEnd(BaseItem item)
+        // {
+        //     var introEnd = _itemRepository.GetChapters(item.InternalId, new[] { MarkerType.IntroEnd }).FirstOrDefault();
+
+        //     return introEnd?.StartPositionTicks;
+        // }
+
+        // public long? GetCreditsStart(BaseItem item)
+        // {
+        //     var creditsStart = _itemRepository.GetChapters(item.InternalId, new[] { MarkerType.CreditsStart })
+        //         .FirstOrDefault();
+
+        //     return creditsStart?.StartPositionTicks;
+        // }
 
         public long? GetIntroStart(BaseItem item)
         {
-            var introStart = _itemRepository.GetChapters(item.InternalId, new[] { MarkerType.IntroStart })
-                .FirstOrDefault();
-
+            var chapters = _itemRepository.GetChapters(item);
+            var introStart = chapters.FirstOrDefault(c => c.MarkerType == MarkerType.IntroStart);
             return introStart?.StartPositionTicks;
         }
-
+        
         public long? GetIntroEnd(BaseItem item)
         {
-            var introEnd = _itemRepository.GetChapters(item.InternalId, new[] { MarkerType.IntroEnd }).FirstOrDefault();
-
+            var chapters = _itemRepository.GetChapters(item);
+            var introEnd = chapters.FirstOrDefault(c => c.MarkerType == MarkerType.IntroEnd);
             return introEnd?.StartPositionTicks;
         }
-
+        
         public long? GetCreditsStart(BaseItem item)
         {
-            var creditsStart = _itemRepository.GetChapters(item.InternalId, new[] { MarkerType.CreditsStart })
-                .FirstOrDefault();
-
+            var chapters = _itemRepository.GetChapters(item);
+            var creditsStart = chapters.FirstOrDefault(c => c.MarkerType == MarkerType.CreditsStart);
             return creditsStart?.StartPositionTicks;
         }
-
+        
         public void UpdateIntro(Episode item, SessionInfo session, long introStartPositionTicks,
             long introEndPositionTicks)
         {
