@@ -1,18 +1,13 @@
-using Emby.Server.Implementations.Data;
-using HarmonyLib;
-using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
-using MediaBrowser.Controller.MediaEncoding;
 using MediaBrowser.Controller.Persistence;
 using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Configuration;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.IO;
 using MediaBrowser.Model.Logging;
-using MediaBrowser.Model.Serialization;
 using StrmAssistant.Mod;
 using StrmAssistant.Options;
 using StrmAssistant.Properties;
@@ -23,7 +18,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using static StrmAssistant.Options.Utility;
-using static StrmAssistant.Reflection.EmbyProviders;
 
 namespace StrmAssistant.Common
 {
@@ -33,145 +27,60 @@ namespace StrmAssistant.Common
         private readonly ILibraryManager _libraryManager;
         private readonly IFileSystem _fileSystem;
         private readonly IItemRepository _itemRepository;
-        private static long _introFingerprintExtradataId;
-
-        private static readonly PatchTracker PatchTracker =
-            new PatchTracker(typeof(FingerprintApi),
-                Plugin.Instance.IsModSupported ? PatchApproach.Harmony : PatchApproach.Reflection);
-
-        private readonly object _audioFingerprintManager;
+        private readonly IProviderManager _providerManager;
 
         public static List<string> LibraryPathsInScope;
 
-        public FingerprintApi(ILibraryManager libraryManager, IFileSystem fileSystem,
-            IApplicationPaths applicationPaths, IFfmpegManager ffmpegManager, IMediaEncoder mediaEncoder,
-            IMediaMountManager mediaMountManager, IJsonSerializer jsonSerializer, IItemRepository itemRepository,
-            IServerApplicationHost serverApplicationHost)
+        // 移除所有 Harmony/Reflection 相关字段
+        // private static readonly PatchTracker PatchTracker = ...
+        // private readonly object _audioFingerprintManager;
+
+        public FingerprintApi(
+            ILibraryManager libraryManager,
+            IFileSystem fileSystem,
+            IItemRepository itemRepository,
+            IProviderManager providerManager) // ← 新增依赖
         {
             _logger = Plugin.Instance.Logger;
             _libraryManager = libraryManager;
             _fileSystem = fileSystem;
             _itemRepository = itemRepository;
-            _introFingerprintExtradataId = _itemRepository.GetExtradataTypeId("IntroFingerprint");
+            _providerManager = providerManager; // ← 注入
 
             UpdateLibraryPathsInScope();
-
-            try
-            {
-                _audioFingerprintManager = _audioFingerprintManagerConstructor?.Invoke(new object[]
-                {
-                    fileSystem, _logger, applicationPaths, ffmpegManager, mediaEncoder, mediaMountManager,
-                    jsonSerializer, serverApplicationHost
-                });
-            }
-            catch (Exception e)
-            {
-                if (Plugin.Instance.DebugMode)
-                {
-                    _logger.Debug(e.Message);
-                    _logger.Debug(e.StackTrace);
-                }
-            }
-
-            if (_audioFingerprintManager is null || _createTitleFingerprint is null ||
-                _getTitleFingerprintFileName is null || _getAllFingerprintFilesForSeason is null ||
-                _updateSequencesForSeason is null)
-            {
-                _logger.Warn($"{PatchTracker.PatchType.Name} Init Failed");
-                PatchTracker.FallbackPatchApproach = PatchApproach.None;
-            }
-            else if (Plugin.Instance.IsModSupported)
-            {
-                PatchManager.ReversePatch(PatchTracker, _createTitleFingerprint, nameof(CreateTitleFingerprintStub));
-                PatchManager.ReversePatch(PatchTracker, _getTitleFingerprintFileName,
-                    nameof(GetTitleFingerprintFileNameStub));
-                PatchManager.ReversePatch(PatchTracker, _getAllFingerprintFilesForSeason,
-                    nameof(GetAllFingerprintFilesForSeasonStub));
-                PatchManager.ReversePatch(PatchTracker, _updateSequencesForSeason,
-                    nameof(UpdateSequencesForSeasonStub));
-            }
         }
 
-#pragma warning disable CS1998
-        [HarmonyReversePatch]
-        private static string GetTitleFingerprintFileNameStub(Episode item, LibraryOptions libraryOptions) =>
-            throw new NotImplementedException();
-
-        [HarmonyReversePatch]
-        private static async Task<object> GetAllFingerprintFilesForSeasonStub(object instance, Season season,
-            Episode[] episodes, LibraryOptions libraryOptions, IDirectoryService directoryService,
-            CancellationToken cancellationToken) =>
-            throw new NotImplementedException();
-
-        [HarmonyReversePatch]
-        private static async Task<Tuple<string, bool>> CreateTitleFingerprintStub(object instance, Episode item,
-            LibraryOptions libraryOptions, IDirectoryService directoryService, CancellationToken cancellationToken) =>
-            throw new NotImplementedException();
-#pragma warning restore CS1998
-
-        public Task<Tuple<string, bool>> CreateTitleFingerprint(Episode item, IDirectoryService directoryService,
-            CancellationToken cancellationToken)
+        // ✅ 核心方法：不再创建指纹，而是触发 Emby 自带的分析
+        public Task CreateTitleFingerprint(Episode item, CancellationToken cancellationToken)
         {
-            var libraryOptions = _libraryManager.GetLibraryOptions(item);
-
-            switch (PatchTracker.FallbackPatchApproach)
+            // 直接让 Emby 自己分析片头（使用标准刷新机制）
+            var options = new MetadataRefreshOptions(new DirectoryService(_logger, _fileSystem))
             {
-                case PatchApproach.Harmony:
-                    return CreateTitleFingerprintStub(_audioFingerprintManager, item, libraryOptions, directoryService,
-                        cancellationToken);
-                case PatchApproach.Reflection:
-                    return (Task<Tuple<string, bool>>)_createTitleFingerprint.Invoke(_audioFingerprintManager,
-                        new object[] { item, libraryOptions, directoryService, cancellationToken });
-                default:
-                    throw new NotImplementedException();
-            }
+                EnableRemoteContentProbe = false,
+                MetadataRefreshMode = MetadataRefreshMode.Default,
+                ReplaceAllMetadata = false,
+                ImageRefreshMode = MetadataRefreshMode.ValidationOnly,
+                EnableSubtitleDownloading = false,
+                EnableInternetProviders = false,
+                // 关键：启用片头检测
+                EnableMarkerDetection = true
+            };
+
+            _providerManager.QueueRefresh(item.Id, options, RefreshPriority.High);
+            return Task.CompletedTask;
         }
 
-        public Task<Tuple<string, bool>> CreateTitleFingerprint(Episode item, CancellationToken cancellationToken)
+        // 为兼容性保留重载
+        public Task CreateTitleFingerprint(Episode item, IDirectoryService directoryService, CancellationToken cancellationToken)
         {
-            var directoryService = new DirectoryService(_logger, _fileSystem);
-
-            return CreateTitleFingerprint(item, directoryService, cancellationToken);
+            return CreateTitleFingerprint(item, cancellationToken);
         }
 
-        private Task<object> GetAllFingerprintFilesForSeason(Season season, Episode[] episodes,
-            LibraryOptions libraryOptions, IDirectoryService directoryService, CancellationToken cancellationToken)
-        {
-            switch (PatchTracker.FallbackPatchApproach)
-            {
-                case PatchApproach.Harmony:
-                    return GetAllFingerprintFilesForSeasonStub(_audioFingerprintManager, season, episodes,
-                        libraryOptions, directoryService, cancellationToken);
-                case PatchApproach.Reflection:
-                    return (Task<object>)_getAllFingerprintFilesForSeason.Invoke(_audioFingerprintManager,
-                        new object[] { season, episodes, libraryOptions, directoryService, cancellationToken });
-                default:
-                    throw new NotImplementedException();
-            }
-        }
+        // 移除所有 Stub 方法和反射调用
+        // [HarmonyReversePatch] ... => 全部删除
 
-        [HarmonyReversePatch]
-        private static void UpdateSequencesForSeasonStub(object instance, Season season, object seasonFingerprintInfo,
-            Episode episode, LibraryOptions libraryOptions, IDirectoryService directoryService) =>
-            throw new NotImplementedException();
-
-        private void UpdateSequencesForSeason(Season season, object seasonFingerprintInfo, Episode episode,
-            LibraryOptions libraryOptions, IDirectoryService directoryService)
-        {
-            switch (PatchTracker.FallbackPatchApproach)
-            {
-                case PatchApproach.Harmony:
-                    UpdateSequencesForSeasonStub(_audioFingerprintManager, season, seasonFingerprintInfo, episode,
-                        libraryOptions, directoryService);
-                    break;
-                case PatchApproach.Reflection:
-                    _updateSequencesForSeason.Invoke(_audioFingerprintManager,
-                        new[] { season, seasonFingerprintInfo, episode, libraryOptions, directoryService });
-                    break;
-                default:
-                    throw new NotImplementedException();
-            }
-        }
+        // 移除 GetAllFingerprintFilesForSeason / UpdateSequencesForSeason 等内部方法
+        // 改为：Emby 自动处理，插件只负责触发和读取结果
 
         public bool IsLibraryInScope(BaseItem item)
         {
@@ -244,7 +153,6 @@ namespace StrmAssistant.Common
             var expanded = Plugin.LibraryApi.ExpandFavorites(favorites, false, null, false).OfType<Episode>();
 
             var result = expanded.GroupBy(e => e.ParentId).Select(g => g.Key).ToArray();
-
             result = result.Where(s => !blacklistSeasons.Contains(s)).ToArray();
 
             return result;
@@ -453,83 +361,31 @@ namespace StrmAssistant.Common
                 .IntroDetectionFingerprintMinutes);
         }
 
-#nullable enable
+        // 移除 UpdateIntroMarkerForSeason 方法（Emby 自动处理）
+        // 或者保留但改为触发刷新
         public async Task UpdateIntroMarkerForSeason(Season season, CancellationToken cancellationToken,
             IProgress<double>? progress = null)
         {
-            var introDetectionFingerprintMinutes =
-                Plugin.Instance.IntroSkipStore.GetOptions().IntroDetectionFingerprintMinutes;
-
-            var libraryOptions = _libraryManager.GetLibraryOptions(season);
-            var directoryService = new DirectoryService(_logger, _fileSystem);
-
-            var episodeQuery = new InternalItemsQuery
+            // 触发整个季的片头分析
+            var options = new MetadataRefreshOptions(new DirectoryService(_logger, _fileSystem))
             {
-                GroupByPresentationUniqueKey = false,
-                EnableTotalRecordCount = false,
-                MinRunTimeTicks = TimeSpan.FromMinutes(introDetectionFingerprintMinutes).Ticks,
-                HasIntroDetectionFailure = false,
-                HasAudioStream = true
+                EnableMarkerDetection = true,
+                MetadataRefreshMode = MetadataRefreshMode.Default
             };
-            var allEpisodes = season.GetEpisodes(episodeQuery).Items.OfType<Episode>().ToArray();
 
-            var episodesWithFingerprints = allEpisodes.Where(e =>
-                {
-                    var fp = GetTitleFingerprintFileNameStub(e, libraryOptions);
-                    var file = directoryService.GetFile(e.GetInternalMetadataPath(), fp, false);
-                    return file != null && file.Exists;
-                })
-                .ToArray();
-
-            episodeQuery.WithoutChapterMarkers = new[] { MarkerType.IntroStart };
-            var episodesWithoutMarkers = season.GetEpisodes(episodeQuery).Items.OfType<Episode>().ToList();
-
-            var seasonFingerprintInfo = await GetAllFingerprintFilesForSeason(season, episodesWithFingerprints,
-                    libraryOptions, directoryService, cancellationToken)
-                .ConfigureAwait(false);
-
-            double total = episodesWithoutMarkers.Count;
-            var index = 0;
-
-            foreach (var episode in episodesWithoutMarkers)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                UpdateSequencesForSeason(season, seasonFingerprintInfo, episode, libraryOptions, directoryService);
-
-                index++;
-                progress?.Report(index / total);
-            }
-
-            progress?.Report(1.0);
+            _providerManager.QueueRefresh(season.Id, options, RefreshPriority.High);
+            await Task.Delay(100, cancellationToken); // 避免阻塞
         }
-#nullable restore
-        
+
         public void ClearFingerprintCache(BaseItem item)
         {
-            List<string> fingerprints;
-            try
-            {
-                fingerprints = _fileSystem.GetFilePaths(item.GetInternalMetadataPath(), new[] { ".fp" }, false, false)
-                    .ToList();
-            }
-            catch
-            {
-                fingerprints = new List<string>();
-            }
+            // 清除 Emby 的片头失败记录
+            _itemRepository.LogIntroDetectionFailureFailure(item.InternalId, 0);
 
-            foreach (var fp in fingerprints)
-            {
-                try
-                {
-                    _fileSystem.DeleteFile(fp);
-                }
-                catch
-                {
-                    // ignored
-                }
-            }
-
-            ((SqliteItemRepository)_itemRepository).ClearItemExtradata(item.InternalId, _introFingerprintExtradataId);
+            // 可选：清除章节标记
+            var chapters = _itemRepository.GetChapters(item);
+            var filtered = chapters.Where(c => c.MarkerType != MarkerType.IntroStart && c.MarkerType != MarkerType.IntroEnd).ToList();
+            _itemRepository.SaveChapters(item.InternalId, filtered);
         }
     }
 }
