@@ -33,6 +33,13 @@ namespace StrmAssistant.Common
         private static readonly HashSet<string> ProbeExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             { ".sub", ".smi", ".sami", ".mpl" };
 
+        private static bool IsExternalFileSubtitle(MediaStream stream)
+        {
+            return stream.IsExternal 
+                   && stream.Type == MediaStreamType.Subtitle 
+                   && stream.Protocol == MediaProtocol.File;
+        }
+        
         public SubtitleApi(ILibraryManager libraryManager, IFileSystem fileSystem, IMediaProbeManager mediaProbeManager,
             ILocalizationManager localizationManager, IItemRepository itemRepository)
         {
