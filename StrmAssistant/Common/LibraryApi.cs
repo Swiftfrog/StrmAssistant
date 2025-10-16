@@ -987,7 +987,7 @@ namespace StrmAssistant.Common
         {
             var deleteItems = new List<BaseItem> { item };
 
-            if (item.IsFolder)
+            if (item is Folder)
             {
                 deleteItems.AddRange(((Folder)item).GetItemList(new InternalItemsQuery
                 {
