@@ -99,12 +99,12 @@ namespace StrmAssistant.Common
             // }
             
             // 修改构造函数中的这部分代码
-            if (AppVer >= Ver49025) // 假设这个版本判断适用于你目标的 Emby 版本
+            if (AppVer >= Ver49025)
             {
                 try
                 {
-                    // 尝试查找 7 个必需参数 + 1 个可选参数的版本
-                    // BaseItem, bool, bool, bool, BaseItem[], LibraryOptions, DeviceProfile, User (可选)
+                    // 修复：查找 7 参数版本 (不含可选的 User)
+                    // BaseItem, bool, bool, bool, BaseItem[], LibraryOptions, DeviceProfile
                     _getStaticMediaSources = mediaSourceManager.GetType()
                         .GetMethod("GetStaticMediaSources",
                             new[]
@@ -112,11 +112,11 @@ namespace StrmAssistant.Common
                                 typeof(BaseItem), 
                                 typeof(bool), // enableAlternateMediaSources
                                 typeof(bool), // enablePathSubstitution
-                                typeof(bool), // fillChapters (注意：这里可能叫 fillChapters，而不是原来的 fillChapters)
-                                typeof(BaseItem[]), // collectionFolders - 这是你原始代码中缺少的！
+                                typeof(bool), // fillChapters
+                                typeof(BaseItem[]), // collectionFolders - 这是原始代码遗漏的关键参数！
                                 typeof(LibraryOptions),
-                                typeof(DeviceProfile),
-                                typeof(User) // User 是可选的，但反射查找时要明确包含
+                                typeof(DeviceProfile)
+                                // typeof(User) // User 是可选的，查找时不算入
                             });
                 }
                 catch (Exception e)
@@ -127,15 +127,15 @@ namespace StrmAssistant.Common
                         _logger.Debug(e.StackTrace);
                     }
                 }
-            
+        
                 if (_getStaticMediaSources is null)
                 {
-                    _logger.Warn($"{PatchTracker.PatchType.Name} Init Failed - GetStaticMediaSources method not found with expected signature for Emby 4.9");
+                    _logger.Warn($"{PatchTracker.PatchType.Name} Init Failed - GetStaticMediaSources method not found with expected 7+1 signature for Emby 4.9");
                     PatchTracker.FallbackPatchApproach = PatchApproach.None;
                 }
                 else if (Plugin.Instance.IsModSupported)
                 {
-                    // 确保 GetStaticMediaSourcesStub 的签名与实际找到的方法签名完全匹配
+                    // 修复：更新 Stub 签名以匹配 7 参数版本 + 1 个可选 User
                     PatchManager.ReversePatch(PatchTracker, _getStaticMediaSources,
                         nameof(GetStaticMediaSourcesStub));
                 }
@@ -168,10 +168,11 @@ namespace StrmAssistant.Common
         //     LibraryOptions libraryOptions, DeviceProfile deviceProfile, User user = null) =>
         //     throw new NotImplementedException();
 
+        // 修复：Stub 签名匹配 7 参数 + 1 可选 User 的版本
         [HarmonyReversePatch]
         private static List<MediaSourceInfo> GetStaticMediaSourcesStub(IMediaSourceManager instance, BaseItem item,
-            bool enableAlternateMediaSources, bool enablePathSubstitution, bool fillChapters, 
-            BaseItem[] collectionFolders, LibraryOptions libraryOptions, DeviceProfile deviceProfile, 
+            bool enableAlternateMediaSources, bool enablePathSubstitution, bool fillChapters, // 修复：顺序和参数
+            BaseItem[] collectionFolders, LibraryOptions libraryOptions, DeviceProfile deviceProfile,
             User user = null) => // 明确包含可选参数
             throw new NotImplementedException();
         
@@ -186,9 +187,14 @@ namespace StrmAssistant.Common
         private List<MediaSourceInfo> GetStaticMediaSourcesByApi(BaseItem item, bool enableAlternateMediaSources,
             LibraryOptions libraryOptions)
         {
-            // 调用匹配的签名，传递必要的空数组和 null 值
-            return _mediaSourceManager.GetStaticMediaSources(item, enableAlternateMediaSources, false, false,
-                Array.Empty<BaseItem>(), libraryOptions, null, null);
+            // 修复：调用匹配的 7 参数 + 1 可选 User 的版本
+            return _mediaSourceManager.GetStaticMediaSources(item, enableAlternateMediaSources, false, // enablePathSubstitution
+                false, // fillChapters
+                Array.Empty<BaseItem>(), // collectionFolders
+                libraryOptions, 
+                null,  // deviceProfile
+                null   // user (可选参数)
+            );
         }
         
         // private List<MediaSourceInfo> GetStaticMediaSourcesByRef(BaseItem item, bool enableAlternateMediaSources,
@@ -213,21 +219,26 @@ namespace StrmAssistant.Common
             switch (PatchTracker.FallbackPatchApproach)
             {
                 case PatchApproach.Harmony:
-                    // 调用匹配 Stub 签名的方法
-                    return GetStaticMediaSourcesStub(_mediaSourceManager, item, enableAlternateMediaSources, false, false,
-                        Array.Empty<BaseItem>(), libraryOptions, null, null);
+                    // 修复：调用匹配 Stub 签名的方法
+                    return GetStaticMediaSourcesStub(_mediaSourceManager, item, enableAlternateMediaSources, false, // enablePathSubstitution
+                        false, // fillChapters
+                        Array.Empty<BaseItem>(), // collectionFolders
+                        libraryOptions, 
+                        null,  // deviceProfile
+                        null   // user (可选参数)
+                    );
                 case PatchApproach.Reflection:
-                    // 使用正确的参数调用
+                    // 修复：使用正确的 7 参数调用 (可选参数 user 传 null)
                     return (List<MediaSourceInfo>)_getStaticMediaSources.Invoke(_mediaSourceManager,
                         new object[] { 
                             item, 
                             enableAlternateMediaSources, 
                             false, // enablePathSubstitution
                             false, // fillChapters
-                            Array.Empty<BaseItem>(), // collectionFolders
+                            Array.Empty<BaseItem>(), // collectionFolders - 修复：提供这个参数
                             libraryOptions, 
                             null,  // deviceProfile
-                            null   // user
+                            null   // user (可选参数)
                         });
                 default:
                     throw new NotImplementedException();
