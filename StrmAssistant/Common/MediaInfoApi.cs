@@ -65,97 +65,17 @@ namespace StrmAssistant.Common
             _itemRepository = itemRepository;
             _jsonSerializer = jsonSerializer;
 
-            // if (AppVer >= Ver49025)
-            // {
-            //     try
-            //     {
-            //         _getStaticMediaSources = mediaSourceManager.GetType()
-            //             .GetMethod("GetStaticMediaSources",
-            //                 new[]
-            //                 {
-            //                     typeof(BaseItem), typeof(bool), typeof(bool), typeof(bool), typeof(LibraryOptions),
-            //                     typeof(DeviceProfile), typeof(User)
-            //                 });
-            //     }
-            //     catch (Exception e)
-            //     {
-            //         if (Plugin.Instance.DebugMode)
-            //         {
-            //             _logger.Debug(e.Message);
-            //             _logger.Debug(e.StackTrace);
-            //         }
-            //     }
-
-            //     if (_getStaticMediaSources is null)
-            //     {
-            //         _logger.Warn($"{PatchTracker.PatchType.Name} Init Failed");
-            //         PatchTracker.FallbackPatchApproach = PatchApproach.None;
-            //     }
-            //     else if (Plugin.Instance.IsModSupported)
-            //     {
-            //         PatchManager.ReversePatch(PatchTracker, _getStaticMediaSources,
-            //             nameof(GetStaticMediaSourcesStub));
-            //     }
-            // }
-            
             if (AppVer >= Ver49025)
             {
                 try
                 {
-                    var mediaSourceManagerType = mediaSourceManager.GetType();
-            
-                    // 尝试查找 7 参数版本 (不含可选的 User): BaseItem, bool, bool, bool, BaseItem[], LibraryOptions, DeviceProfile
-                    _getStaticMediaSources = mediaSourceManagerType
+                    _getStaticMediaSources = mediaSourceManager.GetType()
                         .GetMethod("GetStaticMediaSources",
                             new[]
                             {
-                                typeof(BaseItem),
-                                typeof(bool), // enableAlternateMediaSources
-                                typeof(bool), // enablePathSubstitution
-                                typeof(bool), // fillChapters
-                                typeof(BaseItem[]), // collectionFolders
-                                typeof(LibraryOptions),
-                                typeof(DeviceProfile)
-                                // 不包含 User
+                                typeof(BaseItem), typeof(bool), typeof(bool), typeof(bool), typeof(LibraryOptions),
+                                typeof(DeviceProfile), typeof(User)
                             });
-            
-                    // 如果 7 参数未找到，尝试 10 参数版本: BaseItem, bool, bool, bool, bool, BaseItem[], LibraryOptions, DeviceProfile, User, CancellationToken
-                    if (_getStaticMediaSources is null)
-                    {
-                        _getStaticMediaSources = mediaSourceManagerType
-                            .GetMethod("GetStaticMediaSources",
-                                new[]
-                                {
-                                    typeof(BaseItem),
-                                    typeof(bool), // enableAlternateMediaSources
-                                    typeof(bool), // enablePathSubstitution
-                                    typeof(bool), // fillMediaStreams
-                                    typeof(bool), // fillChapters
-                                    typeof(BaseItem[]), // collectionFolders
-                                    typeof(LibraryOptions),
-                                    typeof(DeviceProfile),
-                                    typeof(User),
-                                    typeof(CancellationToken)
-                                });
-                    }
-            
-                    // 如果 10 参数未找到，尝试 5 参数版本: BaseItem, bool, bool, DeviceProfile, User (可选)
-                    if (_getStaticMediaSources is null)
-                    {
-                        _getStaticMediaSources = mediaSourceManagerType
-                            .GetMethod("GetStaticMediaSources",
-                                new[]
-                                {
-                                    typeof(BaseItem),
-                                    typeof(bool), // enablePathSubstitution
-                                    typeof(bool), // fillChapters
-                                    typeof(DeviceProfile)
-                                    // 不包含可选的 User
-                                });
-                    }
-            
-                    // 可以继续添加其他可能的签名...
-            
                 }
                 catch (Exception e)
                 {
@@ -165,283 +85,77 @@ namespace StrmAssistant.Common
                         _logger.Debug(e.StackTrace);
                     }
                 }
-            
+
                 if (_getStaticMediaSources is null)
                 {
-                    // 修复：明确记录失败，并设置 PatchApproach 为 None
-                    _logger.Warn($"{PatchTracker.PatchType.Name} Init Failed - GetStaticMediaSources method not found with expected signatures for Emby 4.9.x. Falling back to standard API calls without patching. Some features may behave differently.");
-                    PatchTracker.FallbackPatchApproach = PatchApproach.None; // 确保不使用 Harmony 或 Reflection
+                    _logger.Warn($"{PatchTracker.PatchType.Name} Init Failed");
+                    PatchTracker.FallbackPatchApproach = PatchApproach.None;
                 }
-                else
+                else if (Plugin.Instance.IsModSupported)
                 {
-                    // 修复：只有在找到方法时才尝试应用 ReversePatch
-                    if (Plugin.Instance.IsModSupported)
-                    {
-                        try
-                        {
-                            // 确保 Stub 签名与 _getStaticMediaSources 匹配
-                            // 这是一个复杂点：你需要为每种可能找到的签名准备对应的 Stub 和调用方法
-                            // 为了简化，我们只处理已知的几种情况，或者统一处理为 None
-                            // 如果签名不固定，最好还是放弃 Harmony，只用 Reflection 或标准 API
-                            // 假设我们只处理 7 参数或 10 参数的情况，并且有对应的 Stub
-            
-                            var paramCount = _getStaticMediaSources.GetParameters().Length;
-                            if (paramCount == 7)
-                            {
-                                // 假设 GetStaticMediaSourcesStub 已经匹配 7 参数
-                                PatchManager.ReversePatch(PatchTracker, _getStaticMediaSources, nameof(GetStaticMediaSourcesStub));
-                            }
-                            else if (paramCount == 10)
-                            {
-                                // 需要另一个 Stub，例如 GetStaticMediaSourcesStub10
-                                // 这会增加代码复杂性
-                                // 为简化，我们暂时不应用 Harmony，直接使用标准 API
-                                _logger.Warn($"{PatchTracker.PatchType.Name} Found 10-parameter GetStaticMediaSources, but Harmony Stub not adapted. Falling back to standard API for this path too.");
-                                PatchTracker.FallbackPatchApproach = PatchApproach.None;
-                                // 重置 _getStaticMediaSources 为 null，以便在 GetStaticMediaSourcesByRef 中也能触发降级
-                                _getStaticMediaSources = null;
-                            }
-                            else if (paramCount == 5)
-                            {
-                                // 需要另一个 Stub，例如 GetStaticMediaSourcesStub5
-                                _logger.Warn($"{PatchTracker.PatchType.Name} Found 5-parameter GetStaticMediaSources, but Harmony Stub not adapted. Falling back to standard API for this path too.");
-                                PatchTracker.FallbackPatchApproach = PatchApproach.None;
-                                 _getStaticMediaSources = null;
-                            }
-                            else
-                            {
-                                _logger.Warn($"{PatchTracker.PatchType.Name} Found GetStaticMediaSources with {paramCount} parameters, which is unexpected. Falling back to standard API.");
-                                PatchTracker.FallbackPatchApproach = PatchApproach.None;
-                                 _getStaticMediaSources = null;
-                            }
-            
-                        }
-                        catch (Exception e)
-                        {
-                            _logger.Warn($"{PatchTracker.PatchType.Name} Reverse Patch Failed: {e.Message}. Falling back to standard API.");
-                            PatchTracker.FallbackPatchApproach = PatchApproach.None;
-                             _getStaticMediaSources = null; // 确保不使用 Harmony 或 Reflection
-                        }
-                    }
-                    else
-                    {
-                        // 如果不支持 Mod，也设置为 None
-                         _logger.Info($"{PatchTracker.PatchType.Name} Mod not supported. Using standard API.");
-                         PatchTracker.FallbackPatchApproach = PatchApproach.None;
-                          _getStaticMediaSources = null; // 确保不使用 Harmony 或 Reflection
-                    }
+                    PatchManager.ReversePatch(PatchTracker, _getStaticMediaSources,
+                        nameof(GetStaticMediaSourcesStub));
                 }
             }
-            else
-            {
-                // 如果 AppVer < Ver49025，也使用标准 API
-                _logger.Info($"{PatchTracker.PatchType.Name} AppVer < Ver49025. Using standard API.");
-                PatchTracker.FallbackPatchApproach = PatchApproach.None;
-                 _getStaticMediaSources = null; // 确保不使用 Harmony 或 Reflection
-            }
 
-        // [HarmonyReversePatch]
-        // private static List<MediaSourceInfo> GetStaticMediaSourcesStub(IMediaSourceManager instance, BaseItem item,
-        //     bool enableAlternateMediaSources, bool enablePathSubstitution, bool fillChapters,
-        //     LibraryOptions libraryOptions, DeviceProfile deviceProfile, User user = null) =>
-        //     throw new NotImplementedException();
-
-        // 修复：Stub 签名匹配 7 个必需参数的版本，不包含可选的 User
-        [HarmonyReversePatch]
-        private static List<MediaSourceInfo> GetStaticMediaSourcesStub(IMediaSourceManager instance, BaseItem item,
-            bool enableAlternateMediaSources, bool enablePathSubstitution, bool fillChapters, // 修复：顺序和参数
-            BaseItem[] collectionFolders, LibraryOptions libraryOptions, DeviceProfile deviceProfile)
-            // 修复：不包含可选的 User 参数
-            => throw new NotImplementedException();     
-
-        // 修改 GetStaticMediaSourcesByApi 方法，使其也处理异常
-        private List<MediaSourceInfo> GetStaticMediaSourcesByApi(BaseItem item, bool enableAlternateMediaSources,
-            LibraryOptions libraryOptions)
-        {
-            // 修复：只调用 7 个必需参数的版本，不传递可选的 User 参数
-            // BaseItem, bool, bool, bool, BaseItem[], LibraryOptions, DeviceProfile
             try
             {
-                return _mediaSourceManager.GetStaticMediaSources(item, enableAlternateMediaSources, false, // enablePathSubstitution
-                    false, // fillChapters
-                    Array.Empty<BaseItem>(), // collectionFolders
-                    libraryOptions,
-                    null  // deviceProfile
-                    // 不传递 User 参数，使用其默认值 null
-                );
+                var alwaysIgnoreExtensions = libraryMonitor.GetType()
+                    .GetField("_alwaysIgnoreExtensions", BindingFlags.Instance | BindingFlags.NonPublic);
+                var currentArray = (string[])alwaysIgnoreExtensions.GetValue(libraryMonitor);
+                var newArray = currentArray.Concat(new[] { ".json" }).ToArray();
+                alwaysIgnoreExtensions.SetValue(libraryMonitor, newArray);
             }
             catch (Exception e)
             {
-                _logger.Warn($"GetStaticMediaSourcesByApi failed: {e.Message}. Returning empty list.");
-                return new List<MediaSourceInfo>();
+                if (Plugin.Instance.DebugMode)
+                {
+                    _logger.Debug(e.Message);
+                    _logger.Debug(e.StackTrace);
+                }
+
+                _logger.Warn($"{PatchTracker.PatchType.Name} Init Failed");
+                PatchTracker.FallbackPatchApproach = PatchApproach.None;
             }
         }
-        
-        // 修改 GetStaticMediaSourcesByRef 方法，使其在 PatchApproach 为 None 时也返回标准 API 调用结果
+
+        [HarmonyReversePatch]
+        private static List<MediaSourceInfo> GetStaticMediaSourcesStub(IMediaSourceManager instance, BaseItem item,
+            bool enableAlternateMediaSources, bool enablePathSubstitution, bool fillChapters,
+            LibraryOptions libraryOptions, DeviceProfile deviceProfile, User user = null) =>
+            throw new NotImplementedException();
+
+        private List<MediaSourceInfo> GetStaticMediaSourcesByApi(BaseItem item, bool enableAlternateMediaSources,
+            LibraryOptions libraryOptions)
+        {
+            return _mediaSourceManager.GetStaticMediaSources(item, enableAlternateMediaSources, false,
+                libraryOptions, null, null);
+        }
+
         private List<MediaSourceInfo> GetStaticMediaSourcesByRef(BaseItem item, bool enableAlternateMediaSources,
             LibraryOptions libraryOptions)
         {
-            // 如果 PatchTracker.FallbackPatchApproach 是 None，或者 _getStaticMediaSources 是 null，
-            // 说明无法使用 Harmony 或 Reflection，应该降级到标准 API
-            if (PatchTracker.FallbackPatchApproach == PatchApproach.None || _getStaticMediaSources == null)
-            {
-                // 直接调用标准 API，逻辑与 GetStaticMediaSources 方法中的 else 分支一致
-                try
-                {
-                    return _mediaSourceManager.GetStaticMediaSources(item, enableAlternateMediaSources, false, false, Array.Empty<BaseItem>(), libraryOptions, null);
-                }
-                catch (Exception e)
-                {
-                    _logger.Warn($"GetStaticMediaSourcesByRef (standard call) failed: {e.Message}. Returning empty list.");
-                    return new List<MediaSourceInfo>();
-                }
-            }
-        
-            // 否则，尝试使用 Harmony 或 Reflection
             switch (PatchTracker.FallbackPatchApproach)
             {
                 case PatchApproach.Harmony:
-                    // 修复：调用匹配 Stub 签名的方法 (7 个必需参数，可选 User 用默认值)
-                    // 这里需要根据 _getStaticMediaSources 的实际签名来调用对应的 Stub
-                    // 由于我们可能有多种签名，这变得复杂
-                    // 最简单的方式是假设 Stub 与 _getStaticMediaSources 匹配，并且我们只处理一种主要签名
-                    // 如果有多种，需要根据 _getStaticMediaSources 的参数数量来决定调用哪个 Stub
-                    // 为了简化，假设 Stub 是 7 参数的
-                    var paramCount = _getStaticMediaSources.GetParameters().Length;
-                    if (paramCount == 7)
-                    {
-                         return GetStaticMediaSourcesStub(_mediaSourceManager, item, enableAlternateMediaSources, false, // enablePathSubstitution
-                            false, // fillChapters
-                            Array.Empty<BaseItem>(), // collectionFolders
-                            libraryOptions,
-                            null  // deviceProfile
-                            // 不传递可选的 User 参数
-                        );
-                    }
-                    else
-                    {
-                         _logger.Warn($"GetStaticMediaSourcesByRef: Harmony Stub signature mismatch for {paramCount} parameters. This should not happen if PatchManager worked.");
-                         // 降级
-                         return _mediaSourceManager.GetStaticMediaSources(item, enableAlternateMediaSources, false, false, Array.Empty<BaseItem>(), libraryOptions, null);
-                    }
-        
+                    return GetStaticMediaSourcesStub(_mediaSourceManager, item, enableAlternateMediaSources, false,
+                        false, libraryOptions, null, null);
                 case PatchApproach.Reflection:
-                    // 修复：使用正确的 7 个必需参数调用 (不包含可选的 User)
-                    // 同样，需要根据 _getStaticMediaSources 的实际参数数量来传递参数
-                    paramCount = _getStaticMediaSources.GetParameters().Length;
-                    if (paramCount == 7)
-                    {
-                        return (List<MediaSourceInfo>)_getStaticMediaSources.Invoke(_mediaSourceManager,
-                            new object[]
-                            {
-                                item,
-                                enableAlternateMediaSources,
-                                false, // enablePathSubstitution
-                                false, // fillChapters
-                                Array.Empty<BaseItem>(), // collectionFolders
-                                libraryOptions,
-                                null   // deviceProfile
-                                // 不包含可选的 User 参数
-                            });
-                    }
-                    else if (paramCount == 10)
-                    {
-                         return (List<MediaSourceInfo>)_getStaticMediaSources.Invoke(_mediaSourceManager,
-                            new object[]
-                            {
-                                item,
-                                enableAlternateMediaSources,
-                                false, // enablePathSubstitution
-                                false, // fillMediaStreams
-                                false, // fillChapters
-                                Array.Empty<BaseItem>(), // collectionFolders
-                                libraryOptions,
-                                null,   // deviceProfile
-                                null,   // user
-                                CancellationToken.None // cancellationToken
-                            });
-                    }
-                    else if (paramCount == 5)
-                    {
-                         return (List<MediaSourceInfo>)_getStaticMediaSources.Invoke(_mediaSourceManager,
-                            new object[]
-                            {
-                                item,
-                                false, // enablePathSubstitution
-                                false, // fillChapters
-                                null,   // deviceProfile
-                                // 不包含可选的 User
-                            });
-                    }
-                    else
-                    {
-                         _logger.Warn($"GetStaticMediaSourcesByRef: Reflection signature mismatch for {paramCount} parameters.");
-                         // 降级
-                         return _mediaSourceManager.GetStaticMediaSources(item, enableAlternateMediaSources, false, false, Array.Empty<BaseItem>(), libraryOptions, null);
-                    }
+                    return (List<MediaSourceInfo>)_getStaticMediaSources.Invoke(_mediaSourceManager,
+                        new object[] { item, enableAlternateMediaSources, false, false, libraryOptions, null, null });
                 default:
                     throw new NotImplementedException();
             }
         }
 
-        
-        // 修改 GetStaticMediaSources 方法，使其在补丁失败时使用标准 API
         public List<MediaSourceInfo> GetStaticMediaSources(BaseItem item, bool enableAlternateMediaSources)
         {
             var options = _libraryManager.GetLibraryOptions(item);
-        
-            if (AppVer >= Ver49025 && PatchTracker.FallbackPatchApproach != PatchApproach.None && _getStaticMediaSources != null)
-            {
-                // 尝试使用 Harmony/Reflection (如果 _getStaticMediaSources 不为 null 且 PatchApproach 不为 None)
-                // 注意：如果在构造函数中 PatchApproach 被设为 None，但 _getStaticMediaSources 未被重置为 null，
-                // 这里会尝试调用 GetStaticMediaSourcesByRef，但 GetStaticMediaSourcesByRef 内部会根据 PatchApproach 选择行为
-                // 更安全的做法是在 PatchApproach 为 None 时也重置 _getStaticMediaSources 为 null
-                // 这样下面的 else 分支就会执行
-                return GetStaticMediaSourcesByRef(item, enableAlternateMediaSources, options);
-            }
-            else
-            {
-                // 降级到标准 API 调用
-                // 尝试调用一个在 4.9.x 中最可能存在的重载
-                // 优先尝试 7 参数版本 (与我们尝试查找的签名匹配)
-                try
-                {
-                    // 注意：这里调用的是 _mediaSourceManager.GetStaticMediaSources，而不是 this.GetStaticMediaSourcesByApi
-                    // this.GetStaticMediaSourcesByApi 也是用来调用 _mediaSourceManager 的，但可能包含额外的错误处理逻辑
-                    // 直接调用 _mediaSourceManager 更清晰
-                    return _mediaSourceManager.GetStaticMediaSources(item, enableAlternateMediaSources, false, false, Array.Empty<BaseItem>(), options, null);
-                }
-                catch (Exception e7)
-                {
-                    _logger.Debug($"Standard GetStaticMediaSources 7-param call failed: {e7.Message}. Trying BaseItem + User (if exists).");
-        
-                    // 如果 7 参数失败，尝试更简单的调用 (如果存在)
-                    // 例如，尝试只接受 BaseItem 和 User 的版本
-                    // 注意：这会忽略 enableAlternateMediaSources 参数的效果
-                    try
-                    {
-                        // 假设存在一个接受 BaseItem 和可选 User 的重载
-                        // 这个调用无法传递 enableAlternateMediaSources，所以功能可能有差异
-                        // return _mediaSourceManager.GetStaticMediaSources(item, null);
-                        // 或者尝试其他可能的简单签名
-                        // 由于不确定具体签名，记录警告并返回空列表可能是最安全的降级方式
-                        // 或者尝试一个可能接受 BaseItem 和 LibraryOptions 的版本 (如果存在)
-                        // return _mediaSourceManager.GetStaticMediaSources(item, options); // 这个签名很可能不存在
-        
-                        // 最终降级：返回一个空列表，表示没有找到静态媒体源
-                        // 这可能会导致依赖此方法的功能出现问题，但插件不会崩溃
-                        _logger.Warn($"All attempts to call _mediaSourceManager.GetStaticMediaSources failed. This may affect MediaInfo extraction or other features relying on this call. Returning empty list.");
-                        return new List<MediaSourceInfo>();
-                    }
-                    catch (Exception eSimple)
-                    {
-                         _logger.Warn($"Fallback _mediaSourceManager.GetStaticMediaSources call also failed: {eSimple.Message}. Returning empty list.");
-                         return new List<MediaSourceInfo>();
-                    }
-                }
-            }
-        }
 
+            return AppVer >= Ver49025
+                ? GetStaticMediaSourcesByRef(item, enableAlternateMediaSources, options)
+                : GetStaticMediaSourcesByApi(item, enableAlternateMediaSources, options);
+        }
 
         public MetadataRefreshOptions GetMediaInfoRefreshOptions()
         {
