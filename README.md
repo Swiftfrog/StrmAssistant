@@ -1,4 +1,12 @@
-# Emby神医助手
+# Emby-Strm Assistant Lite
+
+适配emby 4.9.1.80
+
+感谢作者sjtuross
+
+我只需要提取strm信息并保存到json，故暂时只有lite功能。
+
+需要全功能，请联系sjtuross。
 
 ![logo](StrmAssistant/Properties/thumb.png "logo")
 
