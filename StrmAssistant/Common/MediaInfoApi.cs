@@ -1,4 +1,3 @@
-using HarmonyLib;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Audio;
 using MediaBrowser.Controller.Entities.TV;
@@ -6,7 +5,6 @@ using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Persistence;
 using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Configuration;
-using MediaBrowser.Model.Dlna;
 using MediaBrowser.Model.Dto;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.IO;
@@ -19,11 +17,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using static StrmAssistant.Common.CommonUtility;
-using static StrmAssistant.Options.Utility;
 
 namespace StrmAssistant.Common
 {
@@ -39,12 +35,6 @@ namespace StrmAssistant.Common
 
         private const string MediaInfoFileExtension = "-mediainfo.json";
 
-        private static readonly PatchTracker PatchTracker =
-            new PatchTracker(typeof(MediaInfoApi),
-                Plugin.Instance.IsModSupported ? PatchApproach.Harmony : PatchApproach.Reflection);
-
-        private readonly MethodInfo _getStaticMediaSources;
-
         internal class MediaSourceWithChapters
         {
             public MediaSourceInfo MediaSourceInfo { get; set; }
@@ -53,8 +43,13 @@ namespace StrmAssistant.Common
             public string EmbeddedImage { get; set; }
         }
 
-        public MediaInfoApi(ILibraryManager libraryManager, IFileSystem fileSystem, IProviderManager providerManager,
-            IMediaSourceManager mediaSourceManager, IItemRepository itemRepository, IJsonSerializer jsonSerializer,
+        public MediaInfoApi(
+            ILibraryManager libraryManager,
+            IFileSystem fileSystem,
+            IProviderManager providerManager,
+            IMediaSourceManager mediaSourceManager,
+            IItemRepository itemRepository,
+            IJsonSerializer jsonSerializer,
             ILibraryMonitor libraryMonitor)
         {
             _logger = Plugin.Instance.Logger;
@@ -65,53 +60,13 @@ namespace StrmAssistant.Common
             _itemRepository = itemRepository;
             _jsonSerializer = jsonSerializer;
 
-            //++
-            if (AppVer >= Ver49025)
-            {
-                try
-                {
-                    _getStaticMediaSources = mediaSourceManager.GetType()
-                        .GetMethod("GetStaticMediaSources",
-                            new[]
-                            {
-                                typeof(BaseItem), // item
-                                typeof(bool),     // enableAlternateMediaSources
-                                typeof(bool),     // enablePathSubstitution
-                                typeof(bool),     // fillMediaStreams  <-- 新增参数
-                                typeof(bool),     // fillChapters
-                                typeof(BaseItem[]), // collectionFolders
-                                typeof(LibraryOptions), // libraryOptions
-                                typeof(DeviceProfile), // deviceProfile
-                                typeof(User),     // user
-                                typeof(CancellationToken) // cancellationToken <-- 新增参数
-                            });
-                }
-                catch (Exception e)
-                {
-                    if (Plugin.Instance.DebugMode)
-                    {
-                        _logger.Debug(e.Message);
-                        _logger.Debug(e.StackTrace);
-                    }
-                }
-            
-                if (_getStaticMediaSources is null)
-                {
-                    _logger.Warn($"{PatchTracker.PatchType.Name} Init Failed");
-                    PatchTracker.FallbackPatchApproach = PatchApproach.None;
-                }
-                else if (Plugin.Instance.IsModSupported)
-                {
-                    PatchManager.ReversePatch(PatchTracker, _getStaticMediaSources,
-                        nameof(GetStaticMediaSourcesStub));
-                }
-            }
-            //++
-            
+            // 移除所有 Harmony/Reflection 初始化逻辑
+
+            // 保留 .json 忽略逻辑（这个仍然有用）
             try
             {
                 var alwaysIgnoreExtensions = libraryMonitor.GetType()
-                    .GetField("_alwaysIgnoreExtensions", BindingFlags.Instance | BindingFlags.NonPublic);
+                    .GetField("_alwaysIgnoreExtensions", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
                 var currentArray = (string[])alwaysIgnoreExtensions.GetValue(libraryMonitor);
                 var newArray = currentArray.Concat(new[] { ".json" }).ToArray();
                 alwaysIgnoreExtensions.SetValue(libraryMonitor, newArray);
@@ -123,57 +78,26 @@ namespace StrmAssistant.Common
                     _logger.Debug(e.Message);
                     _logger.Debug(e.StackTrace);
                 }
-
-                _logger.Warn($"{PatchTracker.PatchType.Name} Init Failed");
-                PatchTracker.FallbackPatchApproach = PatchApproach.None;
+                _logger.Warn("Failed to patch library monitor to ignore .json files");
             }
         }
 
-        [HarmonyReversePatch]
-        private static List<MediaSourceInfo> GetStaticMediaSourcesStub(IMediaSourceManager instance, BaseItem item,
-            bool enableAlternateMediaSources, bool enablePathSubstitution, bool fillMediaStreams, bool fillChapters,
-            BaseItem[] collectionFolders, LibraryOptions libraryOptions, DeviceProfile deviceProfile, User user = null, CancellationToken cancellationToken = default) =>
-            throw new NotImplementedException();
-
-        // private List<MediaSourceInfo> GetStaticMediaSourcesByApi(BaseItem item, bool enableAlternateMediaSources,
-        //     LibraryOptions libraryOptions)
-        // {
-        //     return _mediaSourceManager.GetStaticMediaSources(item, enableAlternateMediaSources, false,
-        //         libraryOptions, null, null);
-        // }
-
-        private List<MediaSourceInfo> GetStaticMediaSourcesByRef(BaseItem item, bool enableAlternateMediaSources,
-            LibraryOptions libraryOptions)
-        {
-            switch (PatchTracker.FallbackPatchApproach)
-            {
-                case PatchApproach.Harmony:
-                    // 注意：这里需要传入所有参数，包括 collectionFolders, fillMediaStreams, cancellationToken
-                    return GetStaticMediaSourcesStub(_mediaSourceManager, item, enableAlternateMediaSources, false,
-                        true, // fillMediaStreams - 通常设为 true 以填充媒体流信息
-                        false, // fillChapters - 根据你的需求设置
-                        null, // collectionFolders - 通常为 null
-                        libraryOptions, null, null, CancellationToken.None); // user and cancellationToken
-                case PatchApproach.Reflection:
-                    // 同样，需要传入所有参数
-                    return (List<MediaSourceInfo>)_getStaticMediaSources.Invoke(_mediaSourceManager,
-                        new object[] { item, enableAlternateMediaSources, false,
-                            true, // fillMediaStreams
-                            false, // fillChapters
-                            null, // collectionFolders
-                            libraryOptions, null, null, CancellationToken.None }); // deviceProfile, user, cancellationToken
-                default:
-                    throw new NotImplementedException();
-            }
-        }
-
+        // ✅ 核心方法：直接调用 Emby 4.9+ 公开 API
         public List<MediaSourceInfo> GetStaticMediaSources(BaseItem item, bool enableAlternateMediaSources)
         {
             var options = _libraryManager.GetLibraryOptions(item);
-            return GetStaticMediaSourcesByRef(item, enableAlternateMediaSources, options);
-            // return AppVer >= Ver49025
-            //     ? GetStaticMediaSourcesByRef(item, enableAlternateMediaSources, options)
-            //     : GetStaticMediaSourcesByApi(item, enableAlternateMediaSources, options);
+            return _mediaSourceManager.GetStaticMediaSources(
+                item: item,
+                enableAlternateMediaSources: enableAlternateMediaSources,
+                enablePathSubstitution: false,
+                fillMediaStreams: true,      // 必须为 true 才能获取媒体流
+                fillChapters: false,         // 本插件不需要章节（章节单独处理）
+                collectionFolders: null,
+                libraryOptions: options,
+                deviceProfile: null,
+                user: null,
+                cancellationToken: CancellationToken.None
+            );
         }
 
         public MetadataRefreshOptions GetMediaInfoRefreshOptions()
@@ -198,9 +122,7 @@ namespace StrmAssistant.Common
         public bool HasMediaInfo(BaseItem item)
         {
             if (!item.RunTimeTicks.HasValue) return false;
-
             if (item.Size == 0L) return false;
-
             return GetMediaStreamsSafe(item)
                 .Any(i => (i.Type == MediaStreamType.Video || i.Type == MediaStreamType.Audio) && !i.IsExternal);
         }
@@ -218,27 +140,23 @@ namespace StrmAssistant.Common
         public static string GetMediaInfoJsonPath(BaseItem item)
         {
             var jsonRootFolder = Plugin.Instance.MediaInfoExtractStore.GetOptions().MediaInfoJsonRootFolder;
-
             var relativePath = item.ContainingFolderPath;
+
             if (!string.IsNullOrEmpty(jsonRootFolder) && Path.IsPathRooted(item.ContainingFolderPath))
             {
-                relativePath = Path.GetRelativePath(Path.GetPathRoot(item.ContainingFolderPath)!,
-                    item.ContainingFolderPath);
+                relativePath = Path.GetRelativePath(Path.GetPathRoot(item.ContainingFolderPath)!, item.ContainingFolderPath);
             }
 
-            var mediaInfoJsonPath = item is Folder
+            return item is Folder
                 ? !string.IsNullOrEmpty(jsonRootFolder)
                     ? Path.Combine(jsonRootFolder, relativePath)
                     : item.ContainingFolderPath
                 : !string.IsNullOrEmpty(jsonRootFolder)
                     ? Path.Combine(jsonRootFolder, relativePath, item.FileNameWithoutExtension + MediaInfoFileExtension)
                     : Path.Combine(item.ContainingFolderPath!, item.FileNameWithoutExtension + MediaInfoFileExtension);
-
-            return mediaInfoJsonPath;
         }
 
-        private async Task<bool> SerializeMediaInfo(BaseItem item, IDirectoryService directoryService, bool overwrite,
-            string source)
+        private async Task<bool> SerializeMediaInfo(BaseItem item, IDirectoryService directoryService, bool overwrite, string source)
         {
             var mediaInfoJsonPath = GetMediaInfoJsonPath(item);
             var file = directoryService.GetFile(mediaInfoJsonPath);
@@ -251,8 +169,7 @@ namespace StrmAssistant.Common
                     var mediaSources = item.GetMediaSources(false, false, options);
                     var chapters = _itemRepository.GetChapters(item);
                     var mediaSourcesWithChapters = mediaSources.Select(mediaSource =>
-                            new MediaSourceWithChapters
-                                { MediaSourceInfo = mediaSource, Chapters = chapters })
+                            new MediaSourceWithChapters { MediaSourceInfo = mediaSource, Chapters = chapters })
                         .ToList();
 
                     foreach (var jsonItem in mediaSourcesWithChapters)
@@ -262,8 +179,7 @@ namespace StrmAssistant.Common
                         jsonItem.MediaSourceInfo.Path = null;
 
                         foreach (var subtitle in jsonItem.MediaSourceInfo.MediaStreams.Where(m =>
-                                     m.IsExternal && m.Type == MediaStreamType.Subtitle &&
-                                     m.Protocol == MediaProtocol.File))
+                                     m.IsExternal && m.Type == MediaStreamType.Subtitle && m.Protocol == MediaProtocol.File))
                         {
                             subtitle.Path = _fileSystem.GetFileInfo(subtitle.Path).Name;
                         }
@@ -284,11 +200,8 @@ namespace StrmAssistant.Common
                             var primaryImageInfo = item.GetImageInfo(ImageType.Primary, 0);
                             if (primaryImageInfo != null && _fileSystem.FileExists(primaryImageInfo.Path))
                             {
-                                var imageBytes = await _fileSystem
-                                    .ReadAllBytesAsync(primaryImageInfo.Path, CancellationToken.None)
-                                    .ConfigureAwait(false);
-                                var base64String = Convert.ToBase64String(imageBytes);
-                                jsonItem.EmbeddedImage = base64String;
+                                var imageBytes = await _fileSystem.ReadAllBytesAsync(primaryImageInfo.Path, CancellationToken.None).ConfigureAwait(false);
+                                jsonItem.EmbeddedImage = Convert.ToBase64String(imageBytes);
                             }
                         }
                     }
@@ -300,51 +213,41 @@ namespace StrmAssistant.Common
                     }
 
                     _jsonSerializer.SerializeToFile(mediaSourcesWithChapters, mediaInfoJsonPath);
-
-                    _logger.Info("MediaInfoPersist - Serialization Success (" + source + "): " + mediaInfoJsonPath);
-
+                    _logger.Info($"MediaInfoPersist - Serialization Success ({source}): {mediaInfoJsonPath}");
                     return true;
                 }
                 catch (Exception e)
                 {
-                    _logger.Error("MediaInfoPersist - Serialization Failed (" + source + "): " + mediaInfoJsonPath);
+                    _logger.Error($"MediaInfoPersist - Serialization Failed ({source}): {mediaInfoJsonPath}");
                     _logger.Error(e.Message);
                     _logger.Debug(e.StackTrace);
                 }
             }
-
             return false;
         }
 
-        public async Task<bool> SerializeMediaInfo(long itemId, IDirectoryService directoryService, bool overwrite,
-            string source)
+        public async Task<bool> SerializeMediaInfo(long itemId, IDirectoryService directoryService, bool overwrite, string source)
         {
             var workItem = _libraryManager.GetItemById(itemId);
-
             if (!Plugin.LibraryApi.IsLibraryInScope(workItem)) return false;
-
             if (!HasMediaInfo(workItem))
             {
                 _logger.Info($"MediaInfoPersist - Serialization Skipped - No MediaInfo ({source})");
                 return false;
             }
-
             if (workItem.Size == 0L || !workItem.RunTimeTicks.HasValue)
             {
                 _logger.Info($"MediaInfoPersist - Serialization Skipped - Abnormal MediaInfo ({source})");
                 return false;
             }
-            
-            var ds = directoryService ?? new DirectoryService(_logger, _fileSystem);
 
+            var ds = directoryService ?? new DirectoryService(_logger, _fileSystem);
             return await SerializeMediaInfo(workItem, ds, overwrite, source).ConfigureAwait(false);
         }
 
-        public async Task<bool> DeserializeMediaInfo(BaseItem item, IDirectoryService directoryService, string source,
-            bool ignoreFileChange)
+        public async Task<bool> DeserializeMediaInfo(BaseItem item, IDirectoryService directoryService, string source, bool ignoreFileChange)
         {
             var workItem = _libraryManager.GetItemById(item.InternalId);
-
             if (HasMediaInfo(workItem)) return true;
 
             var mediaInfoJsonPath = GetMediaInfoJsonPath(item);
@@ -354,33 +257,27 @@ namespace StrmAssistant.Common
             {
                 try
                 {
-                    var mediaSourceWithChapters =
-                        (await _jsonSerializer
-                            .DeserializeFromFileAsync<List<MediaSourceWithChapters>>(mediaInfoJsonPath)
-                            .ConfigureAwait(false)).ToArray()[0];
+                    var mediaSourceWithChapters = (await _jsonSerializer
+                        .DeserializeFromFileAsync<List<MediaSourceWithChapters>>(mediaInfoJsonPath)
+                        .ConfigureAwait(false)).ToArray()[0];
 
                     var mediaSource = mediaSourceWithChapters?.MediaSourceInfo;
                     if (mediaSource != null && mediaSource.Size > 0L && mediaSource.RunTimeTicks.HasValue &&
                         (ignoreFileChange || !Plugin.LibraryApi.HasFileChanged(item, directoryService)))
                     {
                         foreach (var subtitle in mediaSourceWithChapters.MediaSourceInfo.MediaStreams.Where(m =>
-                                     m.IsExternal && m.Type == MediaStreamType.Subtitle &&
-                                     m.Protocol == MediaProtocol.File))
+                                     m.IsExternal && m.Type == MediaStreamType.Subtitle && m.Protocol == MediaProtocol.File))
                         {
-                            subtitle.Path = Path.Combine(workItem.ContainingFolderPath,
-                                _fileSystem.GetFileInfo(subtitle.Path).Name);
+                            subtitle.Path = Path.Combine(workItem.ContainingFolderPath, _fileSystem.GetFileInfo(subtitle.Path).Name);
                         }
 
-                        _itemRepository.SaveMediaStreams(item.InternalId,
-                            mediaSourceWithChapters.MediaSourceInfo.MediaStreams, CancellationToken.None);
+                        _itemRepository.SaveMediaStreams(item.InternalId, mediaSourceWithChapters.MediaSourceInfo.MediaStreams, CancellationToken.None);
 
                         if (workItem is Audio && !string.IsNullOrEmpty(mediaSourceWithChapters.EmbeddedImage))
                         {
                             var imageBytes = Convert.FromBase64String(mediaSourceWithChapters.EmbeddedImage);
-                            var tempPath = Path.Combine(Plugin.Instance.ApplicationPaths.TempDirectory,
-                                Guid.NewGuid() + ".jpg");
-                            await _fileSystem.WriteAllBytesAsync(tempPath, imageBytes, CancellationToken.None)
-                                .ConfigureAwait(false);
+                            var tempPath = Path.Combine(Plugin.Instance.ApplicationPaths.TempDirectory, Guid.NewGuid() + ".jpg");
+                            await _fileSystem.WriteAllBytesAsync(tempPath, imageBytes, CancellationToken.None).ConfigureAwait(false);
 
                             var libraryOptions = _libraryManager.GetLibraryOptions(workItem);
                             await _providerManager.SaveImage(workItem, libraryOptions, tempPath, ImageType.Primary,
@@ -410,19 +307,15 @@ namespace StrmAssistant.Common
                         if (workItem is Video video)
                         {
                             PersistMediaInfoHelper.BypassChapterInstance(video);
-
-                            await DeserializeChapterInfo(video, mediaSourceWithChapters.Chapters, directoryService,
-                                source).ConfigureAwait(false);
+                            await DeserializeChapterInfo(video, mediaSourceWithChapters.Chapters, directoryService, source).ConfigureAwait(false);
 
                             if (video is Episode && mediaSourceWithChapters.ZeroFingerprintConfidence is true)
                             {
-                                _itemRepository.LogIntroDetectionFailureFailure(video.InternalId,
-                                    item.DateModified.ToUnixTimeSeconds());
+                                _itemRepository.LogIntroDetectionFailureFailure(video.InternalId, item.DateModified.ToUnixTimeSeconds());
                             }
                         }
 
                         _logger.Info($"MediaInfoPersist - Deserialization Success ({source}): {mediaInfoJsonPath}");
-
                         return true;
                     }
 
@@ -435,14 +328,12 @@ namespace StrmAssistant.Common
                     _logger.Debug(e.StackTrace);
                 }
             }
-
             return false;
         }
 
         public void DeleteMediaInfoJson(BaseItem item, IDirectoryService directoryService, string source)
         {
             var mediaInfoJsonPath = GetMediaInfoJsonPath(item);
-
             var file = directoryService.GetFile(mediaInfoJsonPath);
 
             if (file?.Exists is true)
@@ -453,13 +344,10 @@ namespace StrmAssistant.Common
                     _fileSystem.DeleteFile(mediaInfoJsonPath);
 
                     var jsonRoot = Plugin.Instance.MediaInfoExtractStore.GetOptions().MediaInfoJsonRootFolder;
-
                     if (!string.IsNullOrEmpty(jsonRoot))
                     {
                         jsonRoot = _fileSystem.GetFullPath(jsonRoot).TrimEnd(Path.DirectorySeparatorChar);
-
-                        var currentDir =
-                            _fileSystem.GetFullPath(_fileSystem.GetDirectoryName(mediaInfoJsonPath) ?? string.Empty);
+                        var currentDir = _fileSystem.GetFullPath(_fileSystem.GetDirectoryName(mediaInfoJsonPath) ?? string.Empty);
 
                         while (!string.IsNullOrEmpty(currentDir) &&
                                !string.Equals(currentDir, jsonRoot, StringComparison.OrdinalIgnoreCase) &&
@@ -482,9 +370,7 @@ namespace StrmAssistant.Common
         public void DeleteMediaInfoJson(string folderPath, string source)
         {
             var jsonRoot = Plugin.Instance.MediaInfoExtractStore.GetOptions().MediaInfoJsonRootFolder;
-
-            if (!string.IsNullOrEmpty(jsonRoot) && _fileSystem.DirectoryExists(folderPath) &&
-                folderPath.StartsWith(jsonRoot))
+            if (!string.IsNullOrEmpty(jsonRoot) && _fileSystem.DirectoryExists(folderPath) && folderPath.StartsWith(jsonRoot))
             {
                 try
                 {
@@ -492,7 +378,6 @@ namespace StrmAssistant.Common
                     _fileSystem.DeleteDirectory(folderPath, true);
 
                     jsonRoot = _fileSystem.GetFullPath(jsonRoot).TrimEnd(Path.DirectorySeparatorChar);
-
                     var currentDir = folderPath;
 
                     while (!string.IsNullOrEmpty(currentDir) &&
@@ -521,41 +406,31 @@ namespace StrmAssistant.Common
             {
                 try
                 {
-                    var mediaSourceWithChapters =
-                        (await _jsonSerializer
-                            .DeserializeFromFileAsync<List<MediaSourceWithChapters>>(mediaInfoJsonPath)
-                            .ConfigureAwait(false)).ToArray()[0];
+                    var mediaSourceWithChapters = (await _jsonSerializer
+                        .DeserializeFromFileAsync<List<MediaSourceWithChapters>>(mediaInfoJsonPath)
+                        .ConfigureAwait(false)).ToArray()[0];
 
                     if (mediaSourceWithChapters.ZeroFingerprintConfidence is true)
                     {
-                        _itemRepository.LogIntroDetectionFailureFailure(item.InternalId,
-                            item.DateModified.ToUnixTimeSeconds());
-
+                        _itemRepository.LogIntroDetectionFailureFailure(item.InternalId, item.DateModified.ToUnixTimeSeconds());
                         _logger.Info($"ChapterInfoPersist - Log Zero Fingerprint Confidence ({source}): {mediaInfoJsonPath}");
-
                         return true;
                     }
 
-                    var introStart = mediaSourceWithChapters.Chapters
-                        .FirstOrDefault(c => c.MarkerType == MarkerType.IntroStart);
-
-                    var introEnd = mediaSourceWithChapters.Chapters
-                        .FirstOrDefault(c => c.MarkerType == MarkerType.IntroEnd);
+                    var introStart = mediaSourceWithChapters.Chapters.FirstOrDefault(c => c.MarkerType == MarkerType.IntroStart);
+                    var introEnd = mediaSourceWithChapters.Chapters.FirstOrDefault(c => c.MarkerType == MarkerType.IntroEnd);
 
                     if (introStart != null && introEnd != null && introEnd.StartPositionTicks > introStart.StartPositionTicks)
                     {
                         var chapters = _itemRepository.GetChapters(item);
-                        chapters.RemoveAll(c =>
-                            c.MarkerType == MarkerType.IntroStart || c.MarkerType == MarkerType.IntroEnd);
+                        chapters.RemoveAll(c => c.MarkerType == MarkerType.IntroStart || c.MarkerType == MarkerType.IntroEnd);
                         chapters.Add(introStart);
                         chapters.Add(introEnd);
                         chapters.Sort((c1, c2) => c1.StartPositionTicks.CompareTo(c2.StartPositionTicks));
 
                         PersistMediaInfoHelper.BypassChapterInstance(item);
                         _itemRepository.SaveChapters(item.InternalId, chapters);
-
                         _logger.Info($"ChapterInfoPersist - Deserialization Success ({source}): {mediaInfoJsonPath}");
-
                         return true;
                     }
                 }
@@ -566,20 +441,16 @@ namespace StrmAssistant.Common
                     _logger.Debug(e.StackTrace);
                 }
             }
-
             return false;
         }
 
-        public async Task<bool> DeserializeChapterInfo(Video item, List<ChapterInfo> chapters,
-            IDirectoryService directoryService, string source)
+        public async Task<bool> DeserializeChapterInfo(Video item, List<ChapterInfo> chapters, IDirectoryService directoryService, string source)
         {
             var thumbnailResult = false;
 
             if (Plugin.Instance.IsModSupported || !item.IsShortcut)
             {
-                var localThumbnailSets =
-                    Video.GetLocalThumbnailSetInfos(item.Path, item.Id, false, directoryService);
-
+                var localThumbnailSets = Video.GetLocalThumbnailSetInfos(item.Path, item.Id, false, directoryService);
                 if (localThumbnailSets.Length > 0)
                 {
                     var options = _libraryManager.GetLibraryOptions(item);
@@ -590,8 +461,7 @@ namespace StrmAssistant.Common
                     };
 
                     thumbnailResult = await Plugin.VideoThumbnailApi.RefreshThumbnailImages(item,
-                        dummyLibraryOptions, directoryService, chapters, false, false,
-                        CancellationToken.None);
+                        dummyLibraryOptions, directoryService, chapters, false, false, CancellationToken.None);
 
                     if (thumbnailResult)
                     {
@@ -601,28 +471,24 @@ namespace StrmAssistant.Common
             }
 
             _itemRepository.SaveChapters(item.InternalId, true, chapters);
-
             return thumbnailResult;
         }
 
         public void QueueRefreshAlternateVersions(BaseItem item, MetadataRefreshOptions options, bool force)
         {
-            if (!(item is Video video)) return;
-
+            if (item is not Video video) return;
             var altIds = video.GetAlternateVersionIds();
-
             if (!altIds.Any()) return;
 
             var itemsToRefresh = force
                 ? altIds
                 : _libraryManager.GetItemList(new InternalItemsQuery
-                    {
-                        ItemIds = altIds.ToArray(),
-                        HasPath = true,
-                        HasAudioStream = false,
-                        MediaTypes = new[] { MediaType.Video }
-                    })
-                    .Select(i => i.InternalId);
+                {
+                    ItemIds = altIds.ToArray(),
+                    HasPath = true,
+                    HasAudioStream = false,
+                    MediaTypes = new[] { MediaType.Video }
+                }).Select(i => i.InternalId);
 
             foreach (var altId in itemsToRefresh)
             {
@@ -634,23 +500,13 @@ namespace StrmAssistant.Common
         {
             if (string.IsNullOrEmpty(mediaSourceId)) return null;
 
-            BaseItem targetItem = null;
-
             if (item.GetDefaultMediaSourceId() == mediaSourceId)
             {
-                targetItem = item;
-            }
-            else
-            {
-                var mediaSource = item.GetMediaSources(true, false, null).FirstOrDefault(s => s.Id == mediaSourceId);
-
-                if (mediaSource != null)
-                {
-                    targetItem = _libraryManager.GetItemById(mediaSource.ItemId);
-                }
+                return item;
             }
 
-            return targetItem;
+            var mediaSource = item.GetMediaSources(true, false, null).FirstOrDefault(s => s.Id == mediaSourceId);
+            return mediaSource != null ? _libraryManager.GetItemById(mediaSource.ItemId) : null;
         }
     }
 }
