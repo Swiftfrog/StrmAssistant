@@ -6,9 +6,7 @@
 
 我只需要提取strm信息并保存到json，故暂时只有lite功能。
 
-需要全功能，请联系sjtuross。
-
-![logo](StrmAssistant/Properties/thumb.png "logo")
+根据emby的API，独立 的strm媒体信息的插件几乎开发完成，等待发布。
 
 ## [[English]](README.en.md)
 
