@@ -7,7 +7,8 @@
 我只需要提取strm信息并保存到json，故暂时只有lite功能。
 
 单独开发了独立的emby插件，保存strm文件的媒体信息，并升级了一些功能，欢迎使用。
-**[EverMedia](https://github.com/Swiftfrog/EverMedia)**
+
+# **[EverMedia](https://github.com/Swiftfrog/EverMedia)**
 
 ## [[English]](README.en.md)
 
