@@ -8,13 +8,13 @@
 
 ---
 
-**EverMedia，`strm`文件的媒体信息持久化 ，并升级了一些功能，欢迎使用。**
+**EverMedia:** `strm`文件的媒体信息持久化，自动备份恢复。
 
 # **[EverMedia](https://github.com/Swiftfrog/EverMedia)**
 
 ---
 
-**PinyinSeek，拼音排序和搜索，且可恢复，欢迎使用**
+**PinyinSeek:** 拼音排序和搜索，且可恢复.
 
 # **[PinyinSeek](https://github.com/Swiftfrog/PinyinSeek)**
 
