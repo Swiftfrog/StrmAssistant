@@ -1,16 +1,12 @@
-# Emby-Strm Assistant Lite
-
 > 适配emby 4.9.1.80
 
 > 临时只需要提取strm信息并保存到json，故暂时只有lite功能。
 
-注意StrmAssistant的Pro版本会破坏library.db结构，移除插件后，会有一些问题。
+> 注意StrmAssistant的Pro版本会破坏library.db结构，移除插件后，会有一些问题。
 
-单独开发了保存strm信息的emby插件**EverMeida**，并升级了一些功能，欢迎使用。
+# 单独开发了保存strm信息的emby插件**EverMeida**，并升级了一些功能，欢迎使用。
 
 # **[EverMedia](https://github.com/Swiftfrog/EverMedia)**
-
-## [[English]](README.en.md)
 
 ## 用途
 
@@ -29,8 +25,6 @@
 13. 媒体信息持久化
 14. 支持代理服务器
 15. 支持`TMDB`剧集组刮削
-
-## 安装与使用说明请查看 [Wiki](https://github.com/sjtuross/StrmAssistant/wiki)
 
 ## 声明
 
