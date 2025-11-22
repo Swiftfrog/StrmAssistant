@@ -4,11 +4,15 @@
 
 > 注意StrmAssistant 似乎会破坏library.db结构，移除插件后，媒体库会有一些问题。
 
-**单独开发了保存`strm`信息的`emby`插件 `EverMeida` ，并升级了一些功能，欢迎使用。**
+故单独开发了独立功能的插件，完全基于Emby的API。
+
+**EverMedia，`strm`文件的媒体信息持久化 ，并升级了一些功能，欢迎使用。**
 
 # **[EverMedia](https://github.com/Swiftfrog/EverMedia)**
 
-![EverMediaLogo](https://raw.githubusercontent.com/Swiftfrog/swiftfrog.github.io/master/EverMediaLogo.webp)
+**PinyinSeek，拼音排序和搜索，且可恢复，欢迎使用**
+
+# **[PinyinSeek](https://github.com/Swiftfrog/PinyinSeek)**
 
 ## 用途
 
