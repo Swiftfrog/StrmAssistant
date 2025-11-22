@@ -2,7 +2,7 @@
 
 > 临时只需要提取strm信息并保存到json，故暂时只有lite功能。
 
-> 注意StrmAssistant的Pro版本会破坏library.db结构，移除插件后，会有一些问题。
+> 注意StrmAssistant 似乎会破坏library.db结构，移除插件后，媒体库会有一些问题。
 
 单独开发了保存strm信息的emby插件**EverMeida**，并升级了一些功能，欢迎使用。
 
