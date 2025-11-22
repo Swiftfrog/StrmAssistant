@@ -6,13 +6,19 @@
 
 故单独开发了独立功能的插件，完全基于Emby的API。
 
+---
+
 **EverMedia，`strm`文件的媒体信息持久化 ，并升级了一些功能，欢迎使用。**
 
 # **[EverMedia](https://github.com/Swiftfrog/EverMedia)**
 
+---
+
 **PinyinSeek，拼音排序和搜索，且可恢复，欢迎使用**
 
 # **[PinyinSeek](https://github.com/Swiftfrog/PinyinSeek)**
+
+---
 
 ## 用途
 
