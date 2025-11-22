@@ -1,12 +1,12 @@
 # Emby-Strm Assistant Lite
 
-适配emby 4.9.1.80
+> 适配emby 4.9.1.80
 
-感谢作者sjtuross
+> 临时只需要提取strm信息并保存到json，故暂时只有lite功能。
 
-我只需要提取strm信息并保存到json，故暂时只有lite功能。
+注意StrmAssistant的Pro版本会破坏library.db结构，移除插件后，会有一些问题。
 
-单独开发了独立的emby插件，保存strm文件的媒体信息，并升级了一些功能，欢迎使用。
+单独开发了保存strm信息的emby插件**EverMeida**，并升级了一些功能，欢迎使用。
 
 # **[EverMedia](https://github.com/Swiftfrog/EverMedia)**
 
